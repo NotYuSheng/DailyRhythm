@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.liferhythm" "\0"
-            VALUE "FileDescription", "daily_stats_tracker" "\0"
+            VALUE "FileDescription", "LifeRhythm" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "daily_stats_tracker" "\0"
+            VALUE "InternalName", "LifeRhythm" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.liferhythm. All rights reserved." "\0"
-            VALUE "OriginalFilename", "daily_stats_tracker.exe" "\0"
-            VALUE "ProductName", "daily_stats_tracker" "\0"
+            VALUE "OriginalFilename", "LifeRhythm.exe" "\0"
+            VALUE "ProductName", "LifeRhythm" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

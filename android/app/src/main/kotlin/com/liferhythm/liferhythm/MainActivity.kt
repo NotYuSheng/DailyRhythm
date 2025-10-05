@@ -1,4 +1,4 @@
-package com.liferhythm.daily_stats_tracker
+package com.liferhythm.liferhythm
 
 import io.flutter.embedding.android.FlutterActivity
 
