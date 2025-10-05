@@ -3,6 +3,7 @@ import 'package:path/path.dart';
 import '../models/sleep_entry.dart';
 import '../models/nap_entry.dart';
 import '../models/meal_entry.dart';
+import '../models/mood_entry.dart';
 import '../models/tag.dart';
 
 class DatabaseService {
@@ -23,9 +24,44 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 5,
       onCreate: _createDB,
+      onUpgrade: _upgradeDB,
     );
+  }
+
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add mood_entries table for version 2
+      await db.execute('''
+        CREATE TABLE mood_entries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL,
+          timestamp TEXT NOT NULL,
+          moodLevel INTEGER NOT NULL,
+          emoji TEXT NOT NULL,
+          notes TEXT
+        )
+      ''');
+    }
+    if (oldVersion < 3) {
+      // Add napHours column to sleep_entries for version 3
+      await db.execute('''
+        ALTER TABLE sleep_entries ADD COLUMN napHours REAL
+      ''');
+    }
+    if (oldVersion < 4) {
+      // Add calories column to meal_entries for version 4
+      await db.execute('''
+        ALTER TABLE meal_entries ADD COLUMN calories INTEGER
+      ''');
+    }
+    if (oldVersion < 5) {
+      // Add quantity column to meal_entries for version 5
+      await db.execute('''
+        ALTER TABLE meal_entries ADD COLUMN quantity INTEGER DEFAULT 1
+      ''');
+    }
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -37,6 +73,7 @@ class DatabaseService {
         wakeUpTime TEXT,
         sleepTime TEXT,
         totalHours REAL,
+        napHours REAL,
         tags TEXT
       )
     ''');
@@ -59,8 +96,22 @@ class DatabaseService {
         date TEXT NOT NULL,
         time TEXT NOT NULL,
         name TEXT NOT NULL,
+        quantity INTEGER DEFAULT 1,
         price REAL NOT NULL,
+        calories INTEGER,
         tags TEXT,
+        notes TEXT
+      )
+    ''');
+
+    // Mood entries table
+    await db.execute('''
+      CREATE TABLE mood_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        moodLevel INTEGER NOT NULL,
+        emoji TEXT NOT NULL,
         notes TEXT
       )
     ''');
@@ -321,6 +372,62 @@ class DatabaseService {
     final db = await database;
     return await db.delete(
       'tags',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // ==================== Mood Entry CRUD ====================
+
+  Future<int> createMoodEntry(MoodEntry entry) async {
+    final db = await database;
+    return await db.insert('mood_entries', entry.toMap());
+  }
+
+  Future<MoodEntry?> getMoodEntryByDate(DateTime date) async {
+    final db = await database;
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final maps = await db.query(
+      'mood_entries',
+      where: 'date >= ? AND date < ?',
+      whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
+      orderBy: 'timestamp DESC',
+      limit: 1,
+    );
+
+    if (maps.isNotEmpty) {
+      return MoodEntry.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  Future<List<MoodEntry>> getMoodEntriesByDateRange(DateTime start, DateTime end) async {
+    final db = await database;
+    final maps = await db.query(
+      'mood_entries',
+      where: 'date >= ? AND date < ?',
+      whereArgs: [start.toIso8601String(), end.toIso8601String()],
+      orderBy: 'timestamp DESC',
+    );
+    return maps.map((map) => MoodEntry.fromMap(map)).toList();
+  }
+
+  Future<int> updateMoodEntry(MoodEntry entry) async {
+    final db = await database;
+    return await db.update(
+      'mood_entries',
+      entry.toMap(),
+      where: 'id = ?',
+      whereArgs: [entry.id],
+    );
+  }
+
+  Future<int> deleteMoodEntry(int id) async {
+    final db = await database;
+    return await db.delete(
+      'mood_entries',
       where: 'id = ?',
       whereArgs: [id],
     );

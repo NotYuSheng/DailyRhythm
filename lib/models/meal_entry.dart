@@ -3,7 +3,9 @@ class MealEntry {
   final DateTime date;
   final DateTime time;
   final String name;
+  final int quantity;
   final double price;
+  final int? calories;
   final List<String> tags;
   final String? notes;
 
@@ -12,7 +14,9 @@ class MealEntry {
     required this.date,
     required this.time,
     required this.name,
+    this.quantity = 1,
     required this.price,
+    this.calories,
     this.tags = const [],
     this.notes,
   });
@@ -24,7 +28,9 @@ class MealEntry {
       'date': date.toIso8601String(),
       'time': time.toIso8601String(),
       'name': name,
+      'quantity': quantity,
       'price': price,
+      'calories': calories,
       'tags': tags.join(','),
       'notes': notes,
     };
@@ -37,7 +43,9 @@ class MealEntry {
       date: DateTime.parse(map['date'] as String),
       time: DateTime.parse(map['time'] as String),
       name: map['name'] as String,
+      quantity: map['quantity'] as int? ?? 1,
       price: map['price'] as double,
+      calories: map['calories'] as int?,
       tags: map['tags'] != null && (map['tags'] as String).isNotEmpty
           ? (map['tags'] as String).split(',')
           : [],
@@ -51,7 +59,9 @@ class MealEntry {
     DateTime? date,
     DateTime? time,
     String? name,
+    int? quantity,
     double? price,
+    int? calories,
     List<String>? tags,
     String? notes,
   }) {
@@ -60,7 +70,9 @@ class MealEntry {
       date: date ?? this.date,
       time: time ?? this.time,
       name: name ?? this.name,
+      quantity: quantity ?? this.quantity,
       price: price ?? this.price,
+      calories: calories ?? this.calories,
       tags: tags ?? this.tags,
       notes: notes ?? this.notes,
     );

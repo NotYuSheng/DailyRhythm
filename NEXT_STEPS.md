@@ -1,8 +1,36 @@
 # LifeRhythm - Next Development Steps
 
-## 🎯 Immediate Next Task: Sleep Entry Screen
+## 📊 Current Progress
 
-Let's build the first functional feature - sleep tracking.
+### ✅ Completed:
+- **Sleep Tracking - FULLY FUNCTIONAL!** 🎉
+  - AddSleepScreen with wake/sleep time pickers
+  - Saves to SQLite database via Riverpod
+  - Displays real data on TodayScreen
+  - Shows total sleep hours in Daily Summary
+- **Data Layer**
+  - MoodEntry model created
+  - Database updated with mood_entries table (v2 migration)
+  - Riverpod providers created (database, sleep, meals, mood)
+  - SQLite FFI initialized for desktop platforms
+- **UI/UX**
+  - Mood tracking UI with 5 emoji buttons
+  - Centered FAB button with popup menu
+  - TodayScreen converted to ConsumerWidget
+
+### 🚧 Next Up:
+- **Meal Tracking** - Create meal entry screen (name, price, time)
+- **Mood Tracking** - Wire up emoji buttons to save mood
+
+### ⏳ Future:
+- History screen
+- Export functionality
+
+---
+
+## 🎯 Immediate Next Task: Meal Entry Screen
+
+Let's build the meal tracking feature!
 
 ### Step 1: Create Riverpod Providers
 
@@ -301,12 +329,28 @@ flutter clean && flutter pub get
 ## 🎯 After Sleep Entry Works
 
 Next features to build (in order):
-1. Meal Entry Screen
-2. Nap Entry Screen
-3. History Screen (calendar view)
-4. Tag Creation
-5. Tag Assignment
-6. Excel Export
-7. Google Drive Backup
+1. **Mood Entry System** - Create mood_entry.dart model and wire up mood buttons
+2. **Meal Entry Screen** - Add meal tracking with name, price, time
+3. **History Screen** - View past entries (calendar or list view)
+4. **Tag Creation** - Tag management UI
+5. **Tag Assignment** - Assign tags to entries
+6. **Data Export** - Excel/CSV export
+7. **Cloud Backup** - Google Drive integration (optional)
+
+---
+
+## 📝 Architecture Notes
+
+### State Management Decision:
+We have two options:
+1. **Use Riverpod** (recommended in original plan) - Better for complex state, more boilerplate
+2. **Use StatefulWidget + Direct DB calls** - Simpler, faster to implement, good for MVP
+
+**Recommendation**: Start with option 2 (simpler) for MVP, migrate to Riverpod later if needed.
+
+### Current Changes from Original Plan:
+- ❌ Removed: Nap tracking (user preference)
+- ✅ Added: Mood tracking with emoji buttons (1-5 scale)
+- ✅ Modified: Centered FAB button with popup menu
 
 Good luck! 🚀

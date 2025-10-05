@@ -4,6 +4,7 @@ class SleepEntry {
   final DateTime? wakeUpTime;
   final DateTime? sleepTime;
   final double? totalHours;
+  final double? napHours;
   final List<String> tags;
 
   SleepEntry({
@@ -12,6 +13,7 @@ class SleepEntry {
     this.wakeUpTime,
     this.sleepTime,
     this.totalHours,
+    this.napHours,
     this.tags = const [],
   });
 
@@ -19,7 +21,13 @@ class SleepEntry {
   double get calculatedHours {
     if (wakeUpTime == null || sleepTime == null) return totalHours ?? 0;
 
-    final duration = wakeUpTime!.difference(sleepTime!);
+    var duration = wakeUpTime!.difference(sleepTime!);
+
+    // If wake time is before sleep time, assume it's the next day
+    if (duration.isNegative) {
+      duration = duration + const Duration(days: 1);
+    }
+
     return duration.inMinutes / 60.0;
   }
 
@@ -31,6 +39,7 @@ class SleepEntry {
       'wakeUpTime': wakeUpTime?.toIso8601String(),
       'sleepTime': sleepTime?.toIso8601String(),
       'totalHours': totalHours,
+      'napHours': napHours,
       'tags': tags.join(','),
     };
   }
@@ -47,6 +56,7 @@ class SleepEntry {
           ? DateTime.parse(map['sleepTime'] as String)
           : null,
       totalHours: map['totalHours'] as double?,
+      napHours: map['napHours'] as double?,
       tags: map['tags'] != null && (map['tags'] as String).isNotEmpty
           ? (map['tags'] as String).split(',')
           : [],
@@ -60,6 +70,7 @@ class SleepEntry {
     DateTime? wakeUpTime,
     DateTime? sleepTime,
     double? totalHours,
+    double? napHours,
     List<String>? tags,
   }) {
     return SleepEntry(
@@ -68,6 +79,7 @@ class SleepEntry {
       wakeUpTime: wakeUpTime ?? this.wakeUpTime,
       sleepTime: sleepTime ?? this.sleepTime,
       totalHours: totalHours ?? this.totalHours,
+      napHours: napHours ?? this.napHours,
       tags: tags ?? this.tags,
     );
   }
