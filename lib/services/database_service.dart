@@ -4,6 +4,8 @@ import '../models/sleep_entry.dart';
 import '../models/nap_entry.dart';
 import '../models/meal_entry.dart';
 import '../models/mood_entry.dart';
+import '../models/exercise_entry.dart';
+import '../models/task_entry.dart';
 import '../models/tag.dart';
 
 class DatabaseService {
@@ -24,7 +26,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 8,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -60,6 +62,48 @@ class DatabaseService {
       // Add quantity column to meal_entries for version 5
       await db.execute('''
         ALTER TABLE meal_entries ADD COLUMN quantity INTEGER DEFAULT 1
+      ''');
+    }
+    if (oldVersion < 6) {
+      // Add exercise_entries table for version 6
+      await db.execute('''
+        CREATE TABLE exercise_entries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL,
+          timestamp TEXT NOT NULL,
+          type TEXT NOT NULL,
+          runType TEXT,
+          distance REAL,
+          duration INTEGER,
+          pace INTEGER,
+          intervalDistance INTEGER,
+          intervalTime INTEGER,
+          restTime INTEGER,
+          intervalCount INTEGER,
+          exerciseName TEXT,
+          reps INTEGER,
+          weight REAL,
+          sets INTEGER,
+          notes TEXT
+        )
+      ''');
+    }
+    if (oldVersion < 7) {
+      // Add task_entries table for version 7
+      await db.execute('''
+        CREATE TABLE task_entries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL,
+          timestamp TEXT NOT NULL,
+          taskType TEXT NOT NULL,
+          notes TEXT
+        )
+      ''');
+    }
+    if (oldVersion < 8) {
+      // Add equipmentType column to exercise_entries for version 8
+      await db.execute('''
+        ALTER TABLE exercise_entries ADD COLUMN equipmentType TEXT
       ''');
     }
   }
@@ -112,6 +156,41 @@ class DatabaseService {
         timestamp TEXT NOT NULL,
         moodLevel INTEGER NOT NULL,
         emoji TEXT NOT NULL,
+        notes TEXT
+      )
+    ''');
+
+    // Exercise entries table
+    await db.execute('''
+      CREATE TABLE exercise_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        type TEXT NOT NULL,
+        runType TEXT,
+        distance REAL,
+        duration INTEGER,
+        pace INTEGER,
+        intervalDistance INTEGER,
+        intervalTime INTEGER,
+        restTime INTEGER,
+        intervalCount INTEGER,
+        exerciseName TEXT,
+        equipmentType TEXT,
+        reps INTEGER,
+        weight REAL,
+        sets INTEGER,
+        notes TEXT
+      )
+    ''');
+
+    // Task entries table
+    await db.execute('''
+      CREATE TABLE task_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        taskType TEXT NOT NULL,
         notes TEXT
       )
     ''');
@@ -460,6 +539,72 @@ class DatabaseService {
     final db = await database;
     return await db.delete(
       'tag_categories',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // ==================== Exercise Entry CRUD ====================
+
+  Future<int> createExerciseEntry(ExerciseEntry entry) async {
+    final db = await database;
+    return await db.insert('exercise_entries', entry.toMap());
+  }
+
+  Future<List<ExerciseEntry>> getExerciseEntriesByDate(DateTime date) async {
+    final db = await database;
+    final normalizedDate = DateTime(date.year, date.month, date.day);
+    final maps = await db.query(
+      'exercise_entries',
+      where: 'date = ?',
+      whereArgs: [normalizedDate.toIso8601String()],
+      orderBy: 'timestamp DESC',
+    );
+    return maps.map((map) => ExerciseEntry.fromMap(map)).toList();
+  }
+
+  Future<int> updateExerciseEntry(ExerciseEntry entry) async {
+    final db = await database;
+    return await db.update(
+      'exercise_entries',
+      entry.toMap(),
+      where: 'id = ?',
+      whereArgs: [entry.id],
+    );
+  }
+
+  Future<int> deleteExerciseEntry(int id) async {
+    final db = await database;
+    return await db.delete(
+      'exercise_entries',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // ==================== Task Entry CRUD ====================
+
+  Future<int> createTaskEntry(TaskEntry entry) async {
+    final db = await database;
+    return await db.insert('task_entries', entry.toMap());
+  }
+
+  Future<List<TaskEntry>> getTaskEntriesByDate(DateTime date) async {
+    final db = await database;
+    final normalizedDate = DateTime(date.year, date.month, date.day);
+    final maps = await db.query(
+      'task_entries',
+      where: 'date = ?',
+      whereArgs: [normalizedDate.toIso8601String()],
+      orderBy: 'timestamp DESC',
+    );
+    return maps.map((map) => TaskEntry.fromMap(map)).toList();
+  }
+
+  Future<int> deleteTaskEntry(int id) async {
+    final db = await database;
+    return await db.delete(
+      'task_entries',
       where: 'id = ?',
       whereArgs: [id],
     );

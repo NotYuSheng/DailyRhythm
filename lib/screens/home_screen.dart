@@ -6,6 +6,7 @@ import 'tags_screen.dart';
 import 'settings_screen.dart';
 import 'add_sleep_screen.dart';
 import 'add_meal_screen.dart';
+import 'add_exercise_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -155,11 +156,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 _buildMenuOption(
                   context,
-                  'Nap Entry',
-                  Icons.snooze_outlined,
+                  'Exercise Entry',
+                  Icons.fitness_center_outlined,
                   () {
                     Navigator.pop(context);
-                    // TODO: Navigate to nap entry screen
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AddExerciseScreen(),
+                      ),
+                    );
                   },
                 ),
               ],

@@ -3,6 +3,8 @@ import 'database_service.dart';
 import '../models/sleep_entry.dart';
 import '../models/meal_entry.dart';
 import '../models/mood_entry.dart';
+import '../models/exercise_entry.dart';
+import '../models/task_entry.dart';
 
 // Database provider
 final databaseProvider = Provider<DatabaseService>((ref) {
@@ -25,6 +27,18 @@ final mealEntriesProvider = FutureProvider.family<List<MealEntry>, DateTime>((re
 final moodEntryProvider = FutureProvider.family<MoodEntry?, DateTime>((ref, date) async {
   final db = ref.watch(databaseProvider);
   return db.getMoodEntryByDate(date);
+});
+
+// Exercise entries provider for a specific date
+final exerciseEntriesProvider = FutureProvider.family<List<ExerciseEntry>, DateTime>((ref, date) async {
+  final db = ref.watch(databaseProvider);
+  return db.getExerciseEntriesByDate(date);
+});
+
+// Task entries provider for a specific date
+final taskEntriesProvider = FutureProvider.family<List<TaskEntry>, DateTime>((ref, date) async {
+  final db = ref.watch(databaseProvider);
+  return db.getTaskEntriesByDate(date);
 });
 
 // Legacy providers for current day (for backward compatibility)

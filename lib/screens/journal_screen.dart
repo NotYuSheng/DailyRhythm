@@ -4,8 +4,11 @@ import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
 import '../services/providers.dart';
 import '../models/mood_entry.dart';
+import '../models/exercise_entry.dart';
+import '../models/task_entry.dart';
 import 'add_sleep_screen.dart';
 import 'add_meal_screen.dart';
+import 'add_exercise_screen.dart';
 
 class JournalScreen extends ConsumerStatefulWidget {
   const JournalScreen({super.key, this.initialDate, this.onTodayPressed, this.onDateChanged});
@@ -132,6 +135,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
     final sleepEntriesAsync = ref.watch(sleepEntriesProvider(normalizedDate));
     final mealEntriesAsync = ref.watch(mealEntriesProvider(normalizedDate));
     final moodEntryAsync = ref.watch(moodEntryProvider(normalizedDate));
+    final exerciseEntriesAsync = ref.watch(exerciseEntriesProvider(normalizedDate));
+    final taskEntriesAsync = ref.watch(taskEntriesProvider(normalizedDate));
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.spacePulse3),
@@ -311,6 +316,80 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 ),
               ),
             ),
+          ),
+
+          const SizedBox(height: AppTheme.spacePulse3),
+
+          // Exercise Section
+          exerciseEntriesAsync.when(
+            data: (entries) {
+              return _buildSectionCard(
+                context,
+                title: 'Exercise',
+                icon: Icons.fitness_center_outlined,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddExerciseScreen(),
+                    ),
+                  );
+                },
+                child: _buildExerciseContent(context, entries),
+              );
+            },
+            loading: () => _buildSectionCard(
+              context,
+              title: 'Exercise',
+              icon: Icons.fitness_center_outlined,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddExerciseScreen(),
+                  ),
+                );
+              },
+              child: const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(AppTheme.spacePulse3),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            ),
+            error: (error, stack) => _buildSectionCard(
+              context,
+              title: 'Exercise',
+              icon: Icons.fitness_center_outlined,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddExerciseScreen(),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(AppTheme.spacePulse2),
+                child: Text(
+                  'Error loading exercises',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.red,
+                      ),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: AppTheme.spacePulse3),
+
+          // Tasks Section
+          taskEntriesAsync.when(
+            data: (entries) {
+              return _buildTasksCard(context, ref, entries, date);
+            },
+            loading: () => _buildTasksCard(context, ref, const [], date),
+            error: (error, stack) => _buildTasksCard(context, ref, const [], date),
           ),
 
           const SizedBox(height: AppTheme.spacePulse3),
@@ -701,6 +780,145 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
           style: Theme.of(context).textTheme.titleMedium,
         ),
       ],
+    );
+  }
+
+  Widget _buildExerciseContent(BuildContext context, List<ExerciseEntry> entries) {
+    if (entries.isEmpty) {
+      return const _PlaceholderContent(
+        text: 'No exercises',
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: entries.map((entry) {
+        if (entry.type == ExerciseType.run) {
+          if (entry.runType == RunType.interval) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacePulse1),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Interval Run',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  Text(
+                    '${entry.intervalCount}x ${entry.distance}km',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            );
+          } else {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacePulse1),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Run',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  Text(
+                    '${entry.distance}km',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            );
+          }
+        } else {
+          // Weight lifting
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppTheme.spacePulse1),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  entry.exerciseName ?? 'Weight Lifting',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                Text(
+                  '${entry.sets}x${entry.reps} @ ${entry.weight}kg',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          );
+        }
+      }).toList(),
+    );
+  }
+
+  Widget _buildTasksCard(BuildContext context, WidgetRef ref, List<TaskEntry> entries, DateTime date) {
+    final completedTasks = entries.map((e) => e.taskType).toSet();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacePulse3),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.task_alt_outlined, size: 20),
+                    const SizedBox(width: AppTheme.spacePulse2),
+                    Text(
+                      'Tasks',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: AppTheme.spacePulse3),
+            Wrap(
+              spacing: AppTheme.spacePulse2,
+              runSpacing: AppTheme.spacePulse2,
+              children: TaskType.values.map((taskType) {
+                final isCompleted = completedTasks.contains(taskType);
+                return FilterChip(
+                  label: Text(taskType.displayName),
+                  selected: isCompleted,
+                  onSelected: (selected) async {
+                    if (selected) {
+                      // Add task
+                      final db = ref.read(databaseProvider);
+                      final normalizedDate = DateTime(date.year, date.month, date.day);
+                      final entry = TaskEntry(
+                        date: normalizedDate,
+                        timestamp: DateTime.now(),
+                        taskType: taskType,
+                      );
+                      await db.createTaskEntry(entry);
+                      ref.invalidate(taskEntriesProvider(normalizedDate));
+                    } else {
+                      // Remove task
+                      final taskToRemove = entries.firstWhere((e) => e.taskType == taskType);
+                      if (taskToRemove.id != null) {
+                        final db = ref.read(databaseProvider);
+                        await db.deleteTaskEntry(taskToRemove.id!);
+                        final normalizedDate = DateTime(date.year, date.month, date.day);
+                        ref.invalidate(taskEntriesProvider(normalizedDate));
+                      }
+                    }
+                  },
+                  selectedColor: AppTheme.rhythmBlack,
+                  checkmarkColor: AppTheme.rhythmWhite,
+                  labelStyle: TextStyle(
+                    color: isCompleted ? AppTheme.rhythmWhite : AppTheme.rhythmBlack,
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
