@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'today_screen.dart';
-import 'history_screen.dart';
+import 'calendar_screen.dart';
 import 'tags_screen.dart';
 import 'settings_screen.dart';
 import 'add_sleep_screen.dart';
@@ -16,13 +16,21 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  DateTime? _selectedDate;
 
-  final List<Widget> _screens = const [
-    TodayScreen(),
-    HistoryScreen(),
-    TagsScreen(),
-    SettingsScreen(),
-  ];
+  List<Widget> get _screens => [
+        TodayScreen(initialDate: _selectedDate),
+        CalendarScreen(
+          onDateSelected: (date) {
+            setState(() {
+              _selectedDate = date;
+              _currentIndex = 0; // Switch to Today tab
+            });
+          },
+        ),
+        const TagsScreen(),
+        const SettingsScreen(),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -53,14 +61,14 @@ class _HomeScreenState extends State<HomeScreen> {
           elevation: 0,
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(Icons.today_outlined),
-              activeIcon: Icon(Icons.today),
-              label: 'Today',
+              icon: Icon(Icons.book_outlined),
+              activeIcon: Icon(Icons.book),
+              label: 'Journal',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.history_outlined),
-              activeIcon: Icon(Icons.history),
-              label: 'History',
+              icon: Icon(Icons.calendar_today_outlined),
+              activeIcon: Icon(Icons.calendar_today),
+              label: 'Calendar',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.local_offer_outlined),

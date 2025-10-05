@@ -9,19 +9,35 @@ final databaseProvider = Provider<DatabaseService>((ref) {
   return DatabaseService.instance;
 });
 
-// Sleep entries provider for today
+// Sleep entries provider for a specific date
+final sleepEntriesProvider = FutureProvider.family<List<SleepEntry>, DateTime>((ref, date) async {
+  final db = ref.watch(databaseProvider);
+  return db.getSleepEntriesByDate(date);
+});
+
+// Meal entries provider for a specific date
+final mealEntriesProvider = FutureProvider.family<List<MealEntry>, DateTime>((ref, date) async {
+  final db = ref.watch(databaseProvider);
+  return db.getMealEntriesByDate(date);
+});
+
+// Mood entry provider for a specific date (single mood per day)
+final moodEntryProvider = FutureProvider.family<MoodEntry?, DateTime>((ref, date) async {
+  final db = ref.watch(databaseProvider);
+  return db.getMoodEntryByDate(date);
+});
+
+// Legacy providers for today (for backward compatibility)
 final todaySleepEntriesProvider = FutureProvider<List<SleepEntry>>((ref) async {
   final db = ref.watch(databaseProvider);
   return db.getSleepEntriesByDate(DateTime.now());
 });
 
-// Meal entries provider for today
 final todayMealEntriesProvider = FutureProvider<List<MealEntry>>((ref) async {
   final db = ref.watch(databaseProvider);
   return db.getMealEntriesByDate(DateTime.now());
 });
 
-// Mood entry provider for today (single mood per day)
 final todayMoodEntryProvider = FutureProvider<MoodEntry?>((ref) async {
   final db = ref.watch(databaseProvider);
   return db.getMoodEntryByDate(DateTime.now());

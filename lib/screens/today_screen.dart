@@ -7,126 +7,244 @@ import '../models/mood_entry.dart';
 import 'add_sleep_screen.dart';
 import 'add_meal_screen.dart';
 
-class TodayScreen extends ConsumerWidget {
-  const TodayScreen({super.key});
+class TodayScreen extends ConsumerStatefulWidget {
+  const TodayScreen({super.key, this.initialDate});
+
+  final DateTime? initialDate;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TodayScreen> createState() => _TodayScreenState();
+}
+
+class _TodayScreenState extends ConsumerState<TodayScreen> {
+  late DateTime _selectedDate;
+  late PageController _pageController;
+  static const int _centerPage = 10000;
+
+  @override
+  void initState() {
+    super.initState();
+    final initialDate = widget.initialDate ?? DateTime.now();
+    _selectedDate = DateTime(initialDate.year, initialDate.month, initialDate.day);
+
+    // Calculate initial page based on selected date
+    final today = DateTime.now();
+    final todayNormalized = DateTime(today.year, today.month, today.day);
+    final daysDifference = _selectedDate.difference(todayNormalized).inDays;
+    _pageController = PageController(initialPage: _centerPage + daysDifference);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  DateTime _getDateForPage(int page) {
+    final today = DateTime.now();
+    final todayNormalized = DateTime(today.year, today.month, today.day);
+    final daysDifference = page - _centerPage;
+    return todayNormalized.add(Duration(days: daysDifference));
+  }
+
+  bool _isToday(DateTime date) {
     final now = DateTime.now();
-    final dateFormat = DateFormat('EEEE, MMM d, yyyy');
+    final dateNormalized = DateTime(date.year, date.month, date.day);
+    final todayNormalized = DateTime(now.year, now.month, now.day);
+    return dateNormalized == todayNormalized;
+  }
 
-    // Watch sleep, meal, and mood entries for today
-    final sleepEntriesAsync = ref.watch(todaySleepEntriesProvider);
-    final mealEntriesAsync = ref.watch(todayMealEntriesProvider);
-    final moodEntryAsync = ref.watch(todayMoodEntryProvider);
+  bool _isFuture(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dateNormalized = DateTime(date.year, date.month, date.day);
+    return dateNormalized.isAfter(today);
+  }
 
+  void _goToToday() {
+    _pageController.animateToPage(
+      _centerPage,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('LifeRhythm'),
+        actions: [
+          if (!_isToday(_selectedDate))
+            TextButton(
+              onPressed: _goToToday,
+              child: const Text('Today'),
+            ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppTheme.spacePulse3),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Date Header
-            Text(
-              dateFormat.format(now),
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: AppTheme.rhythmMediumGray,
-                  ),
-            ),
-            const SizedBox(height: AppTheme.spacePulse4),
+      body: PageView.builder(
+        controller: _pageController,
+        onPageChanged: (page) {
+          final newDate = _getDateForPage(page);
+          // Prevent navigation to future dates
+          if (_isFuture(newDate)) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _pageController.jumpToPage(page - 1);
+            });
+          } else {
+            setState(() {
+              _selectedDate = newDate;
+            });
+          }
+        },
+        itemBuilder: (context, page) {
+          final date = _getDateForPage(page);
 
-            // Mood Section
-            _buildMoodCard(context, ref, moodEntryAsync),
+          // Don't render future pages
+          if (_isFuture(date)) {
+            return const SizedBox.shrink();
+          }
 
-            const SizedBox(height: AppTheme.spacePulse3),
+          return _buildDayContent(context, date);
+        },
+      ),
+    );
+  }
 
-            // Sleep Section
-            sleepEntriesAsync.when(
-              data: (entries) {
-                return _buildSectionCard(
-                  context,
-                  title: 'Sleep',
-                  icon: Icons.bedtime_outlined,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AddSleepScreen(
-                          entry: entries.isNotEmpty ? entries.first : null,
-                        ),
-                      ),
-                    );
-                  },
-                  child: _buildSleepContent(context, entries),
-                );
-              },
-              loading: () => _buildSectionCard(
-                context,
-                title: 'Sleep',
-                icon: Icons.bedtime_outlined,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AddSleepScreen(),
-                    ),
+  Widget _buildDayContent(BuildContext context, DateTime date) {
+    final dateFormat = DateFormat('EEEE, MMM d, yyyy');
+
+    // Normalize the date to start of day for consistent querying
+    final normalizedDate = DateTime(date.year, date.month, date.day);
+
+    // Watch entries for the selected date
+    final sleepEntriesAsync = ref.watch(sleepEntriesProvider(normalizedDate));
+    final mealEntriesAsync = ref.watch(mealEntriesProvider(normalizedDate));
+    final moodEntryAsync = ref.watch(moodEntryProvider(normalizedDate));
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppTheme.spacePulse3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Date Header with Navigation
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.chevron_left),
+                onPressed: () {
+                  _pageController.previousPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
                   );
                 },
-                child: const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(AppTheme.spacePulse3),
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
               ),
-              error: (error, stack) => _buildSectionCard(
-                context,
-                title: 'Sleep',
-                icon: Icons.bedtime_outlined,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AddSleepScreen(),
-                    ),
-                  );
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(AppTheme.spacePulse2),
+              Expanded(
+                child: Center(
                   child: Text(
-                    'Error loading sleep data',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.red,
+                    _isToday(date) ? 'Today - ${dateFormat.format(date)}' : dateFormat.format(date),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: AppTheme.rhythmMediumGray,
                         ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),
-            ),
+              IconButton(
+                icon: Icon(
+                  Icons.chevron_right,
+                  color: _isFuture(date.add(const Duration(days: 1)))
+                      ? AppTheme.rhythmLightGray
+                      : null,
+                ),
+                onPressed: _isFuture(date.add(const Duration(days: 1)))
+                    ? null
+                    : () {
+                        _pageController.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+              ),
+            ],
+          ),
+          const SizedBox(height: AppTheme.spacePulse4),
 
-            const SizedBox(height: AppTheme.spacePulse3),
+          // Mood Section
+          _buildMoodCard(context, ref, moodEntryAsync, date),
 
-            // Meals Section
-            mealEntriesAsync.when(
-              data: (entries) {
-                return _buildSectionCard(
-                  context,
-                  title: 'Meals',
-                  icon: Icons.restaurant_outlined,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AddMealScreen(),
+          const SizedBox(height: AppTheme.spacePulse3),
+
+          // Sleep Section
+          sleepEntriesAsync.when(
+            data: (entries) {
+              return _buildSectionCard(
+                context,
+                title: 'Sleep',
+                icon: Icons.bedtime_outlined,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddSleepScreen(
+                        entry: entries.isNotEmpty ? entries.first : null,
                       ),
-                    );
-                  },
-                  child: _buildMealContent(context, entries),
+                    ),
+                  );
+                },
+                child: _buildSleepContent(context, entries),
+              );
+            },
+            loading: () => _buildSectionCard(
+              context,
+              title: 'Sleep',
+              icon: Icons.bedtime_outlined,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddSleepScreen(),
+                  ),
                 );
               },
-              loading: () => _buildSectionCard(
+              child: const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(AppTheme.spacePulse3),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            ),
+            error: (error, stack) => _buildSectionCard(
+              context,
+              title: 'Sleep',
+              icon: Icons.bedtime_outlined,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddSleepScreen(),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(AppTheme.spacePulse2),
+                child: Text(
+                  'Error loading sleep data',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.red,
+                      ),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: AppTheme.spacePulse3),
+
+          // Meals Section
+          mealEntriesAsync.when(
+            data: (entries) {
+              return _buildSectionCard(
                 context,
                 title: 'Meals',
                 icon: Icons.restaurant_outlined,
@@ -138,43 +256,57 @@ class TodayScreen extends ConsumerWidget {
                     ),
                   );
                 },
-                child: const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(AppTheme.spacePulse3),
-                    child: CircularProgressIndicator(),
+                child: _buildMealContent(context, entries),
+              );
+            },
+            loading: () => _buildSectionCard(
+              context,
+              title: 'Meals',
+              icon: Icons.restaurant_outlined,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddMealScreen(),
                   ),
-                ),
-              ),
-              error: (error, stack) => _buildSectionCard(
-                context,
-                title: 'Meals',
-                icon: Icons.restaurant_outlined,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AddMealScreen(),
-                    ),
-                  );
-                },
+                );
+              },
+              child: const Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(AppTheme.spacePulse2),
-                  child: Text(
-                    'Error loading meals',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.red,
-                        ),
-                  ),
+                  padding: EdgeInsets.all(AppTheme.spacePulse3),
+                  child: CircularProgressIndicator(),
                 ),
               ),
             ),
+            error: (error, stack) => _buildSectionCard(
+              context,
+              title: 'Meals',
+              icon: Icons.restaurant_outlined,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddMealScreen(),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(AppTheme.spacePulse2),
+                child: Text(
+                  'Error loading meals',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.red,
+                      ),
+                ),
+              ),
+            ),
+          ),
 
-            const SizedBox(height: AppTheme.spacePulse3),
+          const SizedBox(height: AppTheme.spacePulse3),
 
-            // Daily Summary
-            _buildDailySummary(context, sleepEntriesAsync, mealEntriesAsync),
-          ],
-        ),
+          // Daily Summary
+          _buildDailySummary(context, sleepEntriesAsync, mealEntriesAsync),
+        ],
       ),
     );
   }
@@ -220,7 +352,7 @@ class TodayScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMoodCard(BuildContext context, WidgetRef ref, AsyncValue moodEntryAsync) {
+  Widget _buildMoodCard(BuildContext context, WidgetRef ref, AsyncValue moodEntryAsync, DateTime date) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppTheme.spacePulse3),
@@ -243,11 +375,11 @@ class TodayScreen extends ConsumerWidget {
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildMoodButton(context, ref, '😢', 'Very Bad', 1, currentMood?.moodLevel),
-                    _buildMoodButton(context, ref, '😟', 'Bad', 2, currentMood?.moodLevel),
-                    _buildMoodButton(context, ref, '😐', 'Okay', 3, currentMood?.moodLevel),
-                    _buildMoodButton(context, ref, '😊', 'Good', 4, currentMood?.moodLevel),
-                    _buildMoodButton(context, ref, '😄', 'Great', 5, currentMood?.moodLevel),
+                    _buildMoodButton(context, ref, '😢', 'Very Bad', 1, currentMood?.moodLevel, date),
+                    _buildMoodButton(context, ref, '😟', 'Bad', 2, currentMood?.moodLevel, date),
+                    _buildMoodButton(context, ref, '😐', 'Okay', 3, currentMood?.moodLevel, date),
+                    _buildMoodButton(context, ref, '😊', 'Good', 4, currentMood?.moodLevel, date),
+                    _buildMoodButton(context, ref, '😄', 'Great', 5, currentMood?.moodLevel, date),
                   ],
                 );
               },
@@ -255,11 +387,11 @@ class TodayScreen extends ConsumerWidget {
               error: (_, __) => Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildMoodButton(context, ref, '😢', 'Very Bad', 1, null),
-                  _buildMoodButton(context, ref, '😟', 'Bad', 2, null),
-                  _buildMoodButton(context, ref, '😐', 'Okay', 3, null),
-                  _buildMoodButton(context, ref, '😊', 'Good', 4, null),
-                  _buildMoodButton(context, ref, '😄', 'Great', 5, null),
+                  _buildMoodButton(context, ref, '😢', 'Very Bad', 1, null, date),
+                  _buildMoodButton(context, ref, '😟', 'Bad', 2, null, date),
+                  _buildMoodButton(context, ref, '😐', 'Okay', 3, null, date),
+                  _buildMoodButton(context, ref, '😊', 'Good', 4, null, date),
+                  _buildMoodButton(context, ref, '😄', 'Great', 5, null, date),
                 ],
               ),
             ),
@@ -276,6 +408,7 @@ class TodayScreen extends ConsumerWidget {
     String label,
     int moodLevel,
     int? currentMoodLevel,
+    DateTime date,
   ) {
     final isSelected = currentMoodLevel == moodLevel;
 
@@ -283,18 +416,18 @@ class TodayScreen extends ConsumerWidget {
       onTap: () async {
         // Save mood to database
         final db = ref.read(databaseProvider);
-        final now = DateTime.now();
+        final normalizedDate = DateTime(date.year, date.month, date.day);
         final entry = MoodEntry(
-          date: now,
-          timestamp: now,
+          date: normalizedDate,
+          timestamp: DateTime.now(),
           moodLevel: moodLevel,
           emoji: emoji,
         );
 
         try {
           await db.createMoodEntry(entry);
-          // Refresh mood data
-          ref.invalidate(todayMoodEntryProvider);
+          // Refresh mood data for this date
+          ref.invalidate(moodEntryProvider(normalizedDate));
 
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -351,7 +484,7 @@ class TodayScreen extends ConsumerWidget {
   Widget _buildSleepContent(BuildContext context, List entries) {
     if (entries.isEmpty) {
       return const _PlaceholderContent(
-        text: 'No sleep data for today',
+        text: 'No sleep data',
       );
     }
     final entry = entries.first;
