@@ -19,7 +19,19 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? _selectedDate;
 
   List<Widget> get _screens => [
-        TodayScreen(initialDate: _selectedDate),
+        TodayScreen(
+          initialDate: _selectedDate,
+          onTodayPressed: () {
+            setState(() {
+              _selectedDate = null;
+            });
+          },
+          onDateChanged: (date) {
+            setState(() {
+              _selectedDate = date;
+            });
+          },
+        ),
         CalendarScreen(
           onDateSelected: (date) {
             setState(() {

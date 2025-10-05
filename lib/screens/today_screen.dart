@@ -8,9 +8,11 @@ import 'add_sleep_screen.dart';
 import 'add_meal_screen.dart';
 
 class TodayScreen extends ConsumerStatefulWidget {
-  const TodayScreen({super.key, this.initialDate});
+  const TodayScreen({super.key, this.initialDate, this.onTodayPressed, this.onDateChanged});
 
   final DateTime? initialDate;
+  final VoidCallback? onTodayPressed;
+  final Function(DateTime?)? onDateChanged;
 
   @override
   ConsumerState<TodayScreen> createState() => _TodayScreenState();
@@ -62,6 +64,7 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
   }
 
   void _goToToday() {
+    widget.onTodayPressed?.call();
     _pageController.animateToPage(
       _centerPage,
       duration: const Duration(milliseconds: 300),
@@ -95,6 +98,14 @@ class _TodayScreenState extends ConsumerState<TodayScreen> {
             setState(() {
               _selectedDate = newDate;
             });
+            // Notify parent about date change
+            final now = DateTime.now();
+            final today = DateTime(now.year, now.month, now.day);
+            if (newDate == today) {
+              widget.onDateChanged?.call(null);
+            } else {
+              widget.onDateChanged?.call(newDate);
+            }
           }
         },
         itemBuilder: (context, page) {
