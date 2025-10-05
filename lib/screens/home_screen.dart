@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import 'today_screen.dart';
+import 'journal_screen.dart';
 import 'calendar_screen.dart';
 import 'tags_screen.dart';
 import 'settings_screen.dart';
@@ -19,7 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? _selectedDate;
 
   List<Widget> get _screens => [
-        TodayScreen(
+        JournalScreen(
           initialDate: _selectedDate,
           onTodayPressed: () {
             setState(() {
@@ -36,7 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onDateSelected: (date) {
             setState(() {
               _selectedDate = date;
-              _currentIndex = 0; // Switch to Today tab
+              _currentIndex = 0; // Switch to Journal tab
             });
           },
         ),

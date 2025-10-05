@@ -7,18 +7,18 @@ import '../models/mood_entry.dart';
 import 'add_sleep_screen.dart';
 import 'add_meal_screen.dart';
 
-class TodayScreen extends ConsumerStatefulWidget {
-  const TodayScreen({super.key, this.initialDate, this.onTodayPressed, this.onDateChanged});
+class JournalScreen extends ConsumerStatefulWidget {
+  const JournalScreen({super.key, this.initialDate, this.onTodayPressed, this.onDateChanged});
 
   final DateTime? initialDate;
   final VoidCallback? onTodayPressed;
   final Function(DateTime?)? onDateChanged;
 
   @override
-  ConsumerState<TodayScreen> createState() => _TodayScreenState();
+  ConsumerState<JournalScreen> createState() => _JournalScreenState();
 }
 
-class _TodayScreenState extends ConsumerState<TodayScreen> {
+class _JournalScreenState extends ConsumerState<JournalScreen> {
   late DateTime _selectedDate;
   late PageController _pageController;
   static const int _centerPage = 10000;

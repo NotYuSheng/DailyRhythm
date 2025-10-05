@@ -286,7 +286,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         print('Meal entry updated successfully!');
       }
 
-      // Refresh today's meal data
+      // Refresh current day's meal data
       ref.invalidate(todayMealEntriesProvider);
 
       if (mounted) {

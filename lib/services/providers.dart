@@ -27,7 +27,7 @@ final moodEntryProvider = FutureProvider.family<MoodEntry?, DateTime>((ref, date
   return db.getMoodEntryByDate(date);
 });
 
-// Legacy providers for today (for backward compatibility)
+// Legacy providers for current day (for backward compatibility)
 final todaySleepEntriesProvider = FutureProvider<List<SleepEntry>>((ref) async {
   final db = ref.watch(databaseProvider);
   return db.getSleepEntriesByDate(DateTime.now());
@@ -43,7 +43,7 @@ final todayMoodEntryProvider = FutureProvider<MoodEntry?>((ref) async {
   return db.getMoodEntryByDate(DateTime.now());
 });
 
-// Provider to refresh/invalidate all today data
+// Provider to refresh/invalidate all current day data
 final refreshTodayDataProvider = Provider<void Function()>((ref) {
   return () {
     ref.invalidate(todaySleepEntriesProvider);

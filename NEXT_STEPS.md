@@ -4,35 +4,56 @@
 
 ### ✅ Completed:
 - **Sleep Tracking - FULLY FUNCTIONAL!** 🎉
-  - AddSleepScreen with wake/sleep time pickers
+  - AddSleepScreen with wake/sleep time pickers + nap hours
   - Saves to SQLite database via Riverpod
-  - Displays real data on TodayScreen
-  - Shows total sleep hours in Daily Summary
+  - Displays real data on JournalScreen
+  - Shows total sleep hours (including naps) in Daily Summary
+  - Auto-populates fields when editing existing entries
+- **Meal Tracking - FULLY FUNCTIONAL!** 🎉
+  - AddMealScreen with name, quantity, price, calories, tags
+  - 10 meal tag categories (Home Cooked, Fast Food, Restaurant, etc.)
+  - Displays meals with quantity format (e.g., "3x Onigiri")
+  - Auto-uses current time on save
+- **Mood Tracking - FULLY FUNCTIONAL!** 🎉
+  - Mood tracking UI with 5 emoji buttons (1-5 scale)
+  - Wired to database with persistence
+  - Visual selection feedback (border, highlight)
+  - Works across different dates
+- **Calendar & Navigation - FULLY FUNCTIONAL!** 🎉
+  - Calendar view with date selection
+  - Swipeable date navigation in Journal tab
+  - Left/right chevron navigation
+  - Future date blocking
+  - "Today" button when viewing past dates
+  - Hover effects on calendar days
+  - Date persistence across tab switches
 - **Data Layer**
-  - MoodEntry model created
-  - Database updated with mood_entries table (v2 migration)
-  - Riverpod providers created (database, sleep, meals, mood)
+  - SQLite database v5 with migrations
+  - Riverpod providers with date-based queries (.family)
+  - Models: SleepEntry, MealEntry, MoodEntry
   - SQLite FFI initialized for desktop platforms
 - **UI/UX**
-  - Mood tracking UI with 5 emoji buttons
+  - Tabs: Journal, Calendar, Tags, Settings
   - Centered FAB button with popup menu
-  - TodayScreen converted to ConsumerWidget
+  - JournalScreen with PageView for date navigation
 
 ### 🚧 Next Up:
-- **Meal Tracking** - Create meal entry screen (name, price, time)
-- **Mood Tracking** - Wire up emoji buttons to save mood
+- **Tags Screen** - Display and manage tags
+- **Export functionality** - CSV/Excel export
 
 ### ⏳ Future:
-- History screen
-- Export functionality
+- Data visualization
+- Cloud backup
 
 ---
 
-## 🎯 Immediate Next Task: Meal Entry Screen
+## 🎯 Immediate Next Task: Tags Screen or Export
 
-Let's build the meal tracking feature!
+Next features to implement:
+1. **Tags Screen** - View all tags used across entries
+2. **Export functionality** - Export data to CSV/Excel
 
-### Step 1: Create Riverpod Providers
+### Architecture Overview
 
 Create `lib/services/providers.dart`:
 
@@ -228,18 +249,15 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
 }
 ```
 
-### Step 3: Update Today Screen to Show Real Data
+### Current Architecture
 
-Update `lib/screens/today_screen.dart`:
+The app uses:
+- **JournalScreen** - Main daily view with swipeable date navigation
+- **CalendarScreen** - Calendar view for date selection
+- **Riverpod** - State management with date-based providers
+- **SQLite** - Local database with migrations (currently v5)
 
-1. Convert to `ConsumerWidget`
-2. Use `ref.watch(todaySleepEntriesProvider)` to load data
-3. Display entries in the cards
-4. Navigate to `AddSleepScreen` when tapped
-
-### Step 4: Wire Up Navigation
-
-Update the FAB menu in `today_screen.dart` to navigate to `AddSleepScreen`:
+### Navigation Flow
 
 ```dart
 Navigator.push(

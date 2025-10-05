@@ -200,7 +200,7 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
         print('Sleep entry updated successfully!');
       }
 
-      // Refresh today's sleep data
+      // Refresh current day's sleep data
       ref.invalidate(todaySleepEntriesProvider);
 
       if (mounted) {

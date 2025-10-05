@@ -9,7 +9,7 @@ void main() {
     // Verify that the app title is displayed
     expect(find.text('LifeRhythm'), findsOneWidget);
 
-    // Verify that the Today tab is visible
-    expect(find.text('Today'), findsOneWidget);
+    // Verify that the Journal tab is visible
+    expect(find.text('Journal'), findsOneWidget);
   });
 }
