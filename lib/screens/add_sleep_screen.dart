@@ -23,7 +23,8 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
   @override
   void initState() {
     super.initState();
-    _date = widget.entry?.date ?? DateTime.now();
+    final now = DateTime.now();
+    _date = widget.entry?.date ?? DateTime(now.year, now.month, now.day);
     _sleepTime = widget.entry?.sleepTime;
     _wakeUpTime = widget.entry?.wakeUpTime;
     _napHoursController.text = widget.entry?.napHours?.toString() ?? '';
@@ -186,18 +187,10 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
     try {
       final db = ref.read(databaseProvider);
 
-      // Debug: Print to console
-      print('Attempting to save sleep entry...');
-      print('Sleep time: $_sleepTime');
-      print('Wake time: $_wakeUpTime');
-      print('Total hours: ${_calculateHours()}');
-
       if (widget.entry == null) {
         await db.createSleepEntry(entry);
-        print('Sleep entry created successfully!');
       } else {
         await db.updateSleepEntry(entry);
-        print('Sleep entry updated successfully!');
       }
 
       // Refresh current day's sleep data
@@ -209,10 +202,7 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
         );
         Navigator.pop(context);
       }
-    } catch (e, stackTrace) {
-      print('ERROR saving sleep entry: $e');
-      print('Stack trace: $stackTrace');
-
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

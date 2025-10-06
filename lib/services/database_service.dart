@@ -245,11 +245,12 @@ class DatabaseService {
 
   Future<List<SleepEntry>> getSleepEntriesByDate(DateTime date) async {
     final db = await database;
-    final dateStr = date.toIso8601String().split('T')[0];
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
     final maps = await db.query(
       'sleep_entries',
-      where: 'date LIKE ?',
-      whereArgs: ['$dateStr%'],
+      where: 'date >= ? AND date < ?',
+      whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
       orderBy: 'wakeUpTime DESC',
     );
 
@@ -304,11 +305,12 @@ class DatabaseService {
 
   Future<List<NapEntry>> getNapEntriesByDate(DateTime date) async {
     final db = await database;
-    final dateStr = date.toIso8601String().split('T')[0];
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
     final maps = await db.query(
       'nap_entries',
-      where: 'date LIKE ?',
-      whereArgs: ['$dateStr%'],
+      where: 'date >= ? AND date < ?',
+      whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
       orderBy: 'startTime DESC',
     );
 
@@ -363,11 +365,12 @@ class DatabaseService {
 
   Future<List<MealEntry>> getMealEntriesByDate(DateTime date) async {
     final db = await database;
-    final dateStr = date.toIso8601String().split('T')[0];
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
     final maps = await db.query(
       'meal_entries',
-      where: 'date LIKE ?',
-      whereArgs: ['$dateStr%'],
+      where: 'date >= ? AND date < ?',
+      whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
       orderBy: 'time DESC',
     );
 
@@ -461,6 +464,17 @@ class DatabaseService {
   Future<int> createMoodEntry(MoodEntry entry) async {
     final db = await database;
     return await db.insert('mood_entries', entry.toMap());
+  }
+
+  Future<int> upsertMoodEntry(MoodEntry entry) async {
+    final db = await database;
+    final existing = await getMoodEntryByDate(entry.date);
+    if (existing != null) {
+      // Preserve the original ID when updating
+      return await updateMoodEntry(entry.copyWith(id: existing.id));
+    } else {
+      return await db.insert('mood_entries', entry.toMap());
+    }
   }
 
   Future<MoodEntry?> getMoodEntryByDate(DateTime date) async {

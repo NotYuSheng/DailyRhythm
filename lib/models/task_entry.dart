@@ -30,6 +30,7 @@ class TaskEntry {
       timestamp: DateTime.parse(map['timestamp'] as String),
       taskType: TaskType.values.firstWhere(
         (e) => e.toString() == map['taskType'],
+        orElse: () => TaskType.changedBedsheet,
       ),
       notes: map['notes'] as String?,
     );

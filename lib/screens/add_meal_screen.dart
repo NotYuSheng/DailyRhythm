@@ -40,7 +40,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   @override
   void initState() {
     super.initState();
-    _date = widget.entry?.date ?? DateTime.now();
+    final now = DateTime.now();
+    _date = widget.entry?.date ?? DateTime(now.year, now.month, now.day);
     _nameController.text = widget.entry?.name ?? '';
     _quantityController.text = widget.entry?.quantity.toString() ?? '1';
     _priceController.text = widget.entry?.price.toString() ?? '';
@@ -272,18 +273,10 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     try {
       final db = ref.read(databaseProvider);
 
-      print('Attempting to save meal entry...');
-      print('Meal: ${entry.name}');
-      print('Price: \$${entry.price}');
-      print('Time: ${DateFormat('h:mm a').format(entry.time)}');
-      print('Tags: ${entry.tags.join(", ")}');
-
       if (widget.entry == null) {
         await db.createMealEntry(entry);
-        print('Meal entry created successfully!');
       } else {
         await db.updateMealEntry(entry);
-        print('Meal entry updated successfully!');
       }
 
       // Refresh current day's meal data
@@ -295,10 +288,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         );
         Navigator.pop(context);
       }
-    } catch (e, stackTrace) {
-      print('ERROR saving meal entry: $e');
-      print('Stack trace: $stackTrace');
-
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

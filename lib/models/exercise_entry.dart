@@ -76,9 +76,13 @@ class ExerciseEntry {
       timestamp: DateTime.parse(map['timestamp'] as String),
       type: ExerciseType.values.firstWhere(
         (e) => e.toString() == map['type'],
+        orElse: () => ExerciseType.run,
       ),
       runType: map['runType'] != null
-          ? RunType.values.firstWhere((e) => e.toString() == map['runType'])
+          ? RunType.values.firstWhere(
+              (e) => e.toString() == map['runType'],
+              orElse: () => RunType.flat,
+            )
           : null,
       distance: map['distance'] as double?,
       duration: map['duration'] != null
@@ -97,7 +101,10 @@ class ExerciseEntry {
       intervalCount: map['intervalCount'] as int?,
       exerciseName: map['exerciseName'] as String?,
       equipmentType: map['equipmentType'] != null
-          ? EquipmentType.values.firstWhere((e) => e.toString() == map['equipmentType'])
+          ? EquipmentType.values.firstWhere(
+              (e) => e.toString() == map['equipmentType'],
+              orElse: () => EquipmentType.dumbbell,
+            )
           : null,
       reps: map['reps'] as int?,
       weight: map['weight'] as double?,

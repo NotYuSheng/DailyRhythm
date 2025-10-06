@@ -515,7 +515,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
         );
 
         try {
-          await db.createMoodEntry(entry);
+          await db.upsertMoodEntry(entry);
           // Refresh mood data for this date
           ref.invalidate(moodEntryProvider(normalizedDate));
 
