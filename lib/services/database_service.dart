@@ -6,6 +6,7 @@ import '../models/meal_entry.dart';
 import '../models/mood_entry.dart';
 import '../models/exercise_entry.dart';
 import '../models/task_entry.dart';
+import '../models/activity_entry.dart';
 import '../models/tag.dart';
 
 class DatabaseService {
@@ -26,7 +27,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 8,
+      version: 9,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -105,6 +106,63 @@ class DatabaseService {
       await db.execute('''
         ALTER TABLE exercise_entries ADD COLUMN equipmentType TEXT
       ''');
+    }
+    if (oldVersion < 9) {
+      // Add activity_entries table for version 9
+      await db.execute('''
+        CREATE TABLE activity_entries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL,
+          timestamp TEXT NOT NULL,
+          tagId INTEGER NOT NULL,
+          notes TEXT,
+          FOREIGN KEY (tagId) REFERENCES tags (id)
+        )
+      ''');
+
+      // Add default tags for version 9
+      // Using Unicons - storing icon names instead of unicode
+      final defaultTags = [
+        // Health Issues
+        {'name': 'Sore Throat', 'emoji': 'sick', 'category': 'Health'},
+        {'name': 'Nausea', 'emoji': 'annoyed', 'category': 'Health'},
+        {'name': 'Cough', 'emoji': 'virus_slash', 'category': 'Health'},
+        {'name': 'Runny Nose', 'emoji': 'tear', 'category': 'Health'},
+        {'name': 'Congestion', 'emoji': 'ban', 'category': 'Health'},
+        {'name': 'Neck Pain', 'emoji': 'arrow_up', 'category': 'Health'},
+        {'name': 'Rash', 'emoji': 'exclamation_triangle', 'category': 'Health'},
+        {'name': 'Back Pain', 'emoji': 'user_arrows', 'category': 'Health'},
+        {'name': 'Muscle Ache', 'emoji': 'dumbbell', 'category': 'Health'},
+        {'name': 'Headache', 'emoji': 'head_side', 'category': 'Health'},
+        {'name': 'Migraine', 'emoji': 'head_side_cough', 'category': 'Health'},
+        {'name': 'Gastric Pain', 'emoji': 'hospital', 'category': 'Health'},
+        {'name': 'Stomach Ache', 'emoji': 'hospital', 'category': 'Health'},
+        {'name': 'Anxiety', 'emoji': 'sad', 'category': 'Health'},
+        {'name': 'Drowsiness', 'emoji': 'moon', 'category': 'Health'},
+        {'name': 'Constipation', 'emoji': 'ban', 'category': 'Health'},
+        {'name': 'Toothache', 'emoji': 'clinic_medical', 'category': 'Health'},
+        {'name': 'Fever', 'emoji': 'temperature', 'category': 'Health'},
+        {'name': 'Diarrhea', 'emoji': 'hospital', 'category': 'Health'},
+
+        // Common (Work/Study/Entertainment)
+        {'name': 'Study', 'emoji': 'book', 'category': 'General'},
+        {'name': 'Watch Videos', 'emoji': 'play_circle', 'category': 'General'},
+        {'name': 'Class', 'emoji': 'graduation_cap', 'category': 'General'},
+        {'name': 'Test', 'emoji': 'file_alt', 'category': 'General'},
+        {'name': 'Work', 'emoji': 'briefcase', 'category': 'General'},
+        {'name': 'Video Games', 'emoji': 'game_structure', 'category': 'General'},
+        {'name': 'Draw', 'emoji': 'brush_alt', 'category': 'General'},
+        {'name': 'Intense Exercise', 'emoji': 'dumbbell', 'category': 'General'},
+        {'name': 'Social Event', 'emoji': 'glass_martini', 'category': 'General'},
+        {'name': 'Family Time', 'emoji': 'home', 'category': 'General'},
+        {'name': 'Family Issues', 'emoji': 'exclamation_triangle', 'category': 'General'},
+        {'name': 'Change Bedsheets', 'emoji': 'bed', 'category': 'General'},
+        {'name': 'Haircut', 'emoji': 'scissors', 'category': 'General'},
+      ];
+
+      for (final tag in defaultTags) {
+        await db.insert('tags', tag);
+      }
     }
   }
 
@@ -195,6 +253,18 @@ class DatabaseService {
       )
     ''');
 
+    // Activity entries table
+    await db.execute('''
+      CREATE TABLE activity_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        tagId INTEGER NOT NULL,
+        notes TEXT,
+        FOREIGN KEY (tagId) REFERENCES tags (id)
+      )
+    ''');
+
     // Tags table
     await db.execute('''
       CREATE TABLE tags (
@@ -220,6 +290,58 @@ class DatabaseService {
     await db.insert('tag_categories', {'name': 'Mood', 'color': null});
     await db.insert('tag_categories', {'name': 'Activity', 'color': null});
     await db.insert('tag_categories', {'name': 'Health', 'color': null});
+
+    // Create default tags
+    // Using Unicons - storing icon names instead of unicode
+    final defaultTags = [
+      // Health Issues
+      {'name': 'Sore Throat', 'emoji': 'sick', 'category': 'Health'},
+      {'name': 'Nausea', 'emoji': 'annoyed', 'category': 'Health'},
+      {'name': 'Cough', 'emoji': 'virus_slash', 'category': 'Health'},
+      {'name': 'Runny Nose', 'emoji': 'tear', 'category': 'Health'},
+      {'name': 'Congestion', 'emoji': 'ban', 'category': 'Health'},
+      {'name': 'Neck Pain', 'emoji': 'arrow_up', 'category': 'Health'},
+      {'name': 'Rash', 'emoji': 'exclamation_triangle', 'category': 'Health'},
+      {'name': 'Back Pain', 'emoji': 'user_arrows', 'category': 'Health'},
+      {'name': 'Muscle Ache', 'emoji': 'dumbbell', 'category': 'Health'},
+      {'name': 'Headache', 'emoji': 'head_side', 'category': 'Health'},
+      {'name': 'Migraine', 'emoji': 'head_side_cough', 'category': 'Health'},
+      {'name': 'Gastric Pain', 'emoji': 'hospital', 'category': 'Health'},
+      {'name': 'Stomach Ache', 'emoji': 'hospital', 'category': 'Health'},
+      {'name': 'Anxiety', 'emoji': 'sad', 'category': 'Health'},
+      {'name': 'Drowsiness', 'emoji': 'moon', 'category': 'Health'},
+      {'name': 'Constipation', 'emoji': 'ban', 'category': 'Health'},
+      {'name': 'Toothache', 'emoji': 'clinic_medical', 'category': 'Health'},
+      {'name': 'Fever', 'emoji': 'temperature', 'category': 'Health'},
+      {'name': 'Diarrhea', 'emoji': 'hospital', 'category': 'Health'},
+
+      // Work & Study
+      {'name': 'Study', 'emoji': 'book', 'category': 'Work'},
+      {'name': 'Class', 'emoji': 'graduation_cap', 'category': 'Work'},
+      {'name': 'Test', 'emoji': 'file_alt', 'category': 'Work'},
+      {'name': 'Work', 'emoji': 'briefcase', 'category': 'Work'},
+
+      // Leisure & Entertainment
+      {'name': 'Watch Videos', 'emoji': 'play_circle', 'category': 'Hobby'},
+      {'name': 'Video Games', 'emoji': 'game_structure', 'category': 'Hobby'},
+      {'name': 'Draw', 'emoji': 'brush_alt', 'category': 'Hobby'},
+
+      // Physical Activity
+      {'name': 'Intense Exercise', 'emoji': 'dumbbell', 'category': 'Activity'},
+
+      // Social & Family
+      {'name': 'Social Event', 'emoji': 'glass_martini', 'category': 'Activity'},
+      {'name': 'Family Time', 'emoji': 'home', 'category': 'Activity'},
+      {'name': 'Family Issues', 'emoji': 'exclamation_triangle', 'category': 'Activity'},
+
+      // Household & Personal Care
+      {'name': 'Change Bedsheets', 'emoji': 'bed', 'category': 'General'},
+      {'name': 'Haircut', 'emoji': 'scissors', 'category': 'General'},
+    ];
+
+    for (final tag in defaultTags) {
+      await db.insert('tags', tag);
+    }
   }
 
   // ==================== Sleep Entry CRUD ====================
@@ -619,6 +741,34 @@ class DatabaseService {
     final db = await database;
     return await db.delete(
       'task_entries',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // ==================== Activity Entry CRUD ====================
+
+  Future<int> createActivityEntry(ActivityEntry entry) async {
+    final db = await database;
+    return await db.insert('activity_entries', entry.toMap());
+  }
+
+  Future<List<ActivityEntry>> getActivityEntriesByDate(DateTime date) async {
+    final db = await database;
+    final normalizedDate = DateTime(date.year, date.month, date.day);
+    final maps = await db.query(
+      'activity_entries',
+      where: 'date = ?',
+      whereArgs: [normalizedDate.toIso8601String()],
+      orderBy: 'timestamp DESC',
+    );
+    return maps.map((map) => ActivityEntry.fromMap(map)).toList();
+  }
+
+  Future<int> deleteActivityEntry(int id) async {
+    final db = await database;
+    return await db.delete(
+      'activity_entries',
       where: 'id = ?',
       whereArgs: [id],
     );

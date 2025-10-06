@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:unicons/unicons.dart';
 import '../theme/app_theme.dart';
 import '../services/providers.dart';
 import '../models/mood_entry.dart';
 import '../models/exercise_entry.dart';
 import '../models/task_entry.dart';
+import '../models/activity_entry.dart';
+import '../models/tag.dart';
 import 'add_sleep_screen.dart';
 import 'add_meal_screen.dart';
 import 'add_exercise_screen.dart';
@@ -137,6 +140,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
     final moodEntryAsync = ref.watch(moodEntryProvider(normalizedDate));
     final exerciseEntriesAsync = ref.watch(exerciseEntriesProvider(normalizedDate));
     final taskEntriesAsync = ref.watch(taskEntriesProvider(normalizedDate));
+    final activityEntriesAsync = ref.watch(activityEntriesProvider(normalizedDate));
+    final allTagsAsync = ref.watch(allTagsProvider);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.spacePulse3),
@@ -383,13 +388,13 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
 
           const SizedBox(height: AppTheme.spacePulse3),
 
-          // Tasks Section
-          taskEntriesAsync.when(
+          // Activities Section
+          activityEntriesAsync.when(
             data: (entries) {
-              return _buildTasksCard(context, ref, entries, date);
+              return _buildActivitiesCard(context, ref, entries, date);
             },
-            loading: () => _buildTasksCard(context, ref, const [], date),
-            error: (error, stack) => _buildTasksCard(context, ref, const [], date),
+            loading: () => _buildActivitiesCard(context, ref, const [], date),
+            error: (error, stack) => _buildActivitiesCard(context, ref, const [], date),
           ),
 
           const SizedBox(height: AppTheme.spacePulse3),
@@ -869,8 +874,9 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
     );
   }
 
-  Widget _buildTasksCard(BuildContext context, WidgetRef ref, List<TaskEntry> entries, DateTime date) {
-    final completedTasks = entries.map((e) => e.taskType).toSet();
+  Widget _buildActivitiesCard(BuildContext context, WidgetRef ref, List<ActivityEntry> entries, DateTime date) {
+    final allTagsAsync = ref.watch(allTagsProvider);
+    final selectedTagIds = entries.map((e) => e.tagId).toSet();
 
     return Card(
       child: Padding(
@@ -883,10 +889,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.task_alt_outlined, size: 20),
+                    const Icon(Icons.local_activity_outlined, size: 20),
                     const SizedBox(width: AppTheme.spacePulse2),
                     Text(
-                      'Tasks',
+                      'Activities',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ],
@@ -894,49 +900,175 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
               ],
             ),
             const SizedBox(height: AppTheme.spacePulse3),
-            Wrap(
-              spacing: AppTheme.spacePulse2,
-              runSpacing: AppTheme.spacePulse2,
-              children: TaskType.values.map((taskType) {
-                final isCompleted = completedTasks.contains(taskType);
-                return FilterChip(
-                  label: Text(taskType.displayName),
-                  selected: isCompleted,
-                  onSelected: (selected) async {
-                    if (selected) {
-                      // Add task
-                      final db = ref.read(databaseProvider);
-                      final normalizedDate = DateTime(date.year, date.month, date.day);
-                      final entry = TaskEntry(
-                        date: normalizedDate,
-                        timestamp: DateTime.now(),
-                        taskType: taskType,
-                      );
-                      await db.createTaskEntry(entry);
-                      ref.invalidate(taskEntriesProvider(normalizedDate));
-                    } else {
-                      // Remove task
-                      final taskToRemove = entries.firstWhere((e) => e.taskType == taskType);
-                      if (taskToRemove.id != null) {
-                        final db = ref.read(databaseProvider);
-                        await db.deleteTaskEntry(taskToRemove.id!);
-                        final normalizedDate = DateTime(date.year, date.month, date.day);
-                        ref.invalidate(taskEntriesProvider(normalizedDate));
-                      }
-                    }
-                  },
-                  selectedColor: AppTheme.rhythmBlack,
-                  checkmarkColor: AppTheme.rhythmWhite,
-                  labelStyle: TextStyle(
-                    color: isCompleted ? AppTheme.rhythmWhite : AppTheme.rhythmBlack,
-                  ),
+            allTagsAsync.when(
+              data: (tags) {
+                if (tags.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'No tags available. Create tags in the Tags tab.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppTheme.rhythmMediumGray,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                }
+
+                // Group tags by category
+                final groupedTags = <String, List<Tag>>{};
+                for (final tag in tags) {
+                  if (!groupedTags.containsKey(tag.category)) {
+                    groupedTags[tag.category] = [];
+                  }
+                  groupedTags[tag.category]!.add(tag);
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: groupedTags.entries.map((entry) {
+                    final category = entry.key;
+                    final categoryTags = entry.value;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (groupedTags.keys.first != category)
+                          const SizedBox(height: AppTheme.spacePulse3),
+                        Text(
+                          category,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppTheme.rhythmMediumGray,
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        const SizedBox(height: AppTheme.spacePulse2),
+                        Center(
+                          child: Wrap(
+                            spacing: AppTheme.spacePulse3,
+                            runSpacing: AppTheme.spacePulse3,
+                            alignment: WrapAlignment.center,
+                            children: categoryTags.map((tag) {
+                              final isSelected = selectedTagIds.contains(tag.id);
+                              return InkWell(
+                                onTap: () async {
+                                  if (isSelected) {
+                                    // Remove activity
+                                    final activityToRemove = entries.firstWhere((e) => e.tagId == tag.id);
+                                    if (activityToRemove.id != null) {
+                                      final db = ref.read(databaseProvider);
+                                      await db.deleteActivityEntry(activityToRemove.id!);
+                                      final normalizedDate = DateTime(date.year, date.month, date.day);
+                                      ref.invalidate(activityEntriesProvider(normalizedDate));
+                                    }
+                                  } else {
+                                    // Add activity
+                                    final db = ref.read(databaseProvider);
+                                    final normalizedDate = DateTime(date.year, date.month, date.day);
+                                    final entry = ActivityEntry(
+                                      date: normalizedDate,
+                                      timestamp: DateTime.now(),
+                                      tagId: tag.id!,
+                                    );
+                                    await db.createActivityEntry(entry);
+                                    ref.invalidate(activityEntriesProvider(normalizedDate));
+                                  }
+                                },
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 48,
+                                      height: 48,
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? AppTheme.rhythmBlack
+                                            : AppTheme.rhythmLightGray.withOpacity(0.3),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Center(
+                                        child: Icon(
+                                          _getUniconFromName(tag.emoji),
+                                          size: 24,
+                                          color: isSelected
+                                              ? AppTheme.rhythmWhite
+                                              : AppTheme.rhythmBlack,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: AppTheme.spacePulse1),
+                                    SizedBox(
+                                      width: 56,
+                                      child: Text(
+                                        tag.name,
+                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                              fontSize: 9,
+                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                            ),
+                                        textAlign: TextAlign.center,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    );
+                  }).toList(),
                 );
-              }).toList(),
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (_, __) => Center(
+                child: Text(
+                  'Error loading tags',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.rhythmMediumGray,
+                      ),
+                ),
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  IconData _getUniconFromName(String iconName) {
+    // Map icon names to Unicons (using simpler icon names that definitely exist)
+    final iconMap = <String, IconData>{
+      'sick': UniconsLine.frown,
+      'annoyed': UniconsLine.meh,
+      'virus_slash': UniconsLine.shield,
+      'tear': UniconsLine.tear,
+      'ban': UniconsLine.ban,
+      'arrow_up': UniconsLine.arrow_up,
+      'exclamation_triangle': UniconsLine.exclamation_triangle,
+      'user_arrows': UniconsLine.arrow_circle_up,
+      'dumbbell': UniconsLine.dumbbell,
+      'head_side': UniconsLine.head_side,
+      'head_side_cough': UniconsLine.head_side_cough,
+      'hospital': UniconsLine.hospital,
+      'sad': UniconsLine.sad,
+      'moon': UniconsLine.moon,
+      'clinic_medical': UniconsLine.clinic_medical,
+      'temperature': UniconsLine.temperature,
+      'book': UniconsLine.book,
+      'graduation_cap': UniconsLine.graduation_cap,
+      'file_alt': UniconsLine.file_alt,
+      'briefcase': UniconsLine.briefcase,
+      'play_circle': UniconsLine.play_circle,
+      'game_structure': UniconsLine.game_structure,
+      'brush_alt': UniconsLine.brush_alt,
+      'glass_martini': UniconsLine.glass_martini,
+      'home': UniconsLine.home,
+      'bed': UniconsLine.bed,
+      'scissors': UniconsLine.edit_alt,
+    };
+
+    return iconMap[iconName] ?? UniconsLine.question_circle;
   }
 }
 
