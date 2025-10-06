@@ -46,8 +46,57 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
     if (widget.entry != null) {
       _selectedType = widget.entry!.type;
       _selectedRunType = widget.entry!.runType ?? RunType.flat;
+      _selectedEquipmentType = widget.entry!.equipmentType ?? EquipmentType.dumbbell;
+
       // Populate fields based on entry type
-      // TODO: populate controllers from widget.entry
+      if (_selectedType == ExerciseType.run) {
+        if (widget.entry!.distance != null) {
+          _distanceController.text = widget.entry!.distance!.toString();
+        }
+
+        if (_selectedRunType == RunType.flat) {
+          if (widget.entry!.duration != null) {
+            _durationMinutesController.text = (widget.entry!.duration!.inMinutes).toString();
+            _durationSecondsController.text = (widget.entry!.duration!.inSeconds % 60).toString();
+          }
+          if (widget.entry!.pace != null) {
+            _paceMinutesController.text = (widget.entry!.pace!.inMinutes).toString();
+            _paceSecondsController.text = (widget.entry!.pace!.inSeconds % 60).toString();
+          }
+        } else {
+          // Interval run
+          if (widget.entry!.intervalTime != null) {
+            _intervalTimeMinutesController.text = (widget.entry!.intervalTime!.inMinutes).toString();
+            _intervalTimeSecondsController.text = (widget.entry!.intervalTime!.inSeconds % 60).toString();
+          }
+          if (widget.entry!.restTime != null) {
+            _restTimeMinutesController.text = (widget.entry!.restTime!.inMinutes).toString();
+            _restTimeSecondsController.text = (widget.entry!.restTime!.inSeconds % 60).toString();
+          }
+          if (widget.entry!.intervalCount != null) {
+            _intervalCountController.text = widget.entry!.intervalCount!.toString();
+          }
+        }
+      } else {
+        // Weight lifting
+        if (widget.entry!.exerciseName != null) {
+          _exerciseNameController.text = widget.entry!.exerciseName!;
+        }
+        if (widget.entry!.reps != null) {
+          _repsController.text = widget.entry!.reps!.toString();
+        }
+        if (widget.entry!.weight != null) {
+          _weightController.text = widget.entry!.weight!.toString();
+        }
+        if (widget.entry!.sets != null) {
+          _setsController.text = widget.entry!.sets!.toString();
+        }
+      }
+
+      // Notes (common to both types)
+      if (widget.entry!.notes != null) {
+        _notesController.text = widget.entry!.notes!;
+      }
     }
   }
 
