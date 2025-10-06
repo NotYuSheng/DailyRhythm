@@ -42,6 +42,11 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
       appBar: AppBar(
         title: Text(widget.entry == null ? 'Add Sleep' : 'Edit Sleep'),
         actions: [
+          if (widget.entry != null)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: _confirmDelete,
+            ),
           TextButton(
             onPressed: _saveSleep,
             child: const Text('Save'),
@@ -212,5 +217,47 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
         );
       }
     }
+  }
+
+  void _confirmDelete() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Sleep Entry'),
+          content: const Text('Are you sure you want to delete this sleep entry?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (widget.entry?.id != null) {
+                  final db = ref.read(databaseProvider);
+                  await db.deleteSleepEntry(widget.entry!.id!);
+
+                  if (mounted) {
+                    // Invalidate the provider to refresh the list
+                    ref.invalidate(sleepEntriesProvider(widget.entry!.date));
+
+                    Navigator.pop(context); // Close dialog
+                    Navigator.pop(context); // Close edit screen
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Sleep entry deleted'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

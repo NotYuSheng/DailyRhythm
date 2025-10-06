@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../theme/app_theme.dart';
+import '../services/providers.dart';
 
-class CalendarScreen extends StatefulWidget {
+class CalendarScreen extends ConsumerStatefulWidget {
   final Function(DateTime)? onDateSelected;
 
   const CalendarScreen({super.key, this.onDateSelected});
 
   @override
-  State<CalendarScreen> createState() => _CalendarScreenState();
+  ConsumerState<CalendarScreen> createState() => _CalendarScreenState();
 }
 
-class _CalendarScreenState extends State<CalendarScreen> {
+class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
@@ -64,10 +66,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
               calendarBuilders: CalendarBuilders(
                 defaultBuilder: (context, day, focusedDay) {
-                  return _HoverableDay(
-                    day: day,
-                    isToday: isSameDay(day, DateTime.now()),
-                    isSelected: isSameDay(day, _selectedDay),
+                  final normalizedDay = DateTime(day.year, day.month, day.day);
+                  final moodAsync = ref.watch(moodEntryProvider(normalizedDay));
+
+                  return moodAsync.when(
+                    data: (mood) => _HoverableDay(
+                      day: day,
+                      isToday: isSameDay(day, DateTime.now()),
+                      isSelected: isSameDay(day, _selectedDay),
+                      moodEmoji: mood?.emoji,
+                    ),
+                    loading: () => _HoverableDay(
+                      day: day,
+                      isToday: isSameDay(day, DateTime.now()),
+                      isSelected: isSameDay(day, _selectedDay),
+                    ),
+                    error: (_, __) => _HoverableDay(
+                      day: day,
+                      isToday: isSameDay(day, DateTime.now()),
+                      isSelected: isSameDay(day, _selectedDay),
+                    ),
                   );
                 },
               ),
@@ -110,11 +128,13 @@ class _HoverableDay extends StatefulWidget {
   final DateTime day;
   final bool isToday;
   final bool isSelected;
+  final String? moodEmoji;
 
   const _HoverableDay({
     required this.day,
     required this.isToday,
     required this.isSelected,
+    this.moodEmoji,
   });
 
   @override
@@ -141,18 +161,45 @@ class _HoverableDayState extends State<_HoverableDay> {
                       : Colors.transparent,
           shape: BoxShape.circle,
         ),
-        child: Center(
-          child: Text(
-            '${widget.day.day}',
-            style: TextStyle(
-              color: widget.isSelected
-                  ? AppTheme.rhythmWhite
-                  : AppTheme.rhythmBlack,
-              fontWeight: widget.isToday || widget.isSelected
-                  ? FontWeight.bold
-                  : FontWeight.normal,
+        child: Stack(
+          children: [
+            Center(
+              child: Text(
+                '${widget.day.day}',
+                style: TextStyle(
+                  color: widget.isSelected
+                      ? AppTheme.rhythmWhite
+                      : AppTheme.rhythmBlack,
+                  fontWeight: widget.isToday || widget.isSelected
+                      ? FontWeight.bold
+                      : FontWeight.normal,
+                ),
+              ),
             ),
-          ),
+            // Mood indicator
+            Positioned(
+              bottom: 2,
+              right: 2,
+              child: widget.moodEmoji != null
+                  ? Text(
+                      widget.moodEmoji!,
+                      style: const TextStyle(fontSize: 12),
+                    )
+                  : Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: widget.isSelected
+                              ? AppTheme.rhythmWhite.withOpacity(0.3)
+                              : AppTheme.rhythmMediumGray.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                    ),
+            ),
+          ],
         ),
       ),
     );

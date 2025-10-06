@@ -126,6 +126,11 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
       appBar: AppBar(
         title: Text(widget.entry == null ? 'Add Exercise' : 'Edit Exercise'),
         actions: [
+          if (widget.entry != null)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: _confirmDelete,
+            ),
           TextButton(
             onPressed: _saveExercise,
             child: const Text('Save'),
@@ -736,5 +741,47 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
         ),
       );
     }
+  }
+
+  void _confirmDelete() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Exercise'),
+          content: const Text('Are you sure you want to delete this exercise entry?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (widget.entry?.id != null) {
+                  final db = ref.read(databaseProvider);
+                  await db.deleteExerciseEntry(widget.entry!.id!);
+
+                  if (mounted) {
+                    // Invalidate the provider to refresh the list
+                    ref.invalidate(exerciseEntriesProvider(widget.entry!.date));
+
+                    Navigator.pop(context); // Close dialog
+                    Navigator.pop(context); // Close edit screen
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Exercise deleted'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

@@ -631,49 +631,59 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ...entries.map((entry) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: AppTheme.spacePulse2),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            return InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddMealScreen(entry: entry),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: AppTheme.spacePulse2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            entry.quantity > 1 ? '${entry.quantity}x ${entry.name}' : entry.name,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          if (entry.tags.isNotEmpty)
+                            Text(
+                              entry.tags.join(', '),
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppTheme.rhythmMediumGray,
+                                  ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          entry.quantity > 1 ? '${entry.quantity}x ${entry.name}' : entry.name,
+                          '\$${entry.price.toStringAsFixed(2)}',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
                         ),
-                        if (entry.tags.isNotEmpty)
-                          Text(
-                            entry.tags.join(', '),
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppTheme.rhythmMediumGray,
-                                ),
-                          ),
+                        Text(
+                          DateFormat('h:mm a').format(entry.time),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppTheme.rhythmMediumGray,
+                              ),
+                        ),
                       ],
                     ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '\$${entry.price.toStringAsFixed(2)}',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                      Text(
-                        DateFormat('h:mm a').format(entry.time),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppTheme.rhythmMediumGray,
-                            ),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           }).toList(),
@@ -793,61 +803,68 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: entries.map((entry) {
+        Widget content;
         if (entry.type == ExerciseType.run) {
           if (entry.runType == RunType.interval) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacePulse1),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Interval Run',
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  Text(
-                    '${entry.intervalCount}x ${entry.distance}km',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
+            content = Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Interval Run',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                Text(
+                  '${entry.intervalCount}x ${entry.distance}km',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
             );
           } else {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacePulse1),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Run',
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  Text(
-                    '${entry.distance}km',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
+            content = Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Run',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                Text(
+                  '${entry.distance}km',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
             );
           }
         } else {
           // Weight lifting
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppTheme.spacePulse1),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  entry.exerciseName ?? 'Weight Lifting',
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-                Text(
-                  '${entry.sets}x${entry.reps} @ ${entry.weight}kg',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
+          content = Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                entry.exerciseName ?? 'Weight Lifting',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              Text(
+                '${entry.sets}x${entry.reps} @ ${entry.weight}kg',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
           );
         }
+
+        return InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AddExerciseScreen(entry: entry),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppTheme.spacePulse1),
+            child: content,
+          ),
+        );
       }).toList(),
     );
   }
