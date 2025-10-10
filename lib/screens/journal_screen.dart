@@ -962,79 +962,103 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                             final double totalSpacing = spacing * (columns - 1);
                             final double itemWidth = (constraints.maxWidth - totalSpacing) / columns;
 
-                            return Wrap(
-                              spacing: spacing,
-                              runSpacing: spacing,
-                              alignment: WrapAlignment.center,
-                              children: categoryTags.map<Widget>((tag) {
-                                final isSelected = selectedTagIds.contains(tag.id);
-                                return SizedBox(
-                                  width: itemWidth,
-                                  child: InkWell(
-                                    onTap: () async {
-                                      if (isSelected) {
-                                        final activityToRemove = entries.firstWhere((e) => e.tagId == tag.id);
-                                        if (activityToRemove.id != null) {
-                                          final db = ref.read(databaseProvider);
-                                          await db.deleteActivityEntry(activityToRemove.id!);
-                                          final normalizedDate = DateTime(date.year, date.month, date.day);
-                                          ref.invalidate(activityEntriesProvider(normalizedDate));
-                                        }
-                                      } else {
-                                        final db = ref.read(databaseProvider);
-                                        final normalizedDate = DateTime(date.year, date.month, date.day);
-                                        final entry = ActivityEntry(
-                                          date: normalizedDate,
-                                          timestamp: DateTime.now(),
-                                          tagId: tag.id!,
-                                        );
-                                        await db.createActivityEntry(entry);
-                                        ref.invalidate(activityEntriesProvider(normalizedDate));
-                                      }
-                                    },
-                                    child: Align(
-                                      alignment: Alignment.topCenter,
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment: CrossAxisAlignment.center,
-                                        children: [
-                                          Container(
-                                            width: 40,
-                                            height: 40,
-                                            decoration: BoxDecoration(
-                                              color: isSelected
-                                                  ? AppTheme.rhythmBlack
-                                                  : AppTheme.rhythmLightGray.withOpacity(0.3),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: Center(
-                                              child: Icon(
-                                                _getUniconFromName(tag.emoji),
-                                                size: 20,
-                                                color: isSelected
-                                                    ? AppTheme.rhythmWhite
-                                                    : AppTheme.rhythmBlack,
+                            // Split tags into rows of 5
+                            final rows = <List<Tag>>[];
+                            for (var i = 0; i < categoryTags.length; i += columns) {
+                              rows.add(categoryTags.sublist(
+                                i,
+                                i + columns > categoryTags.length ? categoryTags.length : i + columns,
+                              ));
+                            }
+
+                            return Column(
+                              children: rows.map((rowTags) {
+                                return Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom: rows.last == rowTags ? 0 : spacing,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: rowTags.asMap().entries.map((entry) {
+                                      final index = entry.key;
+                                      final tag = entry.value;
+                                      final isSelected = selectedTagIds.contains(tag.id);
+
+                                      return Padding(
+                                        padding: EdgeInsets.only(
+                                          right: index < rowTags.length - 1 ? spacing : 0,
+                                        ),
+                                        child: SizedBox(
+                                          width: itemWidth,
+                                          child: InkWell(
+                                            onTap: () async {
+                                              if (isSelected) {
+                                                final activityToRemove = entries.firstWhere((e) => e.tagId == tag.id);
+                                                if (activityToRemove.id != null) {
+                                                  final db = ref.read(databaseProvider);
+                                                  await db.deleteActivityEntry(activityToRemove.id!);
+                                                  final normalizedDate = DateTime(date.year, date.month, date.day);
+                                                  ref.invalidate(activityEntriesProvider(normalizedDate));
+                                                }
+                                              } else {
+                                                final db = ref.read(databaseProvider);
+                                                final normalizedDate = DateTime(date.year, date.month, date.day);
+                                                final entry = ActivityEntry(
+                                                  date: normalizedDate,
+                                                  timestamp: DateTime.now(),
+                                                  tagId: tag.id!,
+                                                );
+                                                await db.createActivityEntry(entry);
+                                                ref.invalidate(activityEntriesProvider(normalizedDate));
+                                              }
+                                            },
+                                            child: Align(
+                                              alignment: Alignment.topCenter,
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                crossAxisAlignment: CrossAxisAlignment.center,
+                                                children: [
+                                                  Container(
+                                                    width: 40,
+                                                    height: 40,
+                                                    decoration: BoxDecoration(
+                                                      color: isSelected
+                                                          ? AppTheme.rhythmBlack
+                                                          : AppTheme.rhythmLightGray.withOpacity(0.3),
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: Center(
+                                                      child: Icon(
+                                                        _getUniconFromName(tag.emoji),
+                                                        size: 20,
+                                                        color: isSelected
+                                                            ? AppTheme.rhythmWhite
+                                                            : AppTheme.rhythmBlack,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: AppTheme.spacePulse1),
+                                                  SizedBox(
+                                                    width: 52,
+                                                    height: 24,
+                                                    child: Text(
+                                                      tag.name,
+                                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                            fontSize: 8,
+                                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                                          ),
+                                                      textAlign: TextAlign.center,
+                                                      maxLines: 2,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ),
                                           ),
-                                          const SizedBox(height: AppTheme.spacePulse1),
-                                          SizedBox(
-                                            width: 52,
-                                            height: 24,
-                                            child: Text(
-                                              tag.name,
-                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                    fontSize: 8,
-                                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                                  ),
-                                              textAlign: TextAlign.center,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
+                                        ),
+                                      );
+                                    }).toList(),
                                   ),
                                 );
                               }).toList(),
