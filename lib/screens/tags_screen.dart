@@ -21,6 +21,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tags'),
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
@@ -207,106 +208,128 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                                     final double totalSpacing = spacing * (columns - 1);
                                     final double itemWidth = (constraints.maxWidth - totalSpacing) / columns;
 
-                                    return Wrap(
-                                      spacing: spacing,
-                                      runSpacing: spacing,
-                                      alignment: WrapAlignment.center,
-                                      children: categoryTags.asMap().entries.map<Widget>((entry) {
-                                        final index = entry.key;
-                                        final tag = entry.value;
+                                    // Split tags into rows of 5
+                                    final rows = <List<Tag>>[];
+                                    for (var i = 0; i < categoryTags.length; i += columns) {
+                                      rows.add(categoryTags.sublist(
+                                        i,
+                                        i + columns > categoryTags.length ? categoryTags.length : i + columns,
+                                      ));
+                                    }
 
-                                        return DragTarget<Tag>(
-                                          onWillAccept: (draggedTag) {
-                                            return draggedTag != null && draggedTag.id != tag.id;
-                                          },
-                                          onAccept: (draggedTag) async {
-                                            final db = ref.read(databaseProvider);
+                                    return Column(
+                                      children: rows.map((rowTags) {
+                                        return Padding(
+                                          padding: EdgeInsets.only(
+                                            bottom: rows.last == rowTags ? 0 : spacing,
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: rowTags.asMap().entries.map<Widget>((entry) {
+                                              final index = entry.key;
+                                              final tag = entry.value;
+                                              final originalIndex = categoryTags.indexOf(tag);
 
-                                            if (draggedTag.category == categoryName) {
-                                              // Reorder within same category
-                                              final oldIndex = categoryTags.indexWhere((t) => t.id == draggedTag.id);
-                                              if (oldIndex != -1 && oldIndex != index) {
-                                                final newList = List<Tag>.from(categoryTags);
-                                                newList.removeAt(oldIndex);
-                                                newList.insert(index, draggedTag);
+                                              return Padding(
+                                                padding: EdgeInsets.only(
+                                                  right: index < rowTags.length - 1 ? spacing : 0,
+                                                ),
+                                                child: DragTarget<Tag>(
+                                                  onWillAccept: (draggedTag) {
+                                                    return draggedTag != null && draggedTag.id != tag.id;
+                                                  },
+                                                  onAccept: (draggedTag) async {
+                                                    final db = ref.read(databaseProvider);
 
-                                                await db.updateTagOrders(
-                                                  categoryName,
-                                                  newList.map<int>((t) => t.id as int).toList(),
-                                                );
-                                                ref.invalidate(allTagsProvider);
+                                                    if (draggedTag.category == categoryName) {
+                                                      // Reorder within same category
+                                                      final oldIndex = categoryTags.indexWhere((t) => t.id == draggedTag.id);
+                                                      if (oldIndex != -1 && oldIndex != originalIndex) {
+                                                        final newList = List<Tag>.from(categoryTags);
+                                                        newList.removeAt(oldIndex);
+                                                        newList.insert(originalIndex, draggedTag);
 
-                                                if (mounted) {
-                                                  HapticFeedback.lightImpact();
-                                                }
-                                              }
-                                            } else {
-                                              // Move to different category at specific position
-                                              await db.updateTag(draggedTag.copyWith(category: categoryName));
+                                                        await db.updateTagOrders(
+                                                          categoryName,
+                                                          newList.map<int>((t) => t.id as int).toList(),
+                                                        );
+                                                        ref.invalidate(allTagsProvider);
 
-                                              // Insert at the target position
-                                              final newList = List<Tag>.from(categoryTags);
-                                              newList.insert(index, draggedTag.copyWith(category: categoryName));
+                                                        if (mounted) {
+                                                          HapticFeedback.lightImpact();
+                                                        }
+                                                      }
+                                                    } else {
+                                                      // Move to different category at specific position
+                                                      await db.updateTag(draggedTag.copyWith(category: categoryName));
 
-                                              await db.updateTagOrders(
-                                                categoryName,
-                                                newList.map<int>((t) => t.id as int).toList(),
-                                              );
-                                              ref.invalidate(allTagsProvider);
+                                                      // Insert at the target position
+                                                      final newList = List<Tag>.from(categoryTags);
+                                                      newList.insert(originalIndex, draggedTag.copyWith(category: categoryName));
 
-                                              if (mounted) {
-                                                ScaffoldMessenger.of(context).showSnackBar(
-                                                  SnackBar(content: Text('${draggedTag.name} moved to $categoryName')),
-                                                );
-                                              }
-                                            }
-                                          },
-                                          builder: (context, candidateData, rejectedData) {
-                                            final isTargeted = candidateData.isNotEmpty;
+                                                      await db.updateTagOrders(
+                                                        categoryName,
+                                                        newList.map<int>((t) => t.id as int).toList(),
+                                                      );
+                                                      ref.invalidate(allTagsProvider);
 
-                                            return SizedBox(
-                                              width: itemWidth,
-                                              child: Draggable<Tag>(
-                                                data: tag,
-                                                maxSimultaneousDrags: 1,
-                                                feedback: Material(
-                                                  color: Colors.transparent,
-                                                  child: Opacity(
-                                                    opacity: 0.85,
-                                                    child: Container(
+                                                      if (mounted) {
+                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                          SnackBar(content: Text('${draggedTag.name} moved to $categoryName')),
+                                                        );
+                                                      }
+                                                    }
+                                                  },
+                                                  builder: (context, candidateData, rejectedData) {
+                                                    final isTargeted = candidateData.isNotEmpty;
+
+                                                    return SizedBox(
                                                       width: itemWidth,
-                                                      child: _buildTagItem(context, tag, true, itemWidth),
-                                                    ),
-                                                  ),
+                                                      child: Draggable<Tag>(
+                                                        data: tag,
+                                                        maxSimultaneousDrags: 1,
+                                                        feedback: Material(
+                                                          color: Colors.transparent,
+                                                          child: Opacity(
+                                                            opacity: 0.85,
+                                                            child: Container(
+                                                              width: itemWidth,
+                                                              child: _buildTagItem(context, tag, true, itemWidth),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        childWhenDragging: Opacity(
+                                                          opacity: 0.3,
+                                                          child: _buildTagItem(context, tag, false, itemWidth),
+                                                        ),
+                                                        onDragStarted: () {
+                                                          HapticFeedback.mediumImpact();
+                                                        },
+                                                        child: Container(
+                                                          decoration: BoxDecoration(
+                                                            border: isTargeted
+                                                                ? Border.all(
+                                                                    color: AppTheme.rhythmBlack,
+                                                                    width: 2,
+                                                                  )
+                                                                : null,
+                                                            borderRadius: BorderRadius.circular(8),
+                                                          ),
+                                                          child: GestureDetector(
+                                                            onLongPress: () {
+                                                              HapticFeedback.heavyImpact();
+                                                              _showEditTagDialog(context, ref, tag);
+                                                            },
+                                                            child: _buildTagItem(context, tag, false, itemWidth),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
                                                 ),
-                                                childWhenDragging: Opacity(
-                                                  opacity: 0.3,
-                                                  child: _buildTagItem(context, tag, false, itemWidth),
-                                                ),
-                                                onDragStarted: () {
-                                                  HapticFeedback.mediumImpact();
-                                                },
-                                                child: Container(
-                                                  decoration: BoxDecoration(
-                                                    border: isTargeted
-                                                        ? Border.all(
-                                                            color: AppTheme.rhythmBlack,
-                                                            width: 2,
-                                                          )
-                                                        : null,
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                  child: GestureDetector(
-                                                    onLongPress: () {
-                                                      HapticFeedback.heavyImpact();
-                                                      _showEditTagDialog(context, ref, tag);
-                                                    },
-                                                    child: _buildTagItem(context, tag, false, itemWidth),
-                                                  ),
-                                                ),
-                                              ),
-                                            );
-                                          },
+                                              );
+                                            }).toList(),
+                                          ),
                                         );
                                       }).toList(),
                                     );
