@@ -55,6 +55,12 @@ final allTagsProvider = FutureProvider<List<Tag>>((ref) async {
   return db.getAllTags();
 });
 
+// All tag categories provider
+final allTagCategoriesProvider = FutureProvider<List<TagCategory>>((ref) async {
+  final db = ref.watch(databaseProvider);
+  return db.getAllTagCategories();
+});
+
 // Tags by category provider
 final tagsByCategoryProvider = FutureProvider.family<List<Tag>, String>((ref, category) async {
   final db = ref.watch(databaseProvider);

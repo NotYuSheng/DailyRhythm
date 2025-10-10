@@ -27,7 +27,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 9,
+      version: 10,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -164,6 +164,25 @@ class DatabaseService {
         await db.insert('tags', tag);
       }
     }
+    if (oldVersion < 10) {
+      // Add sort_order to tags for version 10
+      await db.execute('''
+        ALTER TABLE tags ADD COLUMN sort_order INTEGER
+      ''');
+      // Initialize sort_order within each category by name ordering
+      final tags = await db.query('tags', orderBy: 'category, name');
+      String? currentCat;
+      int order = 0;
+      for (final t in tags) {
+        final cat = t['category'] as String?;
+        if (cat != currentCat) {
+          currentCat = cat;
+          order = 0;
+        }
+        await db.update('tags', {'sort_order': order}, where: 'id = ?', whereArgs: [t['id']]);
+        order++;
+      }
+    }
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -272,7 +291,8 @@ class DatabaseService {
         name TEXT NOT NULL UNIQUE,
         emoji TEXT NOT NULL,
         category TEXT NOT NULL,
-        color TEXT
+        color TEXT,
+        sort_order INTEGER
       )
     ''');
 
@@ -547,7 +567,7 @@ class DatabaseService {
 
   Future<List<Tag>> getAllTags() async {
     final db = await database;
-    final maps = await db.query('tags', orderBy: 'category, name');
+    final maps = await db.query('tags', orderBy: 'category, sort_order ASC, name ASC');
     return maps.map((map) => Tag.fromMap(map)).toList();
   }
 
@@ -557,7 +577,7 @@ class DatabaseService {
       'tags',
       where: 'category = ?',
       whereArgs: [category],
-      orderBy: 'name',
+      orderBy: 'sort_order ASC, name ASC',
     );
     return maps.map((map) => Tag.fromMap(map)).toList();
   }
@@ -570,6 +590,20 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [tag.id],
     );
+  }
+
+  Future<void> updateTagOrders(String category, List<int> orderedTagIds) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      for (int i = 0; i < orderedTagIds.length; i++) {
+        await txn.update(
+          'tags',
+          {'sort_order': i, 'category': category},
+          where: 'id = ?',
+          whereArgs: [orderedTagIds[i]],
+        );
+      }
+    });
   }
 
   Future<int> deleteTag(int id) async {

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'journal_screen.dart';
 import 'calendar_screen.dart';
-import 'tags_screen.dart';
 import 'settings_screen.dart';
 import 'add_sleep_screen.dart';
 import 'add_meal_screen.dart';
@@ -41,7 +40,6 @@ class _HomeScreenState extends State<HomeScreen> {
             });
           },
         ),
-        const TagsScreen(),
         const SettingsScreen(),
       ];
 
@@ -82,11 +80,6 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: Icon(Icons.calendar_today_outlined),
               activeIcon: Icon(Icons.calendar_today),
               label: 'Calendar',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.local_offer_outlined),
-              activeIcon: Icon(Icons.local_offer),
-              label: 'Tags',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.settings_outlined),

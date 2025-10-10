@@ -12,6 +12,7 @@ import '../models/tag.dart';
 import 'add_sleep_screen.dart';
 import 'add_meal_screen.dart';
 import 'add_exercise_screen.dart';
+import 'tags_screen.dart';
 
 class JournalScreen extends ConsumerStatefulWidget {
   const JournalScreen({super.key, this.initialDate, this.onTodayPressed, this.onDateChanged});
@@ -897,6 +898,18 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                     ),
                   ],
                 ),
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  tooltip: 'Edit tags',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const TagsScreen(),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
             const SizedBox(height: AppTheme.spacePulse3),
@@ -905,7 +918,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 if (tags.isEmpty) {
                   return Center(
                     child: Text(
-                      'No tags available. Create tags in the Tags tab.',
+                      'No tags yet. Tap + to create one.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: AppTheme.rhythmMediumGray,
                           ),
@@ -942,78 +955,91 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                               ),
                         ),
                         const SizedBox(height: AppTheme.spacePulse2),
-                        Center(
-                          child: Wrap(
-                            spacing: AppTheme.spacePulse3,
-                            runSpacing: AppTheme.spacePulse3,
-                            alignment: WrapAlignment.center,
-                            children: categoryTags.map((tag) {
-                              final isSelected = selectedTagIds.contains(tag.id);
-                              return InkWell(
-                                onTap: () async {
-                                  if (isSelected) {
-                                    // Remove activity
-                                    final activityToRemove = entries.firstWhere((e) => e.tagId == tag.id);
-                                    if (activityToRemove.id != null) {
-                                      final db = ref.read(databaseProvider);
-                                      await db.deleteActivityEntry(activityToRemove.id!);
-                                      final normalizedDate = DateTime(date.year, date.month, date.day);
-                                      ref.invalidate(activityEntriesProvider(normalizedDate));
-                                    }
-                                  } else {
-                                    // Add activity
-                                    final db = ref.read(databaseProvider);
-                                    final normalizedDate = DateTime(date.year, date.month, date.day);
-                                    final entry = ActivityEntry(
-                                      date: normalizedDate,
-                                      timestamp: DateTime.now(),
-                                      tagId: tag.id!,
-                                    );
-                                    await db.createActivityEntry(entry);
-                                    ref.invalidate(activityEntriesProvider(normalizedDate));
-                                  }
-                                },
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      width: 48,
-                                      height: 48,
-                                      decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? AppTheme.rhythmBlack
-                                            : AppTheme.rhythmLightGray.withOpacity(0.3),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Center(
-                                        child: Icon(
-                                          _getUniconFromName(tag.emoji),
-                                          size: 24,
-                                          color: isSelected
-                                              ? AppTheme.rhythmWhite
-                                              : AppTheme.rhythmBlack,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: AppTheme.spacePulse1),
-                                    SizedBox(
-                                      width: 56,
-                                      child: Text(
-                                        tag.name,
-                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                              fontSize: 9,
-                                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            const int columns = 5;
+                            final double spacing = AppTheme.spacePulse3.toDouble();
+                            final double totalSpacing = spacing * (columns - 1);
+                            final double itemWidth = (constraints.maxWidth - totalSpacing) / columns;
+
+                            return Wrap(
+                              spacing: spacing,
+                              runSpacing: spacing,
+                              alignment: WrapAlignment.center,
+                              children: categoryTags.map<Widget>((tag) {
+                                final isSelected = selectedTagIds.contains(tag.id);
+                                return SizedBox(
+                                  width: itemWidth,
+                                  child: InkWell(
+                                    onTap: () async {
+                                      if (isSelected) {
+                                        final activityToRemove = entries.firstWhere((e) => e.tagId == tag.id);
+                                        if (activityToRemove.id != null) {
+                                          final db = ref.read(databaseProvider);
+                                          await db.deleteActivityEntry(activityToRemove.id!);
+                                          final normalizedDate = DateTime(date.year, date.month, date.day);
+                                          ref.invalidate(activityEntriesProvider(normalizedDate));
+                                        }
+                                      } else {
+                                        final db = ref.read(databaseProvider);
+                                        final normalizedDate = DateTime(date.year, date.month, date.day);
+                                        final entry = ActivityEntry(
+                                          date: normalizedDate,
+                                          timestamp: DateTime.now(),
+                                          tagId: tag.id!,
+                                        );
+                                        await db.createActivityEntry(entry);
+                                        ref.invalidate(activityEntriesProvider(normalizedDate));
+                                      }
+                                    },
+                                    child: Align(
+                                      alignment: Alignment.topCenter,
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            width: 40,
+                                            height: 40,
+                                            decoration: BoxDecoration(
+                                              color: isSelected
+                                                  ? AppTheme.rhythmBlack
+                                                  : AppTheme.rhythmLightGray.withOpacity(0.3),
+                                              shape: BoxShape.circle,
                                             ),
-                                        textAlign: TextAlign.center,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
+                                            child: Center(
+                                              child: Icon(
+                                                _getUniconFromName(tag.emoji),
+                                                size: 20,
+                                                color: isSelected
+                                                    ? AppTheme.rhythmWhite
+                                                    : AppTheme.rhythmBlack,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: AppTheme.spacePulse1),
+                                          SizedBox(
+                                            width: 52,
+                                            height: 24,
+                                            child: Text(
+                                              tag.name,
+                                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                    fontSize: 8,
+                                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                                  ),
+                                              textAlign: TextAlign.center,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ),
+                                  ),
+                                );
+                              }).toList(),
+                            );
+                          },
                         ),
                       ],
                     );

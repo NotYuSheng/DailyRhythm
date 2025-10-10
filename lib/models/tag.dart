@@ -4,6 +4,7 @@ class Tag {
   final String emoji;
   final String category;
   final String? color; // Store as hex string for future use
+  final int? sortOrder;
 
   Tag({
     this.id,
@@ -11,6 +12,7 @@ class Tag {
     required this.emoji,
     required this.category,
     this.color,
+    this.sortOrder,
   });
 
   // Convert to Map for database
@@ -21,6 +23,7 @@ class Tag {
       'emoji': emoji,
       'category': category,
       'color': color,
+      'sort_order': sortOrder,
     };
   }
 
@@ -32,6 +35,7 @@ class Tag {
       emoji: map['emoji'] as String,
       category: map['category'] as String,
       color: map['color'] as String?,
+      sortOrder: map['sort_order'] as int?,
     );
   }
 
@@ -42,6 +46,7 @@ class Tag {
     String? emoji,
     String? category,
     String? color,
+    int? sortOrder,
   }) {
     return Tag(
       id: id ?? this.id,
@@ -49,6 +54,7 @@ class Tag {
       emoji: emoji ?? this.emoji,
       category: category ?? this.category,
       color: color ?? this.color,
+      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
 
