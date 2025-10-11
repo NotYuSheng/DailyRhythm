@@ -51,6 +51,9 @@ dependencies:
   table_calendar: ^3.1.2
   unicons: ^3.0.0
 
+  # Shared Preferences
+  shared_preferences: ^2.3.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

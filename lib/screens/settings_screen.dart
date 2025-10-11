@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_theme.dart';
+import '../services/theme_provider.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+    final isDarkMode = themeMode == ThemeMode.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
@@ -42,13 +47,13 @@ class SettingsScreen extends StatelessWidget {
           Card(
             child: Column(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.palette_outlined),
-                  title: const Text('Theme'),
-                  subtitle: const Text('Light / Dark mode'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    // TODO: Implement theme toggle
+                SwitchListTile(
+                  secondary: Icon(isDarkMode ? Icons.dark_mode : Icons.light_mode),
+                  title: const Text('Dark Mode'),
+                  subtitle: Text(isDarkMode ? 'Dark theme enabled' : 'Light theme enabled'),
+                  value: isDarkMode,
+                  onChanged: (bool value) {
+                    ref.read(themeModeProvider.notifier).toggleTheme();
                   },
                 ),
                 const Divider(height: 1),

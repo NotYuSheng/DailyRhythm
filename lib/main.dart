@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
+import 'services/theme_provider.dart';
 
 void main() {
   // Initialize sqflite for desktop platforms
@@ -21,17 +22,19 @@ void main() {
   );
 }
 
-class LifeRhythmApp extends StatelessWidget {
+class LifeRhythmApp extends ConsumerWidget {
   const LifeRhythmApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+
     return MaterialApp(
       title: 'LifeRhythm',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.light, // TODO: Add theme mode toggle
+      themeMode: themeMode,
       home: kIsWeb || defaultTargetPlatform == TargetPlatform.linux
           ? const MobilePreviewWrapper(child: HomeScreen())
           : const HomeScreen(),
