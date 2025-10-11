@@ -27,7 +27,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 10,
+      version: 11,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -301,15 +301,17 @@ class DatabaseService {
       CREATE TABLE tag_categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
-        color TEXT
+        color TEXT,
+        sort_order INTEGER
       )
     ''');
 
-    // Create default categories
-    await db.insert('tag_categories', {'name': 'General', 'color': null});
-    await db.insert('tag_categories', {'name': 'Mood', 'color': null});
-    await db.insert('tag_categories', {'name': 'Activity', 'color': null});
-    await db.insert('tag_categories', {'name': 'Health', 'color': null});
+    // Create default categories with sort order
+    await db.insert('tag_categories', {'name': 'General', 'color': null, 'sort_order': 0});
+    await db.insert('tag_categories', {'name': 'Health', 'color': null, 'sort_order': 1});
+    await db.insert('tag_categories', {'name': 'Work', 'color': null, 'sort_order': 2});
+    await db.insert('tag_categories', {'name': 'Hobby', 'color': null, 'sort_order': 3});
+    await db.insert('tag_categories', {'name': 'Activity', 'color': null, 'sort_order': 4});
 
     // Create default tags
     // Using Unicons - storing icon names instead of unicode
@@ -606,8 +608,24 @@ class DatabaseService {
     });
   }
 
+  Future<int> getActivityCountForTag(int tagId) async {
+    final db = await database;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM activity_entries WHERE tagId = ?',
+      [tagId],
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
   Future<int> deleteTag(int id) async {
     final db = await database;
+    // First delete all activity entries that reference this tag
+    await db.delete(
+      'activity_entries',
+      where: 'tagId = ?',
+      whereArgs: [id],
+    );
+    // Then delete the tag itself
     return await db.delete(
       'tags',
       where: 'id = ?',
@@ -691,7 +709,7 @@ class DatabaseService {
 
   Future<List<TagCategory>> getAllTagCategories() async {
     final db = await database;
-    final maps = await db.query('tag_categories', orderBy: 'name');
+    final maps = await db.query('tag_categories', orderBy: 'sort_order, name');
     return maps.map((map) => TagCategory.fromMap(map)).toList();
   }
 
@@ -712,6 +730,20 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  Future<void> updateTagCategoryOrders(List<int> orderedCategoryIds) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      for (int i = 0; i < orderedCategoryIds.length; i++) {
+        await txn.update(
+          'tag_categories',
+          {'sort_order': i},
+          where: 'id = ?',
+          whereArgs: [orderedCategoryIds[i]],
+        );
+      }
+    });
   }
 
   // ==================== Exercise Entry CRUD ====================

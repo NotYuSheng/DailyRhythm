@@ -339,7 +339,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                   }
                 }
               },
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              child: const Text('Delete', style: TextStyle(color: AppTheme.rhythmBlack)),
             ),
           ],
         );

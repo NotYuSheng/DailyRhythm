@@ -66,11 +66,13 @@ class TagCategory {
   final int? id;
   final String name;
   final String? color; // Store as hex string
+  final int? sortOrder;
 
   TagCategory({
     this.id,
     required this.name,
     this.color,
+    this.sortOrder,
   });
 
   // Convert to Map for database
@@ -79,6 +81,7 @@ class TagCategory {
       'id': id,
       'name': name,
       'color': color,
+      'sort_order': sortOrder,
     };
   }
 
@@ -88,6 +91,7 @@ class TagCategory {
       id: map['id'] as int?,
       name: map['name'] as String,
       color: map['color'] as String?,
+      sortOrder: map['sort_order'] as int?,
     );
   }
 
@@ -96,11 +100,13 @@ class TagCategory {
     int? id,
     String? name,
     String? color,
+    int? sortOrder,
   }) {
     return TagCategory(
       id: id ?? this.id,
       name: name ?? this.name,
       color: color ?? this.color,
+      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
 }

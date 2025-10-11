@@ -253,7 +253,7 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
                   }
                 }
               },
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              child: const Text('Delete', style: TextStyle(color: AppTheme.rhythmBlack)),
             ),
           ],
         );

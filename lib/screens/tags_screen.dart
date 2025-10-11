@@ -21,18 +21,11 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tags'),
-        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AddTagScreen(),
-                ),
-              );
-            },
+            tooltip: 'Add Category',
+            onPressed: () => _showAddCategoryDialog(context, ref),
           ),
         ],
       ),
@@ -92,49 +85,11 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
             return ListView(
               padding: const EdgeInsets.all(AppTheme.spacePulse3),
               children: [
-                // Categories management section
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppTheme.spacePulse3),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Categories',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.add, size: 20),
-                              tooltip: 'Add Category',
-                              onPressed: () => _showAddCategoryDialog(context, ref),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppTheme.spacePulse2),
-                        Wrap(
-                          spacing: AppTheme.spacePulse2,
-                          runSpacing: AppTheme.spacePulse2,
-                          children: orderedCategories.map<Widget>((name) {
-                            return ActionChip(
-                              label: Text(name),
-                              onPressed: () => _showEditCategoryDialog(context, ref, name),
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppTheme.spacePulse3),
-
                 // Instruction text
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacePulse2),
                   child: Text(
-                    'Drag to move • Long press to edit',
+                    'Drag categories to reorder • Drag tags to move • Long press tags to edit',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppTheme.rhythmMediumGray,
                           fontStyle: FontStyle.italic,
@@ -144,12 +99,75 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                 ),
                 const SizedBox(height: AppTheme.spacePulse3),
 
-                // Tags grouped by category - journal style
-                ...orderedCategories.map((categoryName) {
+                // Tags grouped by category - journal style with drag-and-drop
+                ...categories.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final category = entry.value;
+                  final categoryName = category.name;
                   final categoryTags = grouped[categoryName] ?? [];
 
-                  return Card(
-                        child: Padding(
+                  return DragTarget<TagCategory>(
+                    onWillAccept: (draggedCategory) {
+                      return draggedCategory != null && draggedCategory.id != category.id;
+                    },
+                    onAccept: (draggedCategory) async {
+                      final db = ref.read(databaseProvider);
+                      final oldIndex = categories.indexWhere((c) => c.id == draggedCategory.id);
+                      if (oldIndex != -1 && oldIndex != index) {
+                        final newList = List<TagCategory>.from(categories);
+                        newList.removeAt(oldIndex);
+                        newList.insert(index, draggedCategory);
+
+                        await db.updateTagCategoryOrders(
+                          newList.map<int>((c) => c.id as int).toList(),
+                        );
+                        ref.invalidate(allTagCategoriesProvider);
+
+                        if (mounted) {
+                          HapticFeedback.lightImpact();
+                        }
+                      }
+                    },
+                    builder: (context, candidateData, rejectedData) {
+                      final isTargeted = candidateData.isNotEmpty;
+
+                      return Draggable<TagCategory>(
+                        data: category,
+                        maxSimultaneousDrags: 1,
+                        feedback: Material(
+                          color: Colors.transparent,
+                          child: Opacity(
+                            opacity: 0.85,
+                            child: Card(
+                              child: Container(
+                                width: MediaQuery.of(context).size.width - AppTheme.spacePulse3 * 2,
+                                padding: const EdgeInsets.all(AppTheme.spacePulse3),
+                                child: Text(
+                                  categoryName,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: AppTheme.rhythmMediumGray,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        childWhenDragging: Opacity(
+                          opacity: 0.3,
+                          child: Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(AppTheme.spacePulse3),
+                              child: Text(categoryName),
+                            ),
+                          ),
+                        ),
+                        onDragStarted: () {
+                          HapticFeedback.mediumImpact();
+                        },
+                        child: Card(
+                          color: isTargeted ? AppTheme.rhythmLightGray.withOpacity(0.3) : null,
+                          child: Padding(
                           padding: const EdgeInsets.all(AppTheme.spacePulse3),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,12 +175,23 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    categoryName,
-                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          color: AppTheme.rhythmMediumGray,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        categoryName,
+                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                              color: AppTheme.rhythmMediumGray,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.edit, size: 16),
+                                        tooltip: 'Edit category',
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () => _showEditCategoryDialog(context, ref, categoryName, categoryTags.length),
+                                      ),
+                                    ],
                                   ),
                                   TextButton.icon(
                                     icon: const Icon(Icons.add, size: 16),
@@ -338,7 +367,10 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                             ],
                           ),
                         ),
+                        ),
                       );
+                    },
+                  );
                 }),
               ],
             );
@@ -417,7 +449,14 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                 final name = controller.text.trim();
                 if (name.isEmpty) return;
                 final db = ref.read(databaseProvider);
-                await db.createTagCategory(TagCategory(name: name));
+
+                // Get current max sort_order and add 1
+                final categories = await ref.read(allTagCategoriesProvider.future);
+                final maxOrder = categories.isEmpty
+                    ? 0
+                    : categories.map((c) => c.sortOrder ?? 0).reduce((a, b) => a > b ? a : b) + 1;
+
+                await db.createTagCategory(TagCategory(name: name, sortOrder: maxOrder));
                 ref.invalidate(allTagCategoriesProvider);
                 if (context.mounted) Navigator.pop(context);
               },
@@ -429,7 +468,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
     );
   }
 
-  Future<void> _showEditCategoryDialog(BuildContext context, WidgetRef ref, String currentName) async {
+  Future<void> _showEditCategoryDialog(BuildContext context, WidgetRef ref, String currentName, int tagCount) async {
     final controller = TextEditingController(text: currentName);
     final categories = await ref.read(allTagCategoriesProvider.future);
     final category = categories.firstWhere((c) => c.name == currentName, orElse: () => TagCategory(name: currentName));
@@ -444,17 +483,68 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
             textCapitalization: TextCapitalization.words,
           ),
           actions: [
-            TextButton(
-              onPressed: () async {
-                if (category.id != null) {
-                  final db = ref.read(databaseProvider);
-                  await db.deleteTagCategory(category.id!);
-                  ref.invalidate(allTagCategoriesProvider);
-                }
-                if (context.mounted) Navigator.pop(context);
-              },
-              child: const Text('Delete'),
-            ),
+            if (category.id != null)
+              TextButton(
+                onPressed: () async {
+                  if (tagCount > 0) {
+                    // Show warning dialog if category has tags
+                    if (context.mounted) {
+                      showDialog(
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          title: const Text('Cannot Delete Category'),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('This category contains $tagCount tag${tagCount == 1 ? '' : 's'}.'),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Please move or delete all tags in this category before deleting it.',
+                                style: TextStyle(fontSize: 13),
+                              ),
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(dialogContext),
+                              child: const Text('OK'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                  } else {
+                    // Show confirmation dialog before deleting
+                    final shouldDelete = await showDialog<bool>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        title: const Text('Delete Category'),
+                        content: Text('Are you sure you want to delete the category "${category.name}"?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext, false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext, true),
+                            child: const Text('Delete', style: TextStyle(color: AppTheme.rhythmBlack)),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (shouldDelete == true) {
+                      // Safe to delete
+                      final db = ref.read(databaseProvider);
+                      await db.deleteTagCategory(category.id!);
+                      ref.invalidate(allTagCategoriesProvider);
+                      if (context.mounted) Navigator.pop(context);
+                    }
+                  }
+                },
+                child: const Text('Delete'),
+              ),
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
             TextButton(
               onPressed: () async {
@@ -486,13 +576,50 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
     );
   }
 
-  void _confirmDelete(BuildContext context, WidgetRef ref, Tag tag) {
+  void _confirmDelete(BuildContext context, WidgetRef ref, Tag tag) async {
+    if (tag.id == null) return;
+
+    // Get count of activity entries using this tag
+    final db = ref.read(databaseProvider);
+    final activityCount = await db.getActivityCountForTag(tag.id!);
+
+    if (!context.mounted) return;
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Delete Tag'),
-          content: Text('Are you sure you want to delete "${tag.name}"?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Are you sure you want to delete "${tag.name}"?'),
+              if (activityCount > 0) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.rhythmLightGray,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.rhythmMediumGray),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning, color: AppTheme.rhythmBlack, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'This will also delete $activityCount activity ${activityCount == 1 ? 'entry' : 'entries'} using this tag.',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -500,20 +627,25 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
             ),
             TextButton(
               onPressed: () async {
-                if (tag.id != null) {
-                  final db = ref.read(databaseProvider);
-                  await db.deleteTag(tag.id!);
-                  ref.invalidate(allTagsProvider);
+                final db = ref.read(databaseProvider);
+                await db.deleteTag(tag.id!);
+                ref.invalidate(allTagsProvider);
 
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Tag deleted')),
-                    );
-                  }
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(activityCount > 0
+                        ? 'Tag and $activityCount ${activityCount == 1 ? 'activity' : 'activities'} deleted'
+                        : 'Tag deleted'),
+                    ),
+                  );
                 }
               },
-              child: const Text('Delete'),
+              child: Text(
+                'Delete',
+                style: TextStyle(color: activityCount > 0 ? AppTheme.rhythmBlack : null),
+              ),
             ),
           ],
         );
@@ -652,15 +784,6 @@ class _AddTagScreenState extends ConsumerState<AddTagScreen> {
     {'name': 'tear', 'icon': UniconsLine.tear},
   ];
 
-  final List<String> _categories = [
-    'General',
-    'Health',
-    'Work',
-    'Personal',
-    'Hobby',
-    'Social',
-  ];
-
   @override
   void dispose() {
     _nameController.dispose();
@@ -672,6 +795,9 @@ class _AddTagScreenState extends ConsumerState<AddTagScreen> {
     if (widget.initialCategory != null && _selectedCategory == 'General') {
       _selectedCategory = widget.initialCategory!;
     }
+
+    final categoriesAsync = ref.watch(allTagCategoriesProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Tag'),
@@ -682,9 +808,13 @@ class _AddTagScreenState extends ConsumerState<AddTagScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(AppTheme.spacePulse3),
-        children: [
+      body: categoriesAsync.when(
+        data: (categories) {
+          final categoryNames = categories.map((c) => c.name).toList();
+
+          return ListView(
+            padding: const EdgeInsets.all(AppTheme.spacePulse3),
+            children: [
           // Tag name
           Card(
             child: Padding(
@@ -797,7 +927,7 @@ class _AddTagScreenState extends ConsumerState<AddTagScreen> {
                   Wrap(
                     spacing: AppTheme.spacePulse2,
                     runSpacing: AppTheme.spacePulse2,
-                    children: _categories.map((category) {
+                    children: categoryNames.map((category) {
                       final isSelected = category == _selectedCategory;
                       return ChoiceChip(
                         label: Text(category),
@@ -822,7 +952,11 @@ class _AddTagScreenState extends ConsumerState<AddTagScreen> {
               ),
             ),
           ),
-        ],
+            ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(child: Text('Error loading categories: $error')),
       ),
     );
   }
@@ -929,15 +1063,6 @@ class _EditTagScreenState extends ConsumerState<EditTagScreen> {
     {'name': 'tear', 'icon': UniconsLine.tear},
   ];
 
-  final List<String> _categories = [
-    'General',
-    'Health',
-    'Work',
-    'Personal',
-    'Hobby',
-    'Social',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -954,6 +1079,8 @@ class _EditTagScreenState extends ConsumerState<EditTagScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final categoriesAsync = ref.watch(allTagCategoriesProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Tag'),
@@ -968,9 +1095,13 @@ class _EditTagScreenState extends ConsumerState<EditTagScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(AppTheme.spacePulse3),
-        children: [
+      body: categoriesAsync.when(
+        data: (categories) {
+          final categoryNames = categories.map((c) => c.name).toList();
+
+          return ListView(
+            padding: const EdgeInsets.all(AppTheme.spacePulse3),
+            children: [
           // Tag name
           Card(
             child: Padding(
@@ -1083,7 +1214,7 @@ class _EditTagScreenState extends ConsumerState<EditTagScreen> {
                   Wrap(
                     spacing: AppTheme.spacePulse2,
                     runSpacing: AppTheme.spacePulse2,
-                    children: _categories.map((category) {
+                    children: categoryNames.map((category) {
                       final isSelected = category == _selectedCategory;
                       return ChoiceChip(
                         label: Text(category),
@@ -1108,7 +1239,11 @@ class _EditTagScreenState extends ConsumerState<EditTagScreen> {
               ),
             ),
           ),
-        ],
+            ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(child: Text('Error loading categories: $error')),
       ),
     );
   }
@@ -1149,13 +1284,50 @@ class _EditTagScreenState extends ConsumerState<EditTagScreen> {
     }
   }
 
-  void _confirmDelete() {
+  void _confirmDelete() async {
+    if (widget.tag.id == null) return;
+
+    // Get count of activity entries using this tag
+    final db = ref.read(databaseProvider);
+    final activityCount = await db.getActivityCountForTag(widget.tag.id!);
+
+    if (!mounted) return;
+
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text('Delete Tag'),
-          content: Text('Are you sure you want to delete "${widget.tag.name}"?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Are you sure you want to delete "${widget.tag.name}"?'),
+              if (activityCount > 0) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.rhythmLightGray,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.rhythmMediumGray),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning, color: AppTheme.rhythmBlack, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'This will also delete $activityCount activity ${activityCount == 1 ? 'entry' : 'entries'} using this tag.',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
@@ -1163,21 +1335,23 @@ class _EditTagScreenState extends ConsumerState<EditTagScreen> {
             ),
             TextButton(
               onPressed: () async {
-                if (widget.tag.id != null) {
-                  final db = ref.read(databaseProvider);
-                  await db.deleteTag(widget.tag.id!);
-                  ref.invalidate(allTagsProvider);
+                final db = ref.read(databaseProvider);
+                await db.deleteTag(widget.tag.id!);
+                ref.invalidate(allTagsProvider);
 
-                  if (mounted) {
-                    Navigator.pop(dialogContext); // Close dialog
-                    Navigator.pop(context); // Close edit screen
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Tag deleted')),
-                    );
-                  }
+                if (mounted) {
+                  Navigator.pop(dialogContext); // Close dialog
+                  Navigator.pop(context); // Close edit screen
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(activityCount > 0
+                        ? 'Tag and $activityCount ${activityCount == 1 ? 'activity' : 'activities'} deleted'
+                        : 'Tag deleted'),
+                    ),
+                  );
                 }
               },
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              child: const Text('Delete', style: TextStyle(color: AppTheme.rhythmBlack)),
             ),
           ],
         );

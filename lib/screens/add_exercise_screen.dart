@@ -737,7 +737,7 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.rhythmBlack,
         ),
       );
     }
@@ -777,7 +777,7 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                   }
                 }
               },
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              child: const Text('Delete', style: TextStyle(color: AppTheme.rhythmBlack)),
             ),
           ],
         );

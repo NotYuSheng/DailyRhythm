@@ -254,7 +254,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 child: Text(
                   'Error loading sleep data',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.red,
+                        color: AppTheme.rhythmMediumGray,
                       ),
                 ),
               ),
@@ -317,7 +317,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 child: Text(
                   'Error loading meals',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.red,
+                        color: AppTheme.rhythmMediumGray,
                       ),
                 ),
               ),
@@ -380,7 +380,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 child: Text(
                   'Error loading exercises',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.red,
+                        color: AppTheme.rhythmMediumGray,
                       ),
                 ),
               ),
