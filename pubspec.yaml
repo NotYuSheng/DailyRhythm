@@ -54,6 +54,11 @@ dependencies:
   # Shared Preferences
   shared_preferences: ^2.3.3
 
+  # CSV Export/Import
+  csv: ^6.0.0
+  path_provider: ^2.1.5
+  file_picker: ^8.1.6
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
