@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_theme.dart';
 import '../services/theme_provider.dart';
 import '../services/export_service.dart';
+import 'backup_settings_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -28,7 +29,12 @@ class SettingsScreen extends ConsumerWidget {
                   subtitle: const Text('Google Drive backup'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () {
-                    // TODO: Implement backup/sync
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const BackupSettingsScreen(),
+                      ),
+                    );
                   },
                 ),
                 const Divider(height: 1),

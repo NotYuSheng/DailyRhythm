@@ -59,6 +59,11 @@ dependencies:
   path_provider: ^2.1.5
   file_picker: ^8.1.6
 
+  # Google Drive Backup
+  google_sign_in: ^6.2.2
+  googleapis: ^13.2.0
+  extension_google_sign_in_as_googleapis_auth: ^2.0.12
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -5,8 +5,13 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
 import 'services/theme_provider.dart';
+import 'services/google_drive_service.dart';
+import 'services/backup_service.dart';
 
-void main() {
+void main() async {
+  // Ensure Flutter binding is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+
   // Initialize sqflite for desktop platforms
   if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.linux ||
       defaultTargetPlatform == TargetPlatform.windows ||
@@ -14,6 +19,12 @@ void main() {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
+
+  // Initialize Google Drive service
+  await GoogleDriveService.instance.initialize();
+
+  // Check if auto-backup is due and perform if needed
+  BackupService.instance.performAutoBackupIfDue();
 
   runApp(
     const ProviderScope(
