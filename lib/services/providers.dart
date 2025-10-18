@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'database_service.dart';
+import 'metrics_service.dart';
 import '../models/sleep_entry.dart';
 import '../models/meal_entry.dart';
 import '../models/mood_entry.dart';
@@ -7,6 +8,7 @@ import '../models/exercise_entry.dart';
 import '../models/task_entry.dart';
 import '../models/activity_entry.dart';
 import '../models/tag.dart';
+import '../models/metric_data.dart';
 
 // Database provider
 final databaseProvider = Provider<DatabaseService>((ref) {
@@ -90,4 +92,42 @@ final refreshTodayDataProvider = Provider<void Function()>((ref) {
     ref.invalidate(todayMealEntriesProvider);
     ref.invalidate(todayMoodEntryProvider);
   };
+});
+
+// ==================== Metrics Providers ====================
+
+// Metrics service provider
+final metricsServiceProvider = Provider<MetricsService>((ref) {
+  final db = ref.watch(databaseProvider);
+  return MetricsService(db);
+});
+
+// Sleep metrics provider
+final sleepMetricsProvider = FutureProvider.family<SleepMetrics, DateRange>((ref, range) async {
+  final service = ref.watch(metricsServiceProvider);
+  return service.calculateSleepMetrics(range);
+});
+
+// Mood metrics provider
+final moodMetricsProvider = FutureProvider.family<MoodMetrics, DateRange>((ref, range) async {
+  final service = ref.watch(metricsServiceProvider);
+  return service.calculateMoodMetrics(range);
+});
+
+// Exercise metrics provider
+final exerciseMetricsProvider = FutureProvider.family<ExerciseMetrics, DateRange>((ref, range) async {
+  final service = ref.watch(metricsServiceProvider);
+  return service.calculateExerciseMetrics(range);
+});
+
+// Activity metrics provider
+final activityMetricsProvider = FutureProvider.family<ActivityMetrics, DateRange>((ref, range) async {
+  final service = ref.watch(metricsServiceProvider);
+  return service.calculateActivityMetrics(range);
+});
+
+// Insights provider
+final metricsInsightsProvider = FutureProvider.family<List<MetricsInsight>, DateRange>((ref, range) async {
+  final service = ref.watch(metricsServiceProvider);
+  return service.generateInsights(range);
 });

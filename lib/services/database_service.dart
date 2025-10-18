@@ -840,6 +840,73 @@ class DatabaseService {
     );
   }
 
+  // ==================== Date Range Queries (for Metrics) ====================
+
+  Future<List<SleepEntry>> getSleepEntriesInRange(DateTime start, DateTime end) async {
+    final db = await database;
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endOfDay = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+    final maps = await db.query(
+      'sleep_entries',
+      where: 'date >= ? AND date < ?',
+      whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
+      orderBy: 'date ASC',
+    );
+    return maps.map((map) => SleepEntry.fromMap(map)).toList();
+  }
+
+  Future<List<MoodEntry>> getMoodEntriesInRange(DateTime start, DateTime end) async {
+    final db = await database;
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endOfDay = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+    final maps = await db.query(
+      'mood_entries',
+      where: 'date >= ? AND date < ?',
+      whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
+      orderBy: 'date ASC',
+    );
+    return maps.map((map) => MoodEntry.fromMap(map)).toList();
+  }
+
+  Future<List<ExerciseEntry>> getExerciseEntriesInRange(DateTime start, DateTime end) async {
+    final db = await database;
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endOfDay = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+    final maps = await db.query(
+      'exercise_entries',
+      where: 'date >= ? AND date < ?',
+      whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
+      orderBy: 'date ASC',
+    );
+    return maps.map((map) => ExerciseEntry.fromMap(map)).toList();
+  }
+
+  Future<List<ActivityEntry>> getActivityEntriesInRange(DateTime start, DateTime end) async {
+    final db = await database;
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endOfDay = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+    final maps = await db.query(
+      'activity_entries',
+      where: 'date >= ? AND date < ?',
+      whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
+      orderBy: 'date ASC',
+    );
+    return maps.map((map) => ActivityEntry.fromMap(map)).toList();
+  }
+
+  Future<List<MealEntry>> getMealEntriesInRange(DateTime start, DateTime end) async {
+    final db = await database;
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endOfDay = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+    final maps = await db.query(
+      'meal_entries',
+      where: 'date >= ? AND date < ?',
+      whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
+      orderBy: 'date ASC',
+    );
+    return maps.map((map) => MealEntry.fromMap(map)).toList();
+  }
+
   // ==================== Utility ====================
 
   Future<void> close() async {

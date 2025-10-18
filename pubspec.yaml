@@ -50,6 +50,7 @@ dependencies:
   flutter_slidable: ^4.0.3
   table_calendar: ^3.1.2
   unicons: ^3.0.0
+  fl_chart: ^1.1.1
 
   # Shared Preferences
   shared_preferences: ^2.3.3
