@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/google_drive_service.dart';
 import '../services/backup_service.dart';
+import '../theme/app_theme.dart';
 
 class BackupSettingsScreen extends StatefulWidget {
   const BackupSettingsScreen({super.key});
@@ -88,7 +89,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.message ?? 'Platform not supported'),
-            backgroundColor: Colors.orange,
+            backgroundColor: AppTheme.rhythmMediumGray,
             duration: const Duration(seconds: 5),
           ),
         );
@@ -98,7 +99,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Sign in error: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.rhythmMediumGray,
           ),
         );
       }
@@ -169,7 +170,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
+              backgroundColor: AppTheme.rhythmMediumGray,
             ),
             child: const Text('Restore'),
           ),
@@ -338,12 +339,21 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
                 // Platform warning banner
                 if (!platformSupported)
                   Card(
-                    color: Colors.orange.shade50,
+                    color: platformSupported
+                        ? null
+                        : (theme.brightness == Brightness.dark
+                            ? AppTheme.rhythmAccent1
+                            : const Color(0x4DB0B0B0)), // 30% opacity rhythmLightGray
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline, color: Colors.orange.shade700),
+                          Icon(
+                            Icons.info_outline,
+                            color: theme.brightness == Brightness.dark
+                                ? AppTheme.rhythmLightGray
+                                : AppTheme.rhythmMediumGray,
+                          ),
                           const SizedBox(width: 16),
                           Expanded(
                             child: Column(
@@ -353,16 +363,13 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
                                   'Platform Not Supported',
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.orange.shade900,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   'Google Drive backup is currently only supported on Android, iOS, and Web. '
                                   'Please run the app on a supported platform to use this feature.',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: Colors.orange.shade900,
-                                  ),
+                                  style: theme.textTheme.bodySmall,
                                 ),
                               ],
                             ),
@@ -446,7 +453,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
                                   icon: const Icon(Icons.cloud_download),
                                   label: const Text('Restore'),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.orange,
+                                    backgroundColor: AppTheme.rhythmMediumGray,
                                   ),
                                 ),
                               ),

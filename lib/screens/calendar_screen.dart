@@ -19,6 +19,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Calendar'),
@@ -52,16 +55,16 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               },
               calendarStyle: CalendarStyle(
                 todayDecoration: BoxDecoration(
-                  color: AppTheme.rhythmMediumGray,
+                  color: isDark ? AppTheme.rhythmAccent2 : AppTheme.rhythmMediumGray,
                   shape: BoxShape.circle,
                 ),
                 selectedDecoration: BoxDecoration(
-                  color: AppTheme.rhythmBlack,
+                  color: isDark ? AppTheme.rhythmWhite : AppTheme.rhythmBlack,
                   shape: BoxShape.circle,
                 ),
                 outsideDaysVisible: false,
                 disabledTextStyle: TextStyle(
-                  color: AppTheme.rhythmLightGray,
+                  color: isDark ? AppTheme.rhythmAccent1 : AppTheme.rhythmLightGray,
                 ),
               ),
               calendarBuilders: CalendarBuilders(
@@ -75,16 +78,19 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       isToday: isSameDay(day, DateTime.now()),
                       isSelected: isSameDay(day, _selectedDay),
                       moodEmoji: mood?.emoji,
+                      isDark: isDark,
                     ),
                     loading: () => _HoverableDay(
                       day: day,
                       isToday: isSameDay(day, DateTime.now()),
                       isSelected: isSameDay(day, _selectedDay),
+                      isDark: isDark,
                     ),
                     error: (_, __) => _HoverableDay(
                       day: day,
                       isToday: isSameDay(day, DateTime.now()),
                       isSelected: isSameDay(day, _selectedDay),
+                      isDark: isDark,
                     ),
                   );
                 },
@@ -92,16 +98,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               headerStyle: HeaderStyle(
                 titleCentered: true,
                 formatButtonVisible: false,
-                titleTextStyle: Theme.of(context).textTheme.titleLarge!.copyWith(
-                      color: AppTheme.rhythmBlack,
-                    ),
-                leftChevronIcon: const Icon(
+                titleTextStyle: theme.textTheme.titleLarge!,
+                leftChevronIcon: Icon(
                   Icons.chevron_left,
-                  color: AppTheme.rhythmBlack,
+                  color: theme.iconTheme.color,
                 ),
-                rightChevronIcon: const Icon(
+                rightChevronIcon: Icon(
                   Icons.chevron_right,
-                  color: AppTheme.rhythmBlack,
+                  color: theme.iconTheme.color,
                 ),
               ),
               enabledDayPredicate: (day) {
@@ -113,9 +117,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             padding: const EdgeInsets.all(AppTheme.spacePulse3),
             child: Text(
               'Select a date to view entries',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.rhythmMediumGray,
-                  ),
+              style: theme.textTheme.bodyMedium,
             ),
           ),
         ],
@@ -129,12 +131,14 @@ class _HoverableDay extends StatefulWidget {
   final bool isToday;
   final bool isSelected;
   final String? moodEmoji;
+  final bool isDark;
 
   const _HoverableDay({
     required this.day,
     required this.isToday,
     required this.isSelected,
     this.moodEmoji,
+    this.isDark = false,
   });
 
   @override
@@ -153,11 +157,11 @@ class _HoverableDayState extends State<_HoverableDay> {
         margin: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: widget.isSelected
-              ? AppTheme.rhythmBlack
+              ? (widget.isDark ? AppTheme.rhythmWhite : AppTheme.rhythmBlack)
               : widget.isToday
-                  ? AppTheme.rhythmMediumGray
+                  ? (widget.isDark ? AppTheme.rhythmAccent2 : AppTheme.rhythmMediumGray)
                   : _isHovered
-                      ? AppTheme.rhythmLightGray
+                      ? (widget.isDark ? AppTheme.rhythmAccent1 : AppTheme.rhythmLightGray)
                       : Colors.transparent,
           shape: BoxShape.circle,
         ),
@@ -168,8 +172,8 @@ class _HoverableDayState extends State<_HoverableDay> {
                 '${widget.day.day}',
                 style: TextStyle(
                   color: widget.isSelected
-                      ? AppTheme.rhythmWhite
-                      : AppTheme.rhythmBlack,
+                      ? (widget.isDark ? AppTheme.rhythmBlack : AppTheme.rhythmWhite)
+                      : (widget.isDark ? AppTheme.rhythmWhite : AppTheme.rhythmBlack),
                   fontWeight: widget.isToday || widget.isSelected
                       ? FontWeight.bold
                       : FontWeight.normal,
@@ -192,8 +196,12 @@ class _HoverableDayState extends State<_HoverableDay> {
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: widget.isSelected
-                              ? AppTheme.rhythmWhite.withOpacity(0.3)
-                              : AppTheme.rhythmMediumGray.withOpacity(0.3),
+                              ? (widget.isDark
+                                  ? const Color(0x4D000000) // 30% black
+                                  : const Color(0x4DFFFFFF)) // 30% white
+                              : (widget.isDark
+                                  ? const Color(0x4DB0B0B0) // 30% light gray
+                                  : const Color(0x4D4A4A4A)), // 30% medium gray
                           width: 1,
                         ),
                       ),

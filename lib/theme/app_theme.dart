@@ -186,6 +186,28 @@ class AppTheme {
         thickness: 1,
         space: spacePulse3,
       ),
+
+      // Bottom Navigation Bar Theme
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: rhythmWhite,
+        selectedItemColor: rhythmBlack,
+        unselectedItemColor: rhythmMediumGray,
+        selectedLabelStyle: TextStyle(fontSize: 12),
+        unselectedLabelStyle: TextStyle(fontSize: 12),
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+      ),
+
+      // List Tile Theme
+      listTileTheme: const ListTileThemeData(
+        textColor: rhythmBlack,
+        iconColor: rhythmBlack,
+      ),
+
+      // Icon Theme
+      iconTheme: const IconThemeData(
+        color: rhythmBlack,
+      ),
     );
   }
 
@@ -339,6 +361,101 @@ class AppTheme {
         color: rhythmAccent1,
         thickness: 1,
         space: spacePulse3,
+      ),
+
+      // Bottom Navigation Bar Theme
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: rhythmBlack,
+        selectedItemColor: rhythmWhite,
+        unselectedItemColor: rhythmAccent2,
+        selectedLabelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        unselectedLabelStyle: TextStyle(fontSize: 12),
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+      ),
+
+      // List Tile Theme
+      listTileTheme: const ListTileThemeData(
+        textColor: rhythmWhite,
+        iconColor: rhythmWhite,
+        subtitleTextStyle: TextStyle(color: rhythmLightGray),
+      ),
+
+      // Icon Theme
+      iconTheme: const IconThemeData(
+        color: rhythmWhite,
+      ),
+
+      // Chip Theme
+      chipTheme: ChipThemeData(
+        backgroundColor: rhythmAccent1,
+        deleteIconColor: rhythmLightGray,
+        labelStyle: const TextStyle(color: rhythmWhite),
+        secondaryLabelStyle: const TextStyle(color: rhythmLightGray),
+        brightness: Brightness.dark,
+        padding: const EdgeInsets.symmetric(
+          horizontal: spacePulse2,
+          vertical: spacePulse1,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusSmall),
+          side: const BorderSide(color: rhythmAccent1),
+        ),
+      ),
+
+      // Dialog Theme
+      dialogTheme: DialogThemeData(
+        backgroundColor: rhythmDarkGray,
+        titleTextStyle: const TextStyle(
+          color: rhythmWhite,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
+        contentTextStyle: const TextStyle(
+          color: rhythmLightGray,
+          fontSize: 14,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusMedium),
+        ),
+      ),
+
+      // Snackbar Theme
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: rhythmAccent1,
+        contentTextStyle: const TextStyle(color: rhythmWhite),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusSmall),
+        ),
+      ),
+
+      // Switch Theme
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return rhythmWhite;
+          }
+          return rhythmAccent2;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return rhythmAccent2;
+          }
+          return rhythmAccent1;
+        }),
+      ),
+
+      // Checkbox Theme
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return rhythmWhite;
+          }
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStateProperty.all(rhythmBlack),
+        side: const BorderSide(color: rhythmAccent2, width: 2),
       ),
     );
   }

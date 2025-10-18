@@ -44,13 +44,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       body: _screens[_currentIndex],
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
             top: BorderSide(
-              color: AppTheme.rhythmLightGray,
+              color: isDark ? AppTheme.rhythmAccent1 : AppTheme.rhythmLightGray,
               width: 1,
             ),
           ),
@@ -62,13 +65,6 @@ class _HomeScreenState extends State<HomeScreen> {
               _currentIndex = index;
             });
           },
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: AppTheme.rhythmWhite,
-          selectedItemColor: AppTheme.rhythmBlack,
-          unselectedItemColor: AppTheme.rhythmMediumGray,
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
-          elevation: 0,
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.book_outlined),
