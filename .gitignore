@@ -26,6 +26,11 @@ migrate_working_dir/
 # Claude Code
 .claude/
 
+# Android keystore and signing
+**/android/key.properties
+*.jks
+*.keystore
+
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
