@@ -53,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
         decoration: BoxDecoration(
           border: Border(
             top: BorderSide(
-              color: isDark ? AppTheme.rhythmAccent1 : AppTheme.rhythmLightGray,
+              color: theme.colorScheme.outline,
               width: 1,
             ),
           ),

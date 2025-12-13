@@ -33,9 +33,9 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppTheme.rhythmBlack : AppTheme.rhythmOffWhite,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: isDark ? AppTheme.rhythmBlack : AppTheme.rhythmWhite,
+        backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 0,
         title: const Text(
           'Metrics',
@@ -86,6 +86,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
         scrollDirection: Axis.horizontal,
         itemCount: _dateRanges.length,
         itemBuilder: (context, index) {
+          final theme = Theme.of(context);
           final isSelected = index == _selectedRangeIndex;
           final range = _dateRanges[index];
 
@@ -107,13 +108,13 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                 ),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? (isDark ? AppTheme.rhythmWhite : AppTheme.rhythmBlack)
-                      : (isDark ? AppTheme.rhythmDarkGray : AppTheme.rhythmWhite),
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                   border: Border.all(
                     color: isSelected
-                        ? (isDark ? AppTheme.rhythmWhite : AppTheme.rhythmBlack)
-                        : (isDark ? AppTheme.rhythmAccent1 : AppTheme.rhythmLightGray),
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.outline,
                     width: 1,
                   ),
                 ),
@@ -124,8 +125,8 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                       fontSize: 14,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                       color: isSelected
-                          ? (isDark ? AppTheme.rhythmBlack : AppTheme.rhythmWhite)
-                          : (isDark ? AppTheme.rhythmWhite : AppTheme.rhythmBlack),
+                          ? theme.colorScheme.onPrimary
+                          : theme.colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -288,7 +289,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
           horizontalInterval: 2,
           getDrawingHorizontalLine: (value) {
             return FlLine(
-              color: isDark ? AppTheme.rhythmAccent1 : AppTheme.rhythmLightGray,
+              color: AppTheme.getChartGridColor(context),
               strokeWidth: 1,
             );
           },
@@ -310,7 +311,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                     child: Text(
                       DateFormat('M/d').format(date),
                       style: TextStyle(
-                        color: isDark ? AppTheme.rhythmLightGray : AppTheme.rhythmMediumGray,
+                        color: AppTheme.getSubtleTextColor(context),
                         fontSize: 10,
                       ),
                     ),
@@ -329,7 +330,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                 return Text(
                   '${value.toInt()}h',
                   style: TextStyle(
-                    color: isDark ? AppTheme.rhythmLightGray : AppTheme.rhythmMediumGray,
+                    color: AppTheme.getSubtleTextColor(context),
                     fontSize: 10,
                   ),
                 );
@@ -346,7 +347,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
           LineChartBarData(
             spots: spots,
             isCurved: true,
-            color: isDark ? AppTheme.rhythmWhite : AppTheme.rhythmBlack,
+            color: AppTheme.getChartLineColor(context),
             barWidth: 2,
             isStrokeCapRound: true,
             dotData: FlDotData(
@@ -354,14 +355,14 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
               getDotPainter: (spot, percent, barData, index) {
                 return FlDotCirclePainter(
                   radius: 3,
-                  color: isDark ? AppTheme.rhythmWhite : AppTheme.rhythmBlack,
+                  color: AppTheme.getChartLineColor(context),
                   strokeWidth: 0,
                 );
               },
             ),
             belowBarData: BarAreaData(
               show: true,
-              color: (isDark ? AppTheme.rhythmWhite : AppTheme.rhythmBlack).withValues(alpha: 0.1),
+              color: AppTheme.getChartLineColor(context).withValues(alpha: 0.1),
             ),
           ),
         ],
@@ -404,15 +405,15 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
 
                 return Column(
                   children: [
-                    _buildMoodBar('😄 Great (5)', metrics.distribution[5] ?? 0, total, isDark),
+                    _buildMoodBar(context, '😄 Great (5)', metrics.distribution[5] ?? 0, total, isDark),
                     const SizedBox(height: AppTheme.spacePulse2),
-                    _buildMoodBar('😊 Good (4)', metrics.distribution[4] ?? 0, total, isDark),
+                    _buildMoodBar(context, '😊 Good (4)', metrics.distribution[4] ?? 0, total, isDark),
                     const SizedBox(height: AppTheme.spacePulse2),
-                    _buildMoodBar('😐 Okay (3)', metrics.distribution[3] ?? 0, total, isDark),
+                    _buildMoodBar(context, '😐 Okay (3)', metrics.distribution[3] ?? 0, total, isDark),
                     const SizedBox(height: AppTheme.spacePulse2),
-                    _buildMoodBar('😟 Bad (2)', metrics.distribution[2] ?? 0, total, isDark),
+                    _buildMoodBar(context, '😟 Bad (2)', metrics.distribution[2] ?? 0, total, isDark),
                     const SizedBox(height: AppTheme.spacePulse2),
-                    _buildMoodBar('😢 Very Bad (1)', metrics.distribution[1] ?? 0, total, isDark),
+                    _buildMoodBar(context, '😢 Very Bad (1)', metrics.distribution[1] ?? 0, total, isDark),
                   ],
                 );
               },
@@ -428,7 +429,8 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
     );
   }
 
-  Widget _buildMoodBar(String label, int count, int total, bool isDark) {
+  Widget _buildMoodBar(BuildContext context, String label, int count, int total, bool isDark) {
+    final theme = Theme.of(context);
     final percentage = total > 0 ? (count / total) * 100 : 0.0;
 
     return Row(
@@ -439,7 +441,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: isDark ? AppTheme.rhythmLightGray : AppTheme.rhythmMediumGray,
+              color: AppTheme.getSubtleTextColor(context),
             ),
           ),
         ),
@@ -450,7 +452,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
               Container(
                 height: 24,
                 decoration: BoxDecoration(
-                  color: isDark ? AppTheme.rhythmAccent1 : AppTheme.rhythmOffWhite,
+                  color: theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                 ),
               ),
@@ -459,7 +461,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                 child: Container(
                   height: 24,
                   decoration: BoxDecoration(
-                    color: isDark ? AppTheme.rhythmWhite : AppTheme.rhythmBlack,
+                    color: theme.colorScheme.primary,
                     borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                   ),
                 ),
@@ -476,7 +478,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
-              color: isDark ? AppTheme.rhythmWhite : AppTheme.rhythmBlack,
+              color: theme.colorScheme.onSurface,
             ),
           ),
         ),
@@ -534,9 +536,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                           const SizedBox(width: AppTheme.spacePulse2),
                           Text(
                             '${activity.percentage.toStringAsFixed(0)}%',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: AppTheme.rhythmMediumGray,
-                            ),
+                            style: theme.textTheme.bodySmall,
                           ),
                         ],
                       ),
@@ -592,7 +592,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                           Icon(
                             _getInsightIcon(insight.type),
                             size: 16,
-                            color: isDark ? AppTheme.rhythmLightGray : AppTheme.rhythmMediumGray,
+                            color: AppTheme.getSubtleTextColor(context),
                           ),
                           const SizedBox(width: AppTheme.spacePulse2),
                           Expanded(
@@ -647,9 +647,9 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
         child: Center(
           child: Text(
             'Error loading $label',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
-              color: AppTheme.rhythmMediumGray,
+              color: AppTheme.grey600,
             ),
           ),
         ),
@@ -664,8 +664,8 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
         child: Text(
           message,
           textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppTheme.rhythmMediumGray,
+          style: TextStyle(
+            color: AppTheme.grey600,
             fontSize: 14,
           ),
         ),

@@ -41,7 +41,7 @@ class QuickStatCard extends StatelessWidget {
                   Icon(
                     icon,
                     size: 24,
-                    color: isDark ? AppTheme.rhythmWhite : AppTheme.rhythmBlack,
+                    color: theme.colorScheme.onSurface,
                   ),
                   _buildTrendIndicator(isDark),
                 ],
@@ -56,9 +56,7 @@ class QuickStatCard extends StatelessWidget {
               const SizedBox(height: AppTheme.spacePulse1),
               Text(
                 label,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.rhythmMediumGray,
-                ),
+                style: theme.textTheme.bodyMedium,
               ),
             ],
           ),
@@ -74,9 +72,10 @@ class QuickStatCard extends StatelessWidget {
 
     final isPositive = trend == TrendDirection.up;
     final icon = isPositive ? Icons.arrow_upward : Icons.arrow_downward;
+    // Use semantic colors: green for positive trend, subtle grey for negative
     final color = isDark
-        ? (isPositive ? AppTheme.rhythmWhite : AppTheme.rhythmLightGray)
-        : (isPositive ? AppTheme.rhythmBlack : AppTheme.rhythmMediumGray);
+        ? (isPositive ? AppTheme.green400 : AppTheme.grey400)
+        : (isPositive ? AppTheme.green600 : AppTheme.grey600);
 
     return Row(
       children: [

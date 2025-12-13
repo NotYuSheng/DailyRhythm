@@ -55,16 +55,24 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               },
               calendarStyle: CalendarStyle(
                 todayDecoration: BoxDecoration(
-                  color: isDark ? AppTheme.rhythmAccent2 : AppTheme.rhythmMediumGray,
+                  color: theme.colorScheme.secondaryContainer,
                   shape: BoxShape.circle,
                 ),
+                todayTextStyle: TextStyle(
+                  color: theme.colorScheme.onSecondaryContainer,
+                  fontWeight: FontWeight.bold,
+                ),
                 selectedDecoration: BoxDecoration(
-                  color: isDark ? AppTheme.rhythmWhite : AppTheme.rhythmBlack,
+                  color: theme.colorScheme.primary,
                   shape: BoxShape.circle,
+                ),
+                selectedTextStyle: TextStyle(
+                  color: theme.colorScheme.onPrimary,
+                  fontWeight: FontWeight.bold,
                 ),
                 outsideDaysVisible: false,
                 disabledTextStyle: TextStyle(
-                  color: isDark ? AppTheme.rhythmAccent1 : AppTheme.rhythmLightGray,
+                  color: theme.colorScheme.onSurface.withOpacity(0.3),
                 ),
               ),
               calendarBuilders: CalendarBuilders(
@@ -150,6 +158,9 @@ class _HoverableDayState extends State<_HoverableDay> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = widget.isDark;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -157,11 +168,11 @@ class _HoverableDayState extends State<_HoverableDay> {
         margin: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: widget.isSelected
-              ? (widget.isDark ? AppTheme.rhythmWhite : AppTheme.rhythmBlack)
+              ? theme.colorScheme.primary
               : widget.isToday
-                  ? (widget.isDark ? AppTheme.rhythmAccent2 : AppTheme.rhythmMediumGray)
+                  ? theme.colorScheme.secondaryContainer
                   : _isHovered
-                      ? (widget.isDark ? AppTheme.rhythmAccent1 : AppTheme.rhythmLightGray)
+                      ? (isDark ? AppTheme.grey800 : AppTheme.grey100)
                       : Colors.transparent,
           shape: BoxShape.circle,
         ),
@@ -172,8 +183,10 @@ class _HoverableDayState extends State<_HoverableDay> {
                 '${widget.day.day}',
                 style: TextStyle(
                   color: widget.isSelected
-                      ? (widget.isDark ? AppTheme.rhythmBlack : AppTheme.rhythmWhite)
-                      : (widget.isDark ? AppTheme.rhythmWhite : AppTheme.rhythmBlack),
+                      ? theme.colorScheme.onPrimary
+                      : widget.isToday
+                          ? theme.colorScheme.onSecondaryContainer
+                          : theme.colorScheme.onSurface,
                   fontWeight: widget.isToday || widget.isSelected
                       ? FontWeight.bold
                       : FontWeight.normal,

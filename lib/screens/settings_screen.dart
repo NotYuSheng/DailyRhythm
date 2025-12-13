@@ -116,26 +116,52 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Future<void> _handleExportData(BuildContext context) async {
-    // Show loading dialog
-    showDialog(
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(AppTheme.spacePulse4),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: AppTheme.spacePulse3),
-                Text('Exporting your data...'),
-              ],
+      builder: (context) => AlertDialog(
+        title: const Text('Export Data'),
+        content: const Text(
+          'This will export all your data (sleep, meals, and tags) to CSV files in your Downloads folder. Continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Export'),
+          ),
+        ],
+      ),
+    );
+
+    // If user cancelled, return early
+    if (confirmed != true) return;
+
+    // Show loading dialog
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(AppTheme.spacePulse4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: AppTheme.spacePulse3),
+                  Text('Exporting your data...'),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    }
 
     try {
       final exportService = ExportService.instance;
