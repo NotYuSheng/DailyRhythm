@@ -1,4 +1,4 @@
-# LifeRhythm
+# DailyRhythm
 
 A daily stats tracking Flutter app with monochrome rhythm aesthetic.
 
@@ -20,7 +20,7 @@ A daily stats tracking Flutter app with monochrome rhythm aesthetic.
 1. **First-time setup:**
    ```bash
    # Navigate to the project directory
-   cd LifeRhythm
+   cd DailyRhythm
 
    # Get dependencies
    flutter pub get
@@ -97,7 +97,7 @@ The current setup uses system SQLite libraries for development. Before distribut
 
 ## Project Overview
 
-LifeRhythm tracks your daily stats including:
+DailyRhythm tracks your daily stats including:
 - Sleep patterns
 - Meals and costs
 - Mood tracking with emoji buttons

@@ -102,9 +102,9 @@ class SettingsScreen extends ConsumerWidget {
   void _showAboutDialog(BuildContext context) {
     showAboutDialog(
       context: context,
-      applicationName: 'LifeRhythm',
+      applicationName: 'DailyRhythm',
       applicationVersion: '1.0.0',
-      applicationLegalese: '© 2025 LifeRhythm\nMonochrome rhythm-inspired daily tracking',
+      applicationLegalese: '© 2025 DailyRhythm\nMonochrome rhythm-inspired daily tracking',
       children: [
         const SizedBox(height: AppTheme.spacePulse3),
         Text(

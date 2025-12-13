@@ -1,6 +1,6 @@
 {
-    "name": "LifeRhythm",
-    "short_name": "LifeRhythm",
+    "name": "DailyRhythm",
+    "short_name": "DailyRhythm",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#000000",
