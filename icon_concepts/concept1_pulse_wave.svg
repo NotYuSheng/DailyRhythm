@@ -1,0 +1,18 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="#000000" rx="227"/>
+
+  <!-- Pulse wave line -->
+  <path d="M 150 512 L 300 512 L 380 350 L 460 674 L 540 410 L 620 512 L 874 512"
+        stroke="#FFFFFF"
+        stroke-width="40"
+        fill="none"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- Small dot at start -->
+  <circle cx="150" cy="512" r="15" fill="#FFFFFF"/>
+
+  <!-- Small dot at end -->
+  <circle cx="874" cy="512" r="15" fill="#FFFFFF"/>
+</svg>

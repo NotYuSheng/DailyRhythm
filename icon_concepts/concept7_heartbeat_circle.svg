@@ -1,0 +1,15 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="#000000" rx="227"/>
+
+  <!-- Outer circle -->
+  <circle cx="512" cy="512" r="380" stroke="#FFFFFF" stroke-width="35" fill="none"/>
+
+  <!-- Heartbeat line - more dramatic -->
+  <path d="M 200 512 L 350 512 L 410 400 L 470 624 L 530 350 L 590 600 L 650 512 L 824 512"
+        stroke="#FFFFFF"
+        stroke-width="45"
+        fill="none"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+</svg>

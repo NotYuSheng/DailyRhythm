@@ -1,0 +1,35 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="#000000" rx="227"/>
+
+  <!-- Calendar grid outline -->
+  <rect x="200" y="250" width="624" height="524" stroke="#FFFFFF" stroke-width="30" fill="none" rx="20"/>
+
+  <!-- Calendar header bar -->
+  <rect x="200" y="250" width="624" height="100" fill="#FFFFFF" rx="20"/>
+  <rect x="200" y="330" width="624" height="20" fill="#000000"/>
+
+  <!-- Calendar dots (7 columns x 4 rows) -->
+  <!-- Row 1 -->
+  <circle cx="280" cy="460" r="25" fill="#FFFFFF"/>
+  <circle cx="370" cy="460" r="25" fill="#FFFFFF"/>
+  <circle cx="460" cy="460" r="25" fill="#FFFFFF"/>
+  <circle cx="550" cy="460" r="25" fill="#FFFFFF"/>
+  <circle cx="640" cy="460" r="25" fill="#FFFFFF"/>
+  <circle cx="730" cy="460" r="25" fill="#FFFFFF"/>
+
+  <!-- Row 2 -->
+  <circle cx="280" cy="560" r="25" fill="#FFFFFF"/>
+  <circle cx="370" cy="560" r="25" fill="#FFFFFF"/>
+  <circle cx="460" cy="560" r="25" fill="#FFFFFF"/>
+  <circle cx="550" cy="560" r="25" fill="#FFFFFF"/>
+  <circle cx="640" cy="560" r="25" fill="#FFFFFF"/>
+  <circle cx="730" cy="560" r="25" fill="#FFFFFF"/>
+
+  <!-- Row 3 -->
+  <circle cx="280" cy="660" r="25" fill="#FFFFFF"/>
+  <circle cx="370" cy="660" r="25" fill="#FFFFFF"/>
+  <circle cx="460" cy="660" r="25" fill="#FFFFFF"/>
+  <circle cx="550" cy="660" r="25" fill="#FFFFFF"/>
+  <circle cx="640" cy="660" r="25" fill="#FFFFFF"/>
+</svg>
