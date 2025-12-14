@@ -54,7 +54,7 @@ class ExportService {
     }
 
     final timestamp = DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
-    final exportDir = Directory('${directory.path}/LifeRhythm_Export_$timestamp');
+    final exportDir = Directory('${directory.path}/DailyRhythm_Export_$timestamp');
     await exportDir.create(recursive: true);
 
     // Export each data type to separate CSV files and count entries

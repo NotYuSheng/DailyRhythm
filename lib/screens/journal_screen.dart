@@ -83,7 +83,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('LifeRhythm'),
+        title: const Text('DailyRhythm'),
         actions: [
           if (!_isToday(_selectedDate))
             TextButton(

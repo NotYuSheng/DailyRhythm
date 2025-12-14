@@ -26,7 +26,7 @@ class BackupService {
 
       // Get database file path
       final dbPath = await getDatabasesPath();
-      final dbFile = File(join(dbPath, 'liferhythm.db'));
+      final dbFile = File(join(dbPath, 'dailyrhythm.db'));
 
       if (!await dbFile.exists()) {
         return BackupResult(
@@ -85,11 +85,11 @@ class BackupService {
 
       // Get current database path
       final dbPath = await getDatabasesPath();
-      final currentDbFile = File(join(dbPath, 'liferhythm.db'));
+      final currentDbFile = File(join(dbPath, 'dailyrhythm.db'));
 
       // Create backup of current database before restoring
       if (await currentDbFile.exists()) {
-        final backupPath = join(dbPath, 'liferhythm_backup_before_restore.db');
+        final backupPath = join(dbPath, 'dailyrhythm_backup_before_restore.db');
         await currentDbFile.copy(backupPath);
       }
 
@@ -177,7 +177,7 @@ class BackupService {
 
     // Get database size
     final dbPath = await getDatabasesPath();
-    final dbFile = File(join(dbPath, 'liferhythm.db'));
+    final dbFile = File(join(dbPath, 'dailyrhythm.db'));
     int dbSize = 0;
     if (await dbFile.exists()) {
       dbSize = await dbFile.length();

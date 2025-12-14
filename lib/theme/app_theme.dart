@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// LifeRhythm - Monochrome Rhythm-Inspired Theme
+/// DailyRhythm - Monochrome Rhythm-Inspired Theme
 ///
 /// Design Philosophy:
 /// - Pure monochrome palette (blacks, whites, grays)

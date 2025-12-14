@@ -28,20 +28,20 @@ void main() async {
 
   runApp(
     const ProviderScope(
-      child: LifeRhythmApp(),
+      child: DailyRhythmApp(),
     ),
   );
 }
 
-class LifeRhythmApp extends ConsumerWidget {
-  const LifeRhythmApp({super.key});
+class DailyRhythmApp extends ConsumerWidget {
+  const DailyRhythmApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp(
-      title: 'LifeRhythm',
+      title: 'DailyRhythm',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

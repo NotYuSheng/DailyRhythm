@@ -16,7 +16,7 @@
 -keep class * implements com.google.gson.JsonDeserializer
 
 ## Keep model classes (your data models)
--keep class com.liferhythm.liferhythm.** { *; }
+-keep class com.dailyrhythm.dailyrhythm.** { *; }
 
 ## SQLite
 -keep class org.sqlite.** { *; }

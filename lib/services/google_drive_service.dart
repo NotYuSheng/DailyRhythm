@@ -111,12 +111,12 @@ class GoogleDriveService {
 
       // Create file metadata
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
-      final fileName = 'liferhythm_backup_$timestamp.db';
+      final fileName = 'dailyrhythm_backup_$timestamp.db';
 
       final driveFile = drive.File();
       driveFile.name = fileName;
       driveFile.parents = [folderId];
-      driveFile.description = 'LifeRhythm database backup';
+      driveFile.description = 'DailyRhythm database backup';
 
       // Upload file
       final media = drive.Media(dbFile.openRead(), dbFile.lengthSync());
@@ -154,7 +154,7 @@ class GoogleDriveService {
 
       // List all backup files, sorted by creation time
       final fileList = await _driveApi!.files.list(
-        q: "'$folderId' in parents and name contains 'liferhythm_backup_' and trashed=false",
+        q: "'$folderId' in parents and name contains 'dailyrhythm_backup_' and trashed=false",
         orderBy: 'createdTime desc',
         spaces: 'drive',
         $fields: 'files(id, name, createdTime)',
@@ -207,7 +207,7 @@ class GoogleDriveService {
       final folderId = await _getOrCreateBackupFolder();
 
       final fileList = await _driveApi!.files.list(
-        q: "'$folderId' in parents and name contains 'liferhythm_backup_' and trashed=false",
+        q: "'$folderId' in parents and name contains 'dailyrhythm_backup_' and trashed=false",
         orderBy: 'createdTime desc',
         spaces: 'drive',
         $fields: 'files(id, name, createdTime, size)',
@@ -256,7 +256,7 @@ class GoogleDriveService {
     try {
       // Search for existing folder
       final fileList = await _driveApi!.files.list(
-        q: "name='LifeRhythm_Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+        q: "name='DailyRhythm_Backups' and mimeType='application/vnd.google-apps.folder' and trashed=false",
         spaces: 'drive',
         $fields: 'files(id, name)',
       );
@@ -267,7 +267,7 @@ class GoogleDriveService {
 
       // Create new folder
       final folder = drive.File();
-      folder.name = 'LifeRhythm_Backups';
+      folder.name = 'DailyRhythm_Backups';
       folder.mimeType = 'application/vnd.google-apps.folder';
 
       final response = await _driveApi!.files.create(folder);
