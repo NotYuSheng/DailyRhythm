@@ -6,6 +6,7 @@ import '../models/meal_entry.dart';
 import '../models/mood_entry.dart';
 import '../models/exercise_entry.dart';
 import '../models/task_entry.dart';
+import '../models/activity_entry.dart';
 import '../models/tag.dart';
 
 class DatabaseService {
@@ -16,7 +17,7 @@ class DatabaseService {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('liferhythm.db');
+    _database = await _initDB('dailyrhythm.db');
     return _database!;
   }
 
@@ -26,7 +27,7 @@ class DatabaseService {
 
     return await openDatabase(
       path,
-      version: 8,
+      version: 11,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -105,6 +106,82 @@ class DatabaseService {
       await db.execute('''
         ALTER TABLE exercise_entries ADD COLUMN equipmentType TEXT
       ''');
+    }
+    if (oldVersion < 9) {
+      // Add activity_entries table for version 9
+      await db.execute('''
+        CREATE TABLE activity_entries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL,
+          timestamp TEXT NOT NULL,
+          tagId INTEGER NOT NULL,
+          notes TEXT,
+          FOREIGN KEY (tagId) REFERENCES tags (id)
+        )
+      ''');
+
+      // Add default tags for version 9
+      // Using Unicons - storing icon names instead of unicode
+      final defaultTags = [
+        // Health Issues
+        {'name': 'Sore Throat', 'emoji': 'sick', 'category': 'Health'},
+        {'name': 'Nausea', 'emoji': 'annoyed', 'category': 'Health'},
+        {'name': 'Cough', 'emoji': 'virus_slash', 'category': 'Health'},
+        {'name': 'Runny Nose', 'emoji': 'tear', 'category': 'Health'},
+        {'name': 'Congestion', 'emoji': 'ban', 'category': 'Health'},
+        {'name': 'Neck Pain', 'emoji': 'arrow_up', 'category': 'Health'},
+        {'name': 'Rash', 'emoji': 'exclamation_triangle', 'category': 'Health'},
+        {'name': 'Back Pain', 'emoji': 'user_arrows', 'category': 'Health'},
+        {'name': 'Muscle Ache', 'emoji': 'dumbbell', 'category': 'Health'},
+        {'name': 'Headache', 'emoji': 'head_side', 'category': 'Health'},
+        {'name': 'Migraine', 'emoji': 'head_side_cough', 'category': 'Health'},
+        {'name': 'Gastric Pain', 'emoji': 'hospital', 'category': 'Health'},
+        {'name': 'Stomach Ache', 'emoji': 'hospital', 'category': 'Health'},
+        {'name': 'Anxiety', 'emoji': 'sad', 'category': 'Health'},
+        {'name': 'Drowsiness', 'emoji': 'moon', 'category': 'Health'},
+        {'name': 'Constipation', 'emoji': 'ban', 'category': 'Health'},
+        {'name': 'Toothache', 'emoji': 'clinic_medical', 'category': 'Health'},
+        {'name': 'Fever', 'emoji': 'temperature', 'category': 'Health'},
+        {'name': 'Diarrhea', 'emoji': 'hospital', 'category': 'Health'},
+
+        // Common (Work/Study/Entertainment)
+        {'name': 'Study', 'emoji': 'book', 'category': 'General'},
+        {'name': 'Watch Videos', 'emoji': 'play_circle', 'category': 'General'},
+        {'name': 'Class', 'emoji': 'graduation_cap', 'category': 'General'},
+        {'name': 'Test', 'emoji': 'file_alt', 'category': 'General'},
+        {'name': 'Work', 'emoji': 'briefcase', 'category': 'General'},
+        {'name': 'Video Games', 'emoji': 'game_structure', 'category': 'General'},
+        {'name': 'Draw', 'emoji': 'brush_alt', 'category': 'General'},
+        {'name': 'Intense Exercise', 'emoji': 'dumbbell', 'category': 'General'},
+        {'name': 'Social Event', 'emoji': 'glass_martini', 'category': 'General'},
+        {'name': 'Family Time', 'emoji': 'home', 'category': 'General'},
+        {'name': 'Family Issues', 'emoji': 'exclamation_triangle', 'category': 'General'},
+        {'name': 'Change Bedsheets', 'emoji': 'bed', 'category': 'General'},
+        {'name': 'Haircut', 'emoji': 'scissors', 'category': 'General'},
+      ];
+
+      for (final tag in defaultTags) {
+        await db.insert('tags', tag);
+      }
+    }
+    if (oldVersion < 10) {
+      // Add sort_order to tags for version 10
+      await db.execute('''
+        ALTER TABLE tags ADD COLUMN sort_order INTEGER
+      ''');
+      // Initialize sort_order within each category by name ordering
+      final tags = await db.query('tags', orderBy: 'category, name');
+      String? currentCat;
+      int order = 0;
+      for (final t in tags) {
+        final cat = t['category'] as String?;
+        if (cat != currentCat) {
+          currentCat = cat;
+          order = 0;
+        }
+        await db.update('tags', {'sort_order': order}, where: 'id = ?', whereArgs: [t['id']]);
+        order++;
+      }
     }
   }
 
@@ -195,6 +272,18 @@ class DatabaseService {
       )
     ''');
 
+    // Activity entries table
+    await db.execute('''
+      CREATE TABLE activity_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        tagId INTEGER NOT NULL,
+        notes TEXT,
+        FOREIGN KEY (tagId) REFERENCES tags (id)
+      )
+    ''');
+
     // Tags table
     await db.execute('''
       CREATE TABLE tags (
@@ -202,7 +291,8 @@ class DatabaseService {
         name TEXT NOT NULL UNIQUE,
         emoji TEXT NOT NULL,
         category TEXT NOT NULL,
-        color TEXT
+        color TEXT,
+        sort_order INTEGER
       )
     ''');
 
@@ -211,15 +301,69 @@ class DatabaseService {
       CREATE TABLE tag_categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
-        color TEXT
+        color TEXT,
+        sort_order INTEGER
       )
     ''');
 
-    // Create default categories
-    await db.insert('tag_categories', {'name': 'General', 'color': null});
-    await db.insert('tag_categories', {'name': 'Mood', 'color': null});
-    await db.insert('tag_categories', {'name': 'Activity', 'color': null});
-    await db.insert('tag_categories', {'name': 'Health', 'color': null});
+    // Create default categories with sort order
+    await db.insert('tag_categories', {'name': 'General', 'color': null, 'sort_order': 0});
+    await db.insert('tag_categories', {'name': 'Health', 'color': null, 'sort_order': 1});
+    await db.insert('tag_categories', {'name': 'Work', 'color': null, 'sort_order': 2});
+    await db.insert('tag_categories', {'name': 'Hobby', 'color': null, 'sort_order': 3});
+    await db.insert('tag_categories', {'name': 'Activity', 'color': null, 'sort_order': 4});
+
+    // Create default tags
+    // Using Unicons - storing icon names instead of unicode
+    final defaultTags = [
+      // Health Issues
+      {'name': 'Sore Throat', 'emoji': 'sick', 'category': 'Health'},
+      {'name': 'Nausea', 'emoji': 'annoyed', 'category': 'Health'},
+      {'name': 'Cough', 'emoji': 'virus_slash', 'category': 'Health'},
+      {'name': 'Runny Nose', 'emoji': 'tear', 'category': 'Health'},
+      {'name': 'Congestion', 'emoji': 'ban', 'category': 'Health'},
+      {'name': 'Neck Pain', 'emoji': 'arrow_up', 'category': 'Health'},
+      {'name': 'Rash', 'emoji': 'exclamation_triangle', 'category': 'Health'},
+      {'name': 'Back Pain', 'emoji': 'user_arrows', 'category': 'Health'},
+      {'name': 'Muscle Ache', 'emoji': 'dumbbell', 'category': 'Health'},
+      {'name': 'Headache', 'emoji': 'head_side', 'category': 'Health'},
+      {'name': 'Migraine', 'emoji': 'head_side_cough', 'category': 'Health'},
+      {'name': 'Gastric Pain', 'emoji': 'hospital', 'category': 'Health'},
+      {'name': 'Stomach Ache', 'emoji': 'hospital', 'category': 'Health'},
+      {'name': 'Anxiety', 'emoji': 'sad', 'category': 'Health'},
+      {'name': 'Drowsiness', 'emoji': 'moon', 'category': 'Health'},
+      {'name': 'Constipation', 'emoji': 'ban', 'category': 'Health'},
+      {'name': 'Toothache', 'emoji': 'clinic_medical', 'category': 'Health'},
+      {'name': 'Fever', 'emoji': 'temperature', 'category': 'Health'},
+      {'name': 'Diarrhea', 'emoji': 'hospital', 'category': 'Health'},
+
+      // Work & Study
+      {'name': 'Study', 'emoji': 'book', 'category': 'Work'},
+      {'name': 'Class', 'emoji': 'graduation_cap', 'category': 'Work'},
+      {'name': 'Test', 'emoji': 'file_alt', 'category': 'Work'},
+      {'name': 'Work', 'emoji': 'briefcase', 'category': 'Work'},
+
+      // Leisure & Entertainment
+      {'name': 'Watch Videos', 'emoji': 'play_circle', 'category': 'Hobby'},
+      {'name': 'Video Games', 'emoji': 'game_structure', 'category': 'Hobby'},
+      {'name': 'Draw', 'emoji': 'brush_alt', 'category': 'Hobby'},
+
+      // Physical Activity
+      {'name': 'Intense Exercise', 'emoji': 'dumbbell', 'category': 'Activity'},
+
+      // Social & Family
+      {'name': 'Social Event', 'emoji': 'glass_martini', 'category': 'Activity'},
+      {'name': 'Family Time', 'emoji': 'home', 'category': 'Activity'},
+      {'name': 'Family Issues', 'emoji': 'exclamation_triangle', 'category': 'Activity'},
+
+      // Household & Personal Care
+      {'name': 'Change Bedsheets', 'emoji': 'bed', 'category': 'General'},
+      {'name': 'Haircut', 'emoji': 'scissors', 'category': 'General'},
+    ];
+
+    for (final tag in defaultTags) {
+      await db.insert('tags', tag);
+    }
   }
 
   // ==================== Sleep Entry CRUD ====================
@@ -425,7 +569,7 @@ class DatabaseService {
 
   Future<List<Tag>> getAllTags() async {
     final db = await database;
-    final maps = await db.query('tags', orderBy: 'category, name');
+    final maps = await db.query('tags', orderBy: 'category, sort_order ASC, name ASC');
     return maps.map((map) => Tag.fromMap(map)).toList();
   }
 
@@ -435,7 +579,7 @@ class DatabaseService {
       'tags',
       where: 'category = ?',
       whereArgs: [category],
-      orderBy: 'name',
+      orderBy: 'sort_order ASC, name ASC',
     );
     return maps.map((map) => Tag.fromMap(map)).toList();
   }
@@ -450,8 +594,38 @@ class DatabaseService {
     );
   }
 
+  Future<void> updateTagOrders(String category, List<int> orderedTagIds) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      for (int i = 0; i < orderedTagIds.length; i++) {
+        await txn.update(
+          'tags',
+          {'sort_order': i, 'category': category},
+          where: 'id = ?',
+          whereArgs: [orderedTagIds[i]],
+        );
+      }
+    });
+  }
+
+  Future<int> getActivityCountForTag(int tagId) async {
+    final db = await database;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM activity_entries WHERE tagId = ?',
+      [tagId],
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
   Future<int> deleteTag(int id) async {
     final db = await database;
+    // First delete all activity entries that reference this tag
+    await db.delete(
+      'activity_entries',
+      where: 'tagId = ?',
+      whereArgs: [id],
+    );
+    // Then delete the tag itself
     return await db.delete(
       'tags',
       where: 'id = ?',
@@ -535,7 +709,7 @@ class DatabaseService {
 
   Future<List<TagCategory>> getAllTagCategories() async {
     final db = await database;
-    final maps = await db.query('tag_categories', orderBy: 'name');
+    final maps = await db.query('tag_categories', orderBy: 'sort_order, name');
     return maps.map((map) => TagCategory.fromMap(map)).toList();
   }
 
@@ -556,6 +730,20 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  Future<void> updateTagCategoryOrders(List<int> orderedCategoryIds) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      for (int i = 0; i < orderedCategoryIds.length; i++) {
+        await txn.update(
+          'tag_categories',
+          {'sort_order': i},
+          where: 'id = ?',
+          whereArgs: [orderedCategoryIds[i]],
+        );
+      }
+    });
   }
 
   // ==================== Exercise Entry CRUD ====================
@@ -622,6 +810,101 @@ class DatabaseService {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  // ==================== Activity Entry CRUD ====================
+
+  Future<int> createActivityEntry(ActivityEntry entry) async {
+    final db = await database;
+    return await db.insert('activity_entries', entry.toMap());
+  }
+
+  Future<List<ActivityEntry>> getActivityEntriesByDate(DateTime date) async {
+    final db = await database;
+    final normalizedDate = DateTime(date.year, date.month, date.day);
+    final maps = await db.query(
+      'activity_entries',
+      where: 'date = ?',
+      whereArgs: [normalizedDate.toIso8601String()],
+      orderBy: 'timestamp DESC',
+    );
+    return maps.map((map) => ActivityEntry.fromMap(map)).toList();
+  }
+
+  Future<int> deleteActivityEntry(int id) async {
+    final db = await database;
+    return await db.delete(
+      'activity_entries',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // ==================== Date Range Queries (for Metrics) ====================
+
+  Future<List<SleepEntry>> getSleepEntriesInRange(DateTime start, DateTime end) async {
+    final db = await database;
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endOfDay = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+    final maps = await db.query(
+      'sleep_entries',
+      where: 'date >= ? AND date < ?',
+      whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
+      orderBy: 'date ASC',
+    );
+    return maps.map((map) => SleepEntry.fromMap(map)).toList();
+  }
+
+  Future<List<MoodEntry>> getMoodEntriesInRange(DateTime start, DateTime end) async {
+    final db = await database;
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endOfDay = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+    final maps = await db.query(
+      'mood_entries',
+      where: 'date >= ? AND date < ?',
+      whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
+      orderBy: 'date ASC',
+    );
+    return maps.map((map) => MoodEntry.fromMap(map)).toList();
+  }
+
+  Future<List<ExerciseEntry>> getExerciseEntriesInRange(DateTime start, DateTime end) async {
+    final db = await database;
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endOfDay = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+    final maps = await db.query(
+      'exercise_entries',
+      where: 'date >= ? AND date < ?',
+      whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
+      orderBy: 'date ASC',
+    );
+    return maps.map((map) => ExerciseEntry.fromMap(map)).toList();
+  }
+
+  Future<List<ActivityEntry>> getActivityEntriesInRange(DateTime start, DateTime end) async {
+    final db = await database;
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endOfDay = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+    final maps = await db.query(
+      'activity_entries',
+      where: 'date >= ? AND date < ?',
+      whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
+      orderBy: 'date ASC',
+    );
+    return maps.map((map) => ActivityEntry.fromMap(map)).toList();
+  }
+
+  Future<List<MealEntry>> getMealEntriesInRange(DateTime start, DateTime end) async {
+    final db = await database;
+    final startOfDay = DateTime(start.year, start.month, start.day);
+    final endOfDay = DateTime(end.year, end.month, end.day).add(const Duration(days: 1));
+    final maps = await db.query(
+      'meal_entries',
+      where: 'date >= ? AND date < ?',
+      whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
+      orderBy: 'date ASC',
+    );
+    return maps.map((map) => MealEntry.fromMap(map)).toList();
   }
 
   // ==================== Utility ====================

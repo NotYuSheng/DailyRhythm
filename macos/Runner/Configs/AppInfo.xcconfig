@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = LifeRhythm
+PRODUCT_NAME = DailyRhythm
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.liferhythm.liferhythm
+PRODUCT_BUNDLE_IDENTIFIER = com.dailyrhythm.dailyrhythm
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2025 com.liferhythm. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2025 com.dailyrhythm. All rights reserved.

@@ -4,8 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'theme/app_theme.dart';
 import 'screens/home_screen.dart';
+import 'services/theme_provider.dart';
+import 'services/google_drive_service.dart';
+import 'services/backup_service.dart';
 
-void main() {
+void main() async {
+  // Ensure Flutter binding is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+
   // Initialize sqflite for desktop platforms
   if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.linux ||
       defaultTargetPlatform == TargetPlatform.windows ||
@@ -14,24 +20,32 @@ void main() {
     databaseFactory = databaseFactoryFfi;
   }
 
+  // Initialize Google Drive service
+  await GoogleDriveService.instance.initialize();
+
+  // Check if auto-backup is due and perform if needed
+  BackupService.instance.performAutoBackupIfDue();
+
   runApp(
     const ProviderScope(
-      child: LifeRhythmApp(),
+      child: DailyRhythmApp(),
     ),
   );
 }
 
-class LifeRhythmApp extends StatelessWidget {
-  const LifeRhythmApp({super.key});
+class DailyRhythmApp extends ConsumerWidget {
+  const DailyRhythmApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+
     return MaterialApp(
-      title: 'LifeRhythm',
+      title: 'DailyRhythm',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.light, // TODO: Add theme mode toggle
+      themeMode: themeMode,
       home: kIsWeb || defaultTargetPlatform == TargetPlatform.linux
           ? const MobilePreviewWrapper(child: HomeScreen())
           : const HomeScreen(),

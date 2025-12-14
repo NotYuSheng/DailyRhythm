@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:unicons/unicons.dart';
 import '../theme/app_theme.dart';
 import '../services/providers.dart';
 import '../models/mood_entry.dart';
 import '../models/exercise_entry.dart';
 import '../models/task_entry.dart';
+import '../models/activity_entry.dart';
+import '../models/tag.dart';
 import 'add_sleep_screen.dart';
 import 'add_meal_screen.dart';
 import 'add_exercise_screen.dart';
+import 'tags_screen.dart';
 
 class JournalScreen extends ConsumerStatefulWidget {
   const JournalScreen({super.key, this.initialDate, this.onTodayPressed, this.onDateChanged});
@@ -79,7 +83,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('LifeRhythm'),
+        title: const Text('DailyRhythm'),
         actions: [
           if (!_isToday(_selectedDate))
             TextButton(
@@ -137,6 +141,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
     final moodEntryAsync = ref.watch(moodEntryProvider(normalizedDate));
     final exerciseEntriesAsync = ref.watch(exerciseEntriesProvider(normalizedDate));
     final taskEntriesAsync = ref.watch(taskEntriesProvider(normalizedDate));
+    final activityEntriesAsync = ref.watch(activityEntriesProvider(normalizedDate));
+    final allTagsAsync = ref.watch(allTagsProvider);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.spacePulse3),
@@ -248,7 +254,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 child: Text(
                   'Error loading sleep data',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.red,
+                        color: AppTheme.rhythmMediumGray,
                       ),
                 ),
               ),
@@ -311,7 +317,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 child: Text(
                   'Error loading meals',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.red,
+                        color: AppTheme.rhythmMediumGray,
                       ),
                 ),
               ),
@@ -374,7 +380,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 child: Text(
                   'Error loading exercises',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.red,
+                        color: AppTheme.rhythmMediumGray,
                       ),
                 ),
               ),
@@ -383,13 +389,13 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
 
           const SizedBox(height: AppTheme.spacePulse3),
 
-          // Tasks Section
-          taskEntriesAsync.when(
+          // Activities Section
+          activityEntriesAsync.when(
             data: (entries) {
-              return _buildTasksCard(context, ref, entries, date);
+              return _buildActivitiesCard(context, ref, entries, date);
             },
-            loading: () => _buildTasksCard(context, ref, const [], date),
-            error: (error, stack) => _buildTasksCard(context, ref, const [], date),
+            loading: () => _buildActivitiesCard(context, ref, const [], date),
+            error: (error, stack) => _buildActivitiesCard(context, ref, const [], date),
           ),
 
           const SizedBox(height: AppTheme.spacePulse3),
@@ -631,49 +637,59 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ...entries.map((entry) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: AppTheme.spacePulse2),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            return InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddMealScreen(entry: entry),
+                  ),
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: AppTheme.spacePulse2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            entry.quantity > 1 ? '${entry.quantity}x ${entry.name}' : entry.name,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          if (entry.tags.isNotEmpty)
+                            Text(
+                              entry.tags.join(', '),
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppTheme.rhythmMediumGray,
+                                  ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          entry.quantity > 1 ? '${entry.quantity}x ${entry.name}' : entry.name,
+                          '\$${entry.price.toStringAsFixed(2)}',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
                         ),
-                        if (entry.tags.isNotEmpty)
-                          Text(
-                            entry.tags.join(', '),
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppTheme.rhythmMediumGray,
-                                ),
-                          ),
+                        Text(
+                          DateFormat('h:mm a').format(entry.time),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppTheme.rhythmMediumGray,
+                              ),
+                        ),
                       ],
                     ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '\$${entry.price.toStringAsFixed(2)}',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                      Text(
-                        DateFormat('h:mm a').format(entry.time),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppTheme.rhythmMediumGray,
-                            ),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           }).toList(),
@@ -793,67 +809,75 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: entries.map((entry) {
+        Widget content;
         if (entry.type == ExerciseType.run) {
           if (entry.runType == RunType.interval) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacePulse1),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Interval Run',
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  Text(
-                    '${entry.intervalCount}x ${entry.distance}km',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
+            content = Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Interval Run',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                Text(
+                  '${entry.intervalCount}x ${entry.distance}km',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
             );
           } else {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacePulse1),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Run',
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  Text(
-                    '${entry.distance}km',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
+            content = Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Run',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                Text(
+                  '${entry.distance}km',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
             );
           }
         } else {
           // Weight lifting
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppTheme.spacePulse1),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  entry.exerciseName ?? 'Weight Lifting',
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-                Text(
-                  '${entry.sets}x${entry.reps} @ ${entry.weight}kg',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ),
+          content = Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                entry.exerciseName ?? 'Weight Lifting',
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+              Text(
+                '${entry.sets}x${entry.reps} @ ${entry.weight}kg',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
           );
         }
+
+        return InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AddExerciseScreen(entry: entry),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppTheme.spacePulse1),
+            child: content,
+          ),
+        );
       }).toList(),
     );
   }
 
-  Widget _buildTasksCard(BuildContext context, WidgetRef ref, List<TaskEntry> entries, DateTime date) {
-    final completedTasks = entries.map((e) => e.taskType).toSet();
+  Widget _buildActivitiesCard(BuildContext context, WidgetRef ref, List<ActivityEntry> entries, DateTime date) {
+    final allTagsAsync = ref.watch(allTagsProvider);
+    final selectedTagIds = entries.map((e) => e.tagId).toSet();
 
     return Card(
       child: Padding(
@@ -866,60 +890,235 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.task_alt_outlined, size: 20),
+                    const Icon(Icons.local_activity_outlined, size: 20),
                     const SizedBox(width: AppTheme.spacePulse2),
                     Text(
-                      'Tasks',
+                      'Activities',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ],
                 ),
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  tooltip: 'Edit tags',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const TagsScreen(),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
             const SizedBox(height: AppTheme.spacePulse3),
-            Wrap(
-              spacing: AppTheme.spacePulse2,
-              runSpacing: AppTheme.spacePulse2,
-              children: TaskType.values.map((taskType) {
-                final isCompleted = completedTasks.contains(taskType);
-                return FilterChip(
-                  label: Text(taskType.displayName),
-                  selected: isCompleted,
-                  onSelected: (selected) async {
-                    if (selected) {
-                      // Add task
-                      final db = ref.read(databaseProvider);
-                      final normalizedDate = DateTime(date.year, date.month, date.day);
-                      final entry = TaskEntry(
-                        date: normalizedDate,
-                        timestamp: DateTime.now(),
-                        taskType: taskType,
-                      );
-                      await db.createTaskEntry(entry);
-                      ref.invalidate(taskEntriesProvider(normalizedDate));
-                    } else {
-                      // Remove task
-                      final taskToRemove = entries.firstWhere((e) => e.taskType == taskType);
-                      if (taskToRemove.id != null) {
-                        final db = ref.read(databaseProvider);
-                        await db.deleteTaskEntry(taskToRemove.id!);
-                        final normalizedDate = DateTime(date.year, date.month, date.day);
-                        ref.invalidate(taskEntriesProvider(normalizedDate));
-                      }
-                    }
-                  },
-                  selectedColor: AppTheme.rhythmBlack,
-                  checkmarkColor: AppTheme.rhythmWhite,
-                  labelStyle: TextStyle(
-                    color: isCompleted ? AppTheme.rhythmWhite : AppTheme.rhythmBlack,
-                  ),
+            allTagsAsync.when(
+              data: (tags) {
+                if (tags.isEmpty) {
+                  return Center(
+                    child: Text(
+                      'No tags yet. Tap + to create one.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppTheme.rhythmMediumGray,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                }
+
+                // Group tags by category
+                final groupedTags = <String, List<Tag>>{};
+                for (final tag in tags) {
+                  if (!groupedTags.containsKey(tag.category)) {
+                    groupedTags[tag.category] = [];
+                  }
+                  groupedTags[tag.category]!.add(tag);
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: groupedTags.entries.map((entry) {
+                    final category = entry.key;
+                    final categoryTags = entry.value;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (groupedTags.keys.first != category)
+                          const SizedBox(height: AppTheme.spacePulse3),
+                        Text(
+                          category,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppTheme.rhythmMediumGray,
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        const SizedBox(height: AppTheme.spacePulse2),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            const int columns = 5;
+                            final double spacing = AppTheme.spacePulse3.toDouble();
+                            final double totalSpacing = spacing * (columns - 1);
+                            final double itemWidth = (constraints.maxWidth - totalSpacing) / columns;
+
+                            // Split tags into rows of 5
+                            final rows = <List<Tag>>[];
+                            for (var i = 0; i < categoryTags.length; i += columns) {
+                              rows.add(categoryTags.sublist(
+                                i,
+                                i + columns > categoryTags.length ? categoryTags.length : i + columns,
+                              ));
+                            }
+
+                            return Column(
+                              children: rows.map((rowTags) {
+                                return Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom: rows.last == rowTags ? 0 : spacing,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: rowTags.asMap().entries.map((entry) {
+                                      final index = entry.key;
+                                      final tag = entry.value;
+                                      final isSelected = selectedTagIds.contains(tag.id);
+
+                                      return Padding(
+                                        padding: EdgeInsets.only(
+                                          right: index < rowTags.length - 1 ? spacing : 0,
+                                        ),
+                                        child: SizedBox(
+                                          width: itemWidth,
+                                          child: InkWell(
+                                            onTap: () async {
+                                              if (isSelected) {
+                                                final activityToRemove = entries.firstWhere((e) => e.tagId == tag.id);
+                                                if (activityToRemove.id != null) {
+                                                  final db = ref.read(databaseProvider);
+                                                  await db.deleteActivityEntry(activityToRemove.id!);
+                                                  final normalizedDate = DateTime(date.year, date.month, date.day);
+                                                  ref.invalidate(activityEntriesProvider(normalizedDate));
+                                                }
+                                              } else {
+                                                final db = ref.read(databaseProvider);
+                                                final normalizedDate = DateTime(date.year, date.month, date.day);
+                                                final entry = ActivityEntry(
+                                                  date: normalizedDate,
+                                                  timestamp: DateTime.now(),
+                                                  tagId: tag.id!,
+                                                );
+                                                await db.createActivityEntry(entry);
+                                                ref.invalidate(activityEntriesProvider(normalizedDate));
+                                              }
+                                            },
+                                            child: Align(
+                                              alignment: Alignment.topCenter,
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                crossAxisAlignment: CrossAxisAlignment.center,
+                                                children: [
+                                                  Container(
+                                                    width: 40,
+                                                    height: 40,
+                                                    decoration: BoxDecoration(
+                                                      color: isSelected
+                                                          ? AppTheme.rhythmBlack
+                                                          : AppTheme.rhythmLightGray.withOpacity(0.3),
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: Center(
+                                                      child: Icon(
+                                                        _getUniconFromName(tag.emoji),
+                                                        size: 20,
+                                                        color: isSelected
+                                                            ? AppTheme.rhythmWhite
+                                                            : AppTheme.rhythmBlack,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: AppTheme.spacePulse1),
+                                                  SizedBox(
+                                                    width: 52,
+                                                    height: 24,
+                                                    child: Text(
+                                                      tag.name,
+                                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                            fontSize: 8,
+                                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                                          ),
+                                                      textAlign: TextAlign.center,
+                                                      maxLines: 2,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                );
+                              }).toList(),
+                            );
+                          },
+                        ),
+                      ],
+                    );
+                  }).toList(),
                 );
-              }).toList(),
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (_, __) => Center(
+                child: Text(
+                  'Error loading tags',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.rhythmMediumGray,
+                      ),
+                ),
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  IconData _getUniconFromName(String iconName) {
+    // Map icon names to Unicons (using simpler icon names that definitely exist)
+    final iconMap = <String, IconData>{
+      'sick': UniconsLine.frown,
+      'annoyed': UniconsLine.meh,
+      'virus_slash': UniconsLine.shield,
+      'tear': UniconsLine.tear,
+      'ban': UniconsLine.ban,
+      'arrow_up': UniconsLine.arrow_up,
+      'exclamation_triangle': UniconsLine.exclamation_triangle,
+      'user_arrows': UniconsLine.arrow_circle_up,
+      'dumbbell': UniconsLine.dumbbell,
+      'head_side': UniconsLine.head_side,
+      'head_side_cough': UniconsLine.head_side_cough,
+      'hospital': UniconsLine.hospital,
+      'sad': UniconsLine.sad,
+      'moon': UniconsLine.moon,
+      'clinic_medical': UniconsLine.clinic_medical,
+      'temperature': UniconsLine.temperature,
+      'book': UniconsLine.book,
+      'graduation_cap': UniconsLine.graduation_cap,
+      'file_alt': UniconsLine.file_alt,
+      'briefcase': UniconsLine.briefcase,
+      'play_circle': UniconsLine.play_circle,
+      'game_structure': UniconsLine.game_structure,
+      'brush_alt': UniconsLine.brush_alt,
+      'glass_martini': UniconsLine.glass_martini,
+      'home': UniconsLine.home,
+      'bed': UniconsLine.bed,
+      'scissors': UniconsLine.edit_alt,
+    };
+
+    return iconMap[iconName] ?? UniconsLine.question_circle;
   }
 }
 

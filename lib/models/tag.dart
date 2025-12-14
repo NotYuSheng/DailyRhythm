@@ -4,6 +4,7 @@ class Tag {
   final String emoji;
   final String category;
   final String? color; // Store as hex string for future use
+  final int? sortOrder;
 
   Tag({
     this.id,
@@ -11,6 +12,7 @@ class Tag {
     required this.emoji,
     required this.category,
     this.color,
+    this.sortOrder,
   });
 
   // Convert to Map for database
@@ -21,6 +23,7 @@ class Tag {
       'emoji': emoji,
       'category': category,
       'color': color,
+      'sort_order': sortOrder,
     };
   }
 
@@ -32,6 +35,7 @@ class Tag {
       emoji: map['emoji'] as String,
       category: map['category'] as String,
       color: map['color'] as String?,
+      sortOrder: map['sort_order'] as int?,
     );
   }
 
@@ -42,6 +46,7 @@ class Tag {
     String? emoji,
     String? category,
     String? color,
+    int? sortOrder,
   }) {
     return Tag(
       id: id ?? this.id,
@@ -49,6 +54,7 @@ class Tag {
       emoji: emoji ?? this.emoji,
       category: category ?? this.category,
       color: color ?? this.color,
+      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
 
@@ -60,11 +66,13 @@ class TagCategory {
   final int? id;
   final String name;
   final String? color; // Store as hex string
+  final int? sortOrder;
 
   TagCategory({
     this.id,
     required this.name,
     this.color,
+    this.sortOrder,
   });
 
   // Convert to Map for database
@@ -73,6 +81,7 @@ class TagCategory {
       'id': id,
       'name': name,
       'color': color,
+      'sort_order': sortOrder,
     };
   }
 
@@ -82,6 +91,7 @@ class TagCategory {
       id: map['id'] as int?,
       name: map['name'] as String,
       color: map['color'] as String?,
+      sortOrder: map['sort_order'] as int?,
     );
   }
 
@@ -90,11 +100,13 @@ class TagCategory {
     int? id,
     String? name,
     String? color,
+    int? sortOrder,
   }) {
     return TagCategory(
       id: id ?? this.id,
       name: name ?? this.name,
       color: color ?? this.color,
+      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
 }

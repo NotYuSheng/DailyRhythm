@@ -68,6 +68,11 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       appBar: AppBar(
         title: Text(widget.entry == null ? 'Add Meal' : 'Edit Meal'),
         actions: [
+          if (widget.entry != null)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: _confirmDelete,
+            ),
           TextButton(
             onPressed: _saveMeal,
             child: const Text('Save'),
@@ -298,5 +303,47 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         );
       }
     }
+  }
+
+  void _confirmDelete() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Meal'),
+          content: const Text('Are you sure you want to delete this meal entry?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                if (widget.entry?.id != null) {
+                  final db = ref.read(databaseProvider);
+                  await db.deleteMealEntry(widget.entry!.id!);
+
+                  if (mounted) {
+                    // Invalidate the provider to refresh the list
+                    ref.invalidate(mealEntriesProvider(widget.entry!.date));
+
+                    Navigator.pop(context); // Close dialog
+                    Navigator.pop(context); // Close edit screen
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Meal deleted'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Delete', style: TextStyle(color: AppTheme.rhythmBlack)),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

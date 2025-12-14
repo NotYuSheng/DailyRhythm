@@ -1,4 +1,4 @@
-package com.liferhythm.liferhythm
+package com.dailyrhythm.dailyrhythm
 
 import io.flutter.embedding.android.FlutterActivity
 
