@@ -19,6 +19,7 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
   DateTime? _sleepTime;
   DateTime? _wakeUpTime;
   final TextEditingController _napHoursController = TextEditingController();
+  DateTime? _previousDaySleepTime;
 
   @override
   void initState() {
@@ -28,6 +29,18 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
     _sleepTime = widget.entry?.sleepTime;
     _wakeUpTime = widget.entry?.wakeUpTime;
     _napHoursController.text = widget.entry?.napHours?.toString() ?? '';
+    _loadPreviousDaySleepTime();
+  }
+
+  Future<void> _loadPreviousDaySleepTime() async {
+    final db = ref.read(databaseProvider);
+    final previousDate = _date.subtract(const Duration(days: 1));
+    final previousEntry = await db.getSleepEntryByDate(previousDate);
+    if (mounted) {
+      setState(() {
+        _previousDaySleepTime = previousEntry?.sleepTime;
+      });
+    }
   }
 
   @override
@@ -90,23 +103,47 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
           ),
           const SizedBox(height: AppTheme.spacePulse3),
 
-          // Total Hours (auto-calculated)
-          if (_sleepTime != null && _wakeUpTime != null)
+          // Total Hours (auto-calculated from previous night)
+          if (_previousDaySleepTime != null && _wakeUpTime != null)
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(AppTheme.spacePulse3),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Total Sleep',
-                      style: Theme.of(context).textTheme.titleMedium,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Total Sleep (Last Night)',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        Text(
+                          '${_calculateHours().toStringAsFixed(1)}h',
+                          style: Theme.of(context).textTheme.displaySmall,
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: AppTheme.spacePulse1),
                     Text(
-                      '${_calculateHours().toStringAsFixed(1)}h',
-                      style: Theme.of(context).textTheme.displaySmall,
+                      'From ${DateFormat('MMM d, h:mm a').format(_previousDaySleepTime!)} to ${DateFormat('h:mm a').format(_wakeUpTime!)}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey,
+                      ),
                     ),
                   ],
+                ),
+              ),
+            )
+          else if (_wakeUpTime != null && _previousDaySleepTime == null)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(AppTheme.spacePulse3),
+                child: Text(
+                  'No sleep time recorded for previous day',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey,
+                  ),
                 ),
               ),
             ),
@@ -128,9 +165,14 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
           style: Theme.of(context).textTheme.titleMedium,
         ),
         onTap: () async {
+          // Default to 8:30 AM for wake up time if not set, otherwise use current time
+          final defaultTime = label == 'Wake Up Time' && time == null
+              ? TimeOfDay(hour: 8, minute: 30)
+              : TimeOfDay.fromDateTime(time ?? DateTime.now());
+
           final pickedTime = await showTimePicker(
             context: context,
-            initialTime: TimeOfDay.fromDateTime(time ?? DateTime.now()),
+            initialTime: defaultTime,
           );
           if (pickedTime != null) {
             final now = DateTime.now();
@@ -148,11 +190,12 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
   }
 
   double _calculateHours() {
-    if (_sleepTime == null || _wakeUpTime == null) return 0;
+    // Calculate sleep from previous day's sleep time to today's wake time
+    if (_previousDaySleepTime == null || _wakeUpTime == null) return 0;
 
-    var duration = _wakeUpTime!.difference(_sleepTime!);
+    var duration = _wakeUpTime!.difference(_previousDaySleepTime!);
 
-    // If wake time is before sleep time, assume it's the next day
+    // If duration is negative, add a day (shouldn't normally happen)
     if (duration.isNegative) {
       duration = duration + const Duration(days: 1);
     }
@@ -192,13 +235,11 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
     try {
       final db = ref.read(databaseProvider);
 
-      if (widget.entry == null) {
-        await db.createSleepEntry(entry);
-      } else {
-        await db.updateSleepEntry(entry);
-      }
+      // Use upsert to either create or update entry for this date
+      await db.upsertSleepEntry(entry);
 
-      // Refresh current day's sleep data
+      // Refresh sleep data for this date
+      ref.invalidate(sleepEntriesProvider(_date));
       ref.invalidate(todaySleepEntriesProvider);
 
       if (mounted) {

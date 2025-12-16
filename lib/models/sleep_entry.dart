@@ -18,12 +18,14 @@ class SleepEntry {
   });
 
   // Calculate total hours from wake up and sleep time
+  // Sleep time should be from the previous day/night, wake time is from this date
   double get calculatedHours {
     if (wakeUpTime == null || sleepTime == null) return totalHours ?? 0;
 
     var duration = wakeUpTime!.difference(sleepTime!);
 
-    // If wake time is before sleep time, assume it's the next day
+    // Sleep time should always be before wake time (from previous night)
+    // If duration is negative, the times are incorrectly set
     if (duration.isNegative) {
       duration = duration + const Duration(days: 1);
     }
