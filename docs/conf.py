@@ -35,7 +35,7 @@ html_css_files = [
 html_context = {
     "display_github": True,
     "github_user": "NotYuSheng",
-    "github_repo": "LifeRhythm",
+    "github_repo": "DailyRhythm",
     "github_version": "main",
     "conf_py_path": "/docs/",
 }
