@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'google_drive_service.dart';
 import '../database/database_service.dart';
 
@@ -14,20 +13,6 @@ class BackupService {
 
   final GoogleDriveService _driveService = GoogleDriveService.instance;
   final DatabaseService _dbService = DatabaseService.instance;
-
-  // Request storage permissions (Android only)
-  Future<bool> _requestStoragePermission() async {
-    if (!Platform.isAndroid) return true;
-
-    // For Android 13+ (API 33+), we don't need storage permissions for app-specific files
-    // But we'll check anyway for older versions
-    if (await Permission.storage.isGranted) {
-      return true;
-    }
-
-    final status = await Permission.storage.request();
-    return status.isGranted;
-  }
 
   // Backup database to Google Drive
   Future<BackupResult> backupToGoogleDrive() async {
