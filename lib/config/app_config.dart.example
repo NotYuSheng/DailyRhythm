@@ -1,0 +1,13 @@
+/// Application configuration
+/// INSTRUCTIONS:
+/// 1. Copy this file to app_config.dart
+/// 2. Replace the placeholder values with your actual credentials
+/// 3. DO NOT commit app_config.dart - it's in .gitignore
+class AppConfig {
+  // Google OAuth Server Client ID
+  // Get this from Google Cloud Console: https://console.cloud.google.com/apis/credentials
+  // 1. Create a new OAuth 2.0 Client ID
+  // 2. Select "Web application" as the application type
+  // 3. Copy the Client ID (format: xxxxx-xxxxx.apps.googleusercontent.com)
+  static const String googleServerClientId = 'YOUR_GOOGLE_SERVER_CLIENT_ID_HERE';
+}

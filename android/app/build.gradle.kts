@@ -5,17 +5,20 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+import java.util.Properties
+import java.io.FileInputStream
+
 // Load keystore properties for release signing
 val keystorePropertiesFile = rootProject.file("key.properties")
-val keystoreProperties = java.util.Properties()
+val keystoreProperties = Properties()
 if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
     namespace = "com.dailyrhythm.dailyrhythm"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // ndkVersion = flutter.ndkVersion  // Disabled - app doesn't use native code
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -54,13 +57,9 @@ android {
                 signingConfigs.getByName("debug")
             }
 
-            // Enable code shrinking and obfuscation for smaller app size
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            // Disable code shrinking to avoid R8 missing class issues
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }

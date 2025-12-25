@@ -1,6 +1,6 @@
 # DailyRhythm
 
-A daily stats tracking Flutter app with monochrome rhythm aesthetic.
+A daily stats tracking Flutter app with rhythm aesthetic.
 
 > [!NOTE]  
 > Thank you for visiting! This project is currently a work in progress. Features, documentation, and deployment configurations are actively being developed and may change frequently.
@@ -38,6 +38,58 @@ A daily stats tracking Flutter app with monochrome rhythm aesthetic.
    flutter run -d macos     # macOS
    flutter run -d windows   # Windows
    ```
+
+### Running on Android Device (Physical Phone)
+
+1. **Enable Developer Options on your phone:**
+   - Go to **Settings** → **About phone**
+   - Tap **Build number** 7 times
+   - You'll see "You are now a developer!"
+
+2. **Enable USB Debugging:**
+   - Go to **Settings** → **System** → **Developer options**
+   - Enable **USB debugging**
+
+3. **For Samsung devices - Disable Auto Blocker:**
+   - Go to **Settings** → **Security and privacy** → **Auto Blocker**
+   - Turn off **Auto Blocker** (it blocks USB debugging)
+
+4. **Connect your phone:**
+   ```bash
+   # Connect phone via USB cable
+
+   # Change USB mode on your phone:
+   # When you plug in the USB cable, pull down the notification shade
+   # Tap on "Charging this device via USB" or "USB for charging"
+   # Select "File Transfer" or "MTP" mode (NOT just "Charging")
+
+   # Check if device is detected
+   adb devices
+
+   # You should see your device listed
+   # If it shows "unauthorized", accept the USB debugging prompt on your phone
+   ```
+
+5. **Run the app on your phone:**
+   ```bash
+   # List all connected devices
+   flutter devices
+
+   # Run on connected Android device
+   flutter run -d android
+
+   # Or specify device ID if multiple devices
+   flutter run -d <device-id>
+   ```
+
+6. **Troubleshooting:**
+   - **Device not showing up**: Check USB cable, try different USB port
+   - **"Unauthorized" status**: Accept USB debugging prompt on phone
+   - **Install failed (signature mismatch)**: Uninstall old version first
+     ```bash
+     adb uninstall com.dailyrhythm.dailyrhythm
+     ```
+   - **Auto Blocker issues (Samsung)**: Make sure Auto Blocker is disabled
 
 3. **Hot Reload (Dev Mode) 🔥**
 
@@ -102,7 +154,7 @@ DailyRhythm tracks your daily stats including:
 - Meals and costs
 - Mood tracking with emoji buttons
 
-Built with a pure monochrome design aesthetic for minimal distraction.
+Built with a minimal aesthetic design.
 
 ## Resources
 

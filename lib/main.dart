@@ -1,12 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'theme/app_theme.dart';
-import 'screens/home_screen.dart';
-import 'services/theme_provider.dart';
-import 'services/google_drive_service.dart';
-import 'services/backup_service.dart';
+import 'core/theme/app_theme.dart';
+import 'core/screens/home_screen.dart';
+import 'core/theme/theme_provider.dart';
+import 'core/router/app_router.dart';
+import 'core/router/app_routes.dart';
+import 'shared/services/backup/google_drive_service.dart';
+import 'shared/services/backup/backup_service.dart';
 
 void main() async {
   // Ensure Flutter binding is initialized
@@ -18,6 +21,15 @@ void main() async {
       defaultTargetPlatform == TargetPlatform.macOS)) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
+  }
+
+  // Hide system UI (navigation buttons) on mobile
+  if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS)) {
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: [], // Empty overlays = hide all system UI
+    );
   }
 
   // Initialize Google Drive service
@@ -46,9 +58,14 @@ class DailyRhythmApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
-      home: kIsWeb || defaultTargetPlatform == TargetPlatform.linux
-          ? const MobilePreviewWrapper(child: HomeScreen())
-          : const HomeScreen(),
+      onGenerateRoute: AppRouter.generateRoute,
+      initialRoute: AppRoutes.home,
+      builder: (context, child) {
+        if (kIsWeb || defaultTargetPlatform == TargetPlatform.linux) {
+          return MobilePreviewWrapper(child: child!);
+        }
+        return child!;
+      },
     );
   }
 }
