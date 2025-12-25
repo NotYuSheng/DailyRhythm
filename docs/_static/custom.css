@@ -1,0 +1,35 @@
+/* Custom CSS for DailyRhythm documentation */
+
+:root {
+    --dailyrhythm-primary: #70A0FF;
+    --dailyrhythm-primary-dark: #5080DD;
+}
+
+/* Brand color customization */
+.wy-side-nav-search {
+    background-color: var(--dailyrhythm-primary) !important;
+}
+
+.wy-side-nav-search > a {
+    color: #fff !important;
+}
+
+.wy-menu-vertical a:hover {
+    background-color: var(--dailyrhythm-primary) !important;
+}
+
+.wy-menu-vertical li.current a {
+    border-right-color: var(--dailyrhythm-primary) !important;
+}
+
+.rst-content .admonition-title {
+    background-color: var(--dailyrhythm-primary) !important;
+}
+
+a {
+    color: var(--dailyrhythm-primary) !important;
+}
+
+a:hover {
+    color: var(--dailyrhythm-primary-dark) !important;
+}

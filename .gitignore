@@ -126,3 +126,11 @@ coverage/
 # App Configuration - Keep your real credentials out of git
 lib/core/constants/app_config.dart
 lib/config/app_config.dart
+
+# Python virtual environment
+.venv/
+venv/
+__pycache__/
+
+# Sphinx documentation (only ignore build output, keep source)
+docs/_build/
