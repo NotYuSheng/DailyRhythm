@@ -77,8 +77,8 @@ Need Help?
 
 If you need assistance with deleting your data or have questions about this policy, please:
 
-* Open an issue on our `GitHub repository <https://github.com/NotYuSheng/LifeRhythm/issues>`_
-* Review our `privacy practices <https://github.com/NotYuSheng/LifeRhythm>`_
+* Open an issue on our `GitHub repository <https://github.com/NotYuSheng/DailyRhythm/issues>`_
+* Review our `privacy practices <https://github.com/NotYuSheng/DailyRhythm>`_
 
 ----
 
