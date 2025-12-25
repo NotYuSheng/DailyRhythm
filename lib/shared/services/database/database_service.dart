@@ -942,7 +942,9 @@ class DatabaseService {
   // ==================== Utility ====================
 
   Future<void> close() async {
-    final db = await database;
-    await db.close();
+    if (_database != null) {
+      await _database!.close();
+      _database = null;
+    }
   }
 }

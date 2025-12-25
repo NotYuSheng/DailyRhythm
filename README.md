@@ -91,6 +91,61 @@ A daily stats tracking Flutter app with rhythm aesthetic.
      ```
    - **Auto Blocker issues (Samsung)**: Make sure Auto Blocker is disabled
 
+### Building and Installing APK to Android Device
+
+#### Debug Build (Recommended for Development)
+
+For development and testing with Google Sign-In:
+
+```bash
+# Build and install debug APK
+flutter build apk --debug
+adb install build/app/outputs/flutter-apk/app-debug.apk
+
+# Or use flutter run for automatic debug installation
+flutter run -d android
+```
+
+**Why debug build?**
+- Google Sign-In requires SHA-1 certificate fingerprints to be registered
+- Debug builds use the debug keystore (`~/.android/debug.keystore`)
+- The debug SHA-1 is already registered in Google Cloud Console
+
+#### Release Build
+
+To build a release APK:
+
+```bash
+# Build release APK
+flutter build apk
+
+# Install to device
+adb install build/app/outputs/flutter-apk/app-release.apk
+```
+
+**Important for Google Sign-In with release builds:**
+- Release builds use your custom keystore (configured in `android/key.properties`)
+- You must add your release keystore's SHA-1 to Google Cloud Console
+- Get your release SHA-1:
+  ```bash
+  cd android && ./gradlew signingReport
+  # Look for "Variant: release" SHA1 fingerprint
+  ```
+
+#### Troubleshooting APK Installation
+
+- **`flutter install` installs wrong version**: Use `adb install` directly instead
+- **Google Sign-In fails**: Verify SHA-1 fingerprint matches Google Cloud Console
+  ```bash
+  # Check installed app's SHA-1
+  adb shell pm path com.dailyrhythm.dailyrhythm | cut -d: -f2 | xargs -I {} adb pull {} /tmp/app.apk
+  ~/Android/build-tools/35.0.0/apksigner verify --print-certs /tmp/app.apk | grep SHA-1
+  ```
+- **Clear Google Play Services cache if OAuth fails**:
+  ```bash
+  adb shell pm clear com.google.android.gms
+  ```
+
 3. **Hot Reload (Dev Mode) 🔥**
 
    Once the app is running, you can make code changes and see them instantly:

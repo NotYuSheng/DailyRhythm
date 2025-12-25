@@ -67,20 +67,35 @@ class GoogleDriveService {
     }
 
     try {
+      debugPrint('Starting Google Sign-In...');
+      debugPrint('Server Client ID: ${AppConfig.googleServerClientId}');
+
       final account = await _googleSignIn.signIn();
+      debugPrint('Sign-In result: ${account?.email ?? 'null'}');
+
       _currentUser = account;
 
       if (account != null) {
+        debugPrint('User signed in: ${account.email}');
+
         // Initialize Drive API
         final authClient = await _googleSignIn.authenticatedClient();
+        debugPrint('Auth client obtained: ${authClient != null}');
+
         if (authClient != null) {
           _driveApi = drive.DriveApi(authClient);
+          debugPrint('Drive API initialized successfully');
+        } else {
+          debugPrint('ERROR: Failed to get authenticated client');
         }
+      } else {
+        debugPrint('ERROR: Sign-In returned null - user cancelled or error occurred');
       }
 
       return account;
-    } catch (e) {
-      debugPrint('Error signing in: $e');
+    } catch (e, stackTrace) {
+      debugPrint('ERROR signing in: $e');
+      debugPrint('Stack trace: $stackTrace');
       return null;
     }
   }
@@ -220,10 +235,14 @@ class GoogleDriveService {
       }
 
       return fileList.files!.map((file) {
+        // Google Drive API returns createdTime in UTC, convert to local timezone
+        final utcTime = file.createdTime ?? DateTime.now().toUtc();
+        final localTime = utcTime.toLocal();
+
         return BackupFile(
           id: file.id ?? '',
           name: file.name ?? '',
-          createdTime: file.createdTime ?? DateTime.now(),
+          createdTime: localTime,
           size: int.tryParse(file.size ?? '0') ?? 0,
         );
       }).toList();
