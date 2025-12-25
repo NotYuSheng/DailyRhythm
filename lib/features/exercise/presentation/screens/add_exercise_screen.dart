@@ -520,11 +520,11 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                         });
                       }
                     },
-                    selectedColor: AppTheme.rhythmBlack,
+                    selectedColor: Theme.of(context).colorScheme.primary,
                     labelStyle: TextStyle(
                       color: _selectedEquipmentType == type
-                          ? AppTheme.rhythmWhite
-                          : AppTheme.rhythmBlack,
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : Theme.of(context).colorScheme.onSurface,
                     ),
                   );
                 }).toList(),
