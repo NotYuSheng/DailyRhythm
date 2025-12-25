@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:unicons/unicons.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/providers/common_providers.dart';
 
@@ -85,7 +86,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       day: day,
                       isToday: isSameDay(day, DateTime.now()),
                       isSelected: isSameDay(day, _selectedDay),
-                      moodEmoji: mood?.emoji,
+                      moodLevel: mood?.moodLevel,
                       isDark: isDark,
                     ),
                     loading: () => _HoverableDay(
@@ -138,14 +139,14 @@ class _HoverableDay extends StatefulWidget {
   final DateTime day;
   final bool isToday;
   final bool isSelected;
-  final String? moodEmoji;
+  final int? moodLevel;
   final bool isDark;
 
   const _HoverableDay({
     required this.day,
     required this.isToday,
     required this.isSelected,
-    this.moodEmoji,
+    this.moodLevel,
     this.isDark = false,
   });
 
@@ -155,6 +156,23 @@ class _HoverableDay extends StatefulWidget {
 
 class _HoverableDayState extends State<_HoverableDay> {
   bool _isHovered = false;
+
+  IconData _getMoodIcon(int moodLevel) {
+    switch (moodLevel) {
+      case 1:
+        return UniconsLine.sad_crying;
+      case 2:
+        return UniconsLine.frown;
+      case 3:
+        return UniconsLine.meh;
+      case 4:
+        return UniconsLine.smile;
+      case 5:
+        return UniconsLine.grin;
+      default:
+        return UniconsLine.meh;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -194,32 +212,20 @@ class _HoverableDayState extends State<_HoverableDay> {
               ),
             ),
             // Mood indicator
-            Positioned(
-              bottom: 2,
-              right: 2,
-              child: widget.moodEmoji != null
-                  ? Text(
-                      widget.moodEmoji!,
-                      style: const TextStyle(fontSize: 12),
-                    )
-                  : Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: widget.isSelected
-                              ? (widget.isDark
-                                  ? const Color(0x4D000000) // 30% black
-                                  : const Color(0x4DFFFFFF)) // 30% white
-                              : (widget.isDark
-                                  ? const Color(0x4DB0B0B0) // 30% light gray
-                                  : const Color(0x4D4A4A4A)), // 30% medium gray
-                          width: 1,
-                        ),
-                      ),
-                    ),
-            ),
+            if (widget.moodLevel != null)
+              Positioned(
+                bottom: 2,
+                right: 2,
+                child: Icon(
+                  _getMoodIcon(widget.moodLevel!),
+                  size: 14,
+                  color: widget.isSelected
+                      ? theme.colorScheme.onPrimary
+                      : widget.isToday
+                          ? theme.colorScheme.onSecondaryContainer
+                          : theme.colorScheme.onSurface.withOpacity(0.7),
+                ),
+              ),
           ],
         ),
       ),

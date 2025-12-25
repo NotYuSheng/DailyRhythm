@@ -286,13 +286,12 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         await db.updateMealEntry(entry);
       }
 
-      // Refresh current day's meal data
+      // Refresh meal data for the entry's date
+      final normalizedDate = DateTime(entry.date.year, entry.date.month, entry.date.day);
+      ref.invalidate(mealEntriesProvider(normalizedDate));
       ref.invalidate(todayMealEntriesProvider);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Meal entry saved!')),
-        );
         Navigator.pop(context);
       }
     } catch (e) {

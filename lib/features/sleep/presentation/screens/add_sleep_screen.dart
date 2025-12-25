@@ -292,9 +292,6 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
       ref.invalidate(todaySleepEntriesProvider);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sleep entry saved!')),
-        );
         Navigator.pop(context);
       }
     } catch (e) {

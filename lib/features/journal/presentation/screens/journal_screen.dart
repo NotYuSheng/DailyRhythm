@@ -522,22 +522,13 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
           date: normalizedDate,
           timestamp: DateTime.now(),
           moodLevel: moodLevel,
-          emoji: label, // Store the label as emoji for backwards compatibility
+          emoji: '', // Empty string for backwards compatibility
         );
 
         try {
           await db.upsertMoodEntry(entry);
           // Refresh mood data for this date
           ref.invalidate(moodEntryProvider(normalizedDate));
-
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Mood saved: $label'),
-                duration: const Duration(seconds: 1),
-              ),
-            );
-          }
         } catch (e) {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -828,10 +819,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
             content = Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Interval Run',
-                  style: Theme.of(context).textTheme.bodyLarge,
+                Expanded(
+                  child: Text(
+                    'Interval Run',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
+                const SizedBox(width: AppTheme.spacePulse2),
                 Text(
                   '${entry.intervalCount}x ${entry.distance}km',
                   style: Theme.of(context).textTheme.bodyMedium,
@@ -842,10 +837,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
             content = Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Run',
-                  style: Theme.of(context).textTheme.bodyLarge,
+                Expanded(
+                  child: Text(
+                    'Run',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
+                const SizedBox(width: AppTheme.spacePulse2),
                 Text(
                   '${entry.distance}km',
                   style: Theme.of(context).textTheme.bodyMedium,
@@ -858,10 +857,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
           content = Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                entry.exerciseName ?? 'Weight Lifting',
-                style: Theme.of(context).textTheme.bodyLarge,
+              Expanded(
+                child: Text(
+                  entry.exerciseName ?? 'Weight Lifting',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: AppTheme.spacePulse2),
               Text(
                 '${entry.sets}x${entry.reps} @ ${entry.weight}kg',
                 style: Theme.of(context).textTheme.bodyMedium,
@@ -1003,35 +1006,35 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                                         ),
                                         child: SizedBox(
                                           width: itemWidth,
-                                          child: InkWell(
-                                            onTap: () async {
-                                              if (isSelected) {
-                                                final activityToRemove = entries.firstWhere((e) => e.tagId == tag.id);
-                                                if (activityToRemove.id != null) {
-                                                  final db = ref.read(databaseProvider);
-                                                  await db.deleteActivityEntry(activityToRemove.id!);
-                                                  final normalizedDate = DateTime(date.year, date.month, date.day);
-                                                  ref.invalidate(activityEntriesProvider(normalizedDate));
-                                                }
-                                              } else {
-                                                final db = ref.read(databaseProvider);
-                                                final normalizedDate = DateTime(date.year, date.month, date.day);
-                                                final entry = ActivityEntry(
-                                                  date: normalizedDate,
-                                                  timestamp: DateTime.now(),
-                                                  tagId: tag.id!,
-                                                );
-                                                await db.createActivityEntry(entry);
-                                                ref.invalidate(activityEntriesProvider(normalizedDate));
-                                              }
-                                            },
-                                            child: Align(
-                                              alignment: Alignment.topCenter,
-                                              child: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                crossAxisAlignment: CrossAxisAlignment.center,
-                                                children: [
-                                                  Container(
+                                          child: Align(
+                                            alignment: Alignment.topCenter,
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              crossAxisAlignment: CrossAxisAlignment.center,
+                                              children: [
+                                                InkWell(
+                                                  onTap: () async {
+                                                    if (isSelected) {
+                                                      final activityToRemove = entries.firstWhere((e) => e.tagId == tag.id);
+                                                      if (activityToRemove.id != null) {
+                                                        final db = ref.read(databaseProvider);
+                                                        await db.deleteActivityEntry(activityToRemove.id!);
+                                                        final normalizedDate = DateTime(date.year, date.month, date.day);
+                                                        ref.invalidate(activityEntriesProvider(normalizedDate));
+                                                      }
+                                                    } else {
+                                                      final db = ref.read(databaseProvider);
+                                                      final normalizedDate = DateTime(date.year, date.month, date.day);
+                                                      final entry = ActivityEntry(
+                                                        date: normalizedDate,
+                                                        timestamp: DateTime.now(),
+                                                        tagId: tag.id!,
+                                                      );
+                                                      await db.createActivityEntry(entry);
+                                                      ref.invalidate(activityEntriesProvider(normalizedDate));
+                                                    }
+                                                  },
+                                                  child: Container(
                                                     width: 40,
                                                     height: 40,
                                                     decoration: BoxDecoration(
@@ -1050,23 +1053,23 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                                                       ),
                                                     ),
                                                   ),
-                                                  const SizedBox(height: AppTheme.spacePulse1),
-                                                  SizedBox(
-                                                    width: 52,
-                                                    height: 24,
-                                                    child: Text(
-                                                      tag.name,
-                                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                            fontSize: 8,
-                                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                                          ),
-                                                      textAlign: TextAlign.center,
-                                                      maxLines: 2,
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
+                                                ),
+                                                const SizedBox(height: AppTheme.spacePulse1),
+                                                SizedBox(
+                                                  width: 52,
+                                                  height: 24,
+                                                  child: Text(
+                                                    tag.name,
+                                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                          fontSize: 8,
+                                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                                        ),
+                                                    textAlign: TextAlign.center,
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis,
                                                   ),
-                                                ],
-                                              ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ),

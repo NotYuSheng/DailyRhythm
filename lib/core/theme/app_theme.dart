@@ -194,6 +194,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: grey50,
+        hintStyle: const TextStyle(
+          color: grey400,
+          fontWeight: FontWeight.w400,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusSmall),
           borderSide: const BorderSide(color: grey300),
@@ -404,6 +408,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: grey800,
+        hintStyle: const TextStyle(
+          color: grey500,
+          fontWeight: FontWeight.w400,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusSmall),
           borderSide: const BorderSide(color: grey700),

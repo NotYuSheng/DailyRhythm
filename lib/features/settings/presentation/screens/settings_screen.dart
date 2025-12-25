@@ -105,7 +105,7 @@ class SettingsScreen extends ConsumerWidget {
                 ListTile(
                   leading: const Icon(Icons.info_outlined),
                   title: const Text('About'),
-                  subtitle: const Text('Version 1.0.0'),
+                  subtitle: const Text('Version 1.0.1'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () {
                     _showAboutDialog(context);
@@ -123,7 +123,7 @@ class SettingsScreen extends ConsumerWidget {
     showAboutDialog(
       context: context,
       applicationName: 'DailyRhythm',
-      applicationVersion: '1.0.0',
+      applicationVersion: '1.0.1',
       applicationLegalese: '© 2025 DailyRhythm\nRhythm-inspired daily tracking',
       children: [
         const SizedBox(height: AppTheme.spacePulse3),

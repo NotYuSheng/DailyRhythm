@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:unicons/unicons.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/metric_data.dart';
 import '../../../../shared/services/database/database_provider.dart';
@@ -411,15 +412,15 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
 
                 return Column(
                   children: [
-                    _buildMoodBar(context, '😄 Great (5)', metrics.distribution[5] ?? 0, total, isDark),
+                    _buildMoodBar(context, 'Great (5)', UniconsLine.grin, metrics.distribution[5] ?? 0, total, isDark),
                     const SizedBox(height: AppTheme.spacePulse2),
-                    _buildMoodBar(context, '😊 Good (4)', metrics.distribution[4] ?? 0, total, isDark),
+                    _buildMoodBar(context, 'Good (4)', UniconsLine.smile, metrics.distribution[4] ?? 0, total, isDark),
                     const SizedBox(height: AppTheme.spacePulse2),
-                    _buildMoodBar(context, '😐 Okay (3)', metrics.distribution[3] ?? 0, total, isDark),
+                    _buildMoodBar(context, 'Okay (3)', UniconsLine.meh, metrics.distribution[3] ?? 0, total, isDark),
                     const SizedBox(height: AppTheme.spacePulse2),
-                    _buildMoodBar(context, '😟 Bad (2)', metrics.distribution[2] ?? 0, total, isDark),
+                    _buildMoodBar(context, 'Bad (2)', UniconsLine.frown, metrics.distribution[2] ?? 0, total, isDark),
                     const SizedBox(height: AppTheme.spacePulse2),
-                    _buildMoodBar(context, '😢 Very Bad (1)', metrics.distribution[1] ?? 0, total, isDark),
+                    _buildMoodBar(context, 'Very Bad (1)', UniconsLine.sad_crying, metrics.distribution[1] ?? 0, total, isDark),
                   ],
                 );
               },
@@ -435,20 +436,30 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
     );
   }
 
-  Widget _buildMoodBar(BuildContext context, String label, int count, int total, bool isDark) {
+  Widget _buildMoodBar(BuildContext context, String label, IconData icon, int count, int total, bool isDark) {
     final theme = Theme.of(context);
     final percentage = total > 0 ? (count / total) * 100 : 0.0;
 
     return Row(
       children: [
         SizedBox(
-          width: 100,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: AppTheme.getSubtleTextColor(context),
-            ),
+          width: 110,
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: AppTheme.getSubtleTextColor(context),
+              ),
+              const SizedBox(width: AppTheme.spacePulse1),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.getSubtleTextColor(context),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(width: AppTheme.spacePulse2),
