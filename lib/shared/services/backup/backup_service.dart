@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'google_drive_service.dart';
 import '../database/database_service.dart';
 
@@ -12,6 +14,20 @@ class BackupService {
 
   final GoogleDriveService _driveService = GoogleDriveService.instance;
   final DatabaseService _dbService = DatabaseService.instance;
+
+  // Request storage permissions (Android only)
+  Future<bool> _requestStoragePermission() async {
+    if (!Platform.isAndroid) return true;
+
+    // For Android 13+ (API 33+), we don't need storage permissions for app-specific files
+    // But we'll check anyway for older versions
+    if (await Permission.storage.isGranted) {
+      return true;
+    }
+
+    final status = await Permission.storage.request();
+    return status.isGranted;
+  }
 
   // Backup database to Google Drive
   Future<BackupResult> backupToGoogleDrive() async {
@@ -25,6 +41,8 @@ class BackupService {
       }
 
       // Get database file path
+      // Note: We don't need external storage permissions for Google Drive backup
+      // since we're uploading from app-specific storage directly to Google Drive
       final dbPath = await getDatabasesPath();
       final dbFile = File(join(dbPath, 'dailyrhythm.db'));
 
@@ -35,26 +53,42 @@ class BackupService {
         );
       }
 
-      // Close database to ensure all data is written
-      // Don't close as it will cause issues with active connections
-      // await _dbService.close();
+      // Create a copy of the database to avoid locking issues
+      final tempDir = Directory.systemTemp;
+      final tempDbFile = File('${tempDir.path}/dailyrhythm_backup_temp.db');
 
-      // Upload to Google Drive
-      final fileId = await _driveService.uploadBackup(dbFile);
+      try {
+        // Copy database to temp location
+        await dbFile.copy(tempDbFile.path);
 
-      if (fileId != null) {
-        return BackupResult(
-          success: true,
-          message: 'Backup completed successfully',
-          fileId: fileId,
-        );
-      } else {
-        return BackupResult(
-          success: false,
-          message: 'Failed to upload backup',
-        );
+        // Upload the temp file to Google Drive
+        final fileId = await _driveService.uploadBackup(tempDbFile);
+
+        // Clean up temp file
+        if (await tempDbFile.exists()) {
+          await tempDbFile.delete();
+        }
+
+        if (fileId != null) {
+          return BackupResult(
+            success: true,
+            message: 'Backup completed successfully',
+            fileId: fileId,
+          );
+        } else {
+          return BackupResult(
+            success: false,
+            message: 'Failed to upload backup',
+          );
+        }
+      } finally {
+        // Ensure temp file is cleaned up
+        if (await tempDbFile.exists()) {
+          await tempDbFile.delete();
+        }
       }
     } catch (e) {
+      debugPrint('Backup error: $e');
       return BackupResult(
         success: false,
         message: 'Error during backup: $e',

@@ -49,6 +49,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Always use debug keystore for debug builds
+            signingConfig = signingConfigs.getByName("debug")
+        }
+
         release {
             // Use release signing config if key.properties exists, otherwise use debug
             signingConfig = if (keystorePropertiesFile.exists()) {

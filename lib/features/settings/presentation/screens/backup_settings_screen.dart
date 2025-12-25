@@ -80,7 +80,10 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Sign in failed')),
+            const SnackBar(
+              content: Text('Sign in failed - Check OAuth configuration in Google Cloud Console'),
+              duration: Duration(seconds: 7),
+            ),
           );
         }
       }
