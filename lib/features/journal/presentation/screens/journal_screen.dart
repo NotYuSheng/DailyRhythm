@@ -1034,6 +1034,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                                                       ref.invalidate(activityEntriesProvider(normalizedDate));
                                                     }
                                                   },
+                                                  borderRadius: BorderRadius.circular(20),
                                                   child: Container(
                                                     width: 40,
                                                     height: 40,

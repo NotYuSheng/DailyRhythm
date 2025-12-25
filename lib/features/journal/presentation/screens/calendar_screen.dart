@@ -103,6 +103,32 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     ),
                   );
                 },
+                todayBuilder: (context, day, focusedDay) {
+                  final normalizedDay = DateTime(day.year, day.month, day.day);
+                  final moodAsync = ref.watch(moodEntryProvider(normalizedDay));
+
+                  return moodAsync.when(
+                    data: (mood) => _HoverableDay(
+                      day: day,
+                      isToday: true,
+                      isSelected: isSameDay(day, _selectedDay),
+                      moodLevel: mood?.moodLevel,
+                      isDark: isDark,
+                    ),
+                    loading: () => _HoverableDay(
+                      day: day,
+                      isToday: true,
+                      isSelected: isSameDay(day, _selectedDay),
+                      isDark: isDark,
+                    ),
+                    error: (_, __) => _HoverableDay(
+                      day: day,
+                      isToday: true,
+                      isSelected: isSameDay(day, _selectedDay),
+                      isDark: isDark,
+                    ),
+                  );
+                },
               ),
               headerStyle: HeaderStyle(
                 titleCentered: true,
