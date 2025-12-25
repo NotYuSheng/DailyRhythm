@@ -1,0 +1,7 @@
+/// Application configuration
+/// Copy this file to app_config.dart and fill in your credentials
+class AppConfig {
+  // Google OAuth Server Client ID
+  // Get this from Google Cloud Console: https://console.cloud.google.com
+  static const String googleServerClientId = 'YOUR_SERVER_CLIENT_ID_HERE';
+}

@@ -5,6 +5,7 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/app_config.dart';
 
 class GoogleDriveService {
   static final GoogleDriveService instance = GoogleDriveService._init();
@@ -16,6 +17,7 @@ class GoogleDriveService {
       drive.DriveApi.driveFileScope,
       drive.DriveApi.driveAppdataScope,
     ],
+    serverClientId: AppConfig.googleServerClientId,
   );
 
   GoogleSignInAccount? _currentUser;

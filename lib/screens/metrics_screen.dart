@@ -281,12 +281,17 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
       return _buildEmptyState('No data available');
     }
 
+    // Calculate max Y value based on data, with a minimum of 12
+    final maxDataValue = spots.map((spot) => spot.y).reduce((a, b) => a > b ? a : b);
+    final maxY = (maxDataValue > 12 ? (maxDataValue + 2).ceilToDouble() : 12.0);
+    final interval = maxY > 12 ? (maxY / 6).ceilToDouble() : 2.0;
+
     return LineChart(
       LineChartData(
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: 2,
+          horizontalInterval: interval,
           getDrawingHorizontalLine: (value) {
             return FlLine(
               color: AppTheme.getChartGridColor(context),
@@ -324,7 +329,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              interval: 2,
+              interval: interval,
               reservedSize: 40,
               getTitlesWidget: (value, meta) {
                 return Text(
@@ -342,7 +347,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
         minX: 0,
         maxX: (metrics.dailyData.length - 1).toDouble(),
         minY: 0,
-        maxY: 12,
+        maxY: maxY,
         lineBarsData: [
           LineChartBarData(
             spots: spots,

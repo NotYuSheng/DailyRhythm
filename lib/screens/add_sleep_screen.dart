@@ -7,8 +7,9 @@ import '../theme/app_theme.dart';
 
 class AddSleepScreen extends ConsumerStatefulWidget {
   final SleepEntry? entry; // For editing existing entries
+  final DateTime? date; // For specifying the date when creating new entries
 
-  const AddSleepScreen({super.key, this.entry});
+  const AddSleepScreen({super.key, this.entry, this.date});
 
   @override
   ConsumerState<AddSleepScreen> createState() => _AddSleepScreenState();
@@ -25,7 +26,7 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _date = widget.entry?.date ?? DateTime(now.year, now.month, now.day);
+    _date = widget.entry?.date ?? widget.date ?? DateTime(now.year, now.month, now.day);
     _sleepTime = widget.entry?.sleepTime;
     _wakeUpTime = widget.entry?.wakeUpTime;
     _napHoursController.text = widget.entry?.napHours?.toString() ?? '';
@@ -119,18 +120,19 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         Text(
-                          '${_calculateHours().toStringAsFixed(1)}h',
+                          '${_calculateHours()?.toStringAsFixed(1) ?? 'unknown'}h',
                           style: Theme.of(context).textTheme.displaySmall,
                         ),
                       ],
                     ),
                     const SizedBox(height: AppTheme.spacePulse1),
-                    Text(
-                      'From ${DateFormat('MMM d, h:mm a').format(_previousDaySleepTime!)} to ${DateFormat('h:mm a').format(_wakeUpTime!)}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey,
+                    if (_previousDaySleepTime != null && _wakeUpTime != null)
+                      Text(
+                        'From ${DateFormat('MMM d, h:mm a').format(_previousDaySleepTime!)} to ${DateFormat('h:mm a').format(_wakeUpTime!)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -189,13 +191,23 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
     );
   }
 
-  double _calculateHours() {
-    // Calculate sleep from previous day's sleep time to today's wake time
-    if (_previousDaySleepTime == null || _wakeUpTime == null) return 0;
+  double? _calculateHours() {
+    // Calculate total sleep hours for THIS day's entry
+    // Formula: (Previous day's recorded bedtime) to (This day's wake-up time)
+    //
+    // Example: If you went to bed on Dec 24 at 11 PM and woke up Dec 25 at 7 AM,
+    // then Dec 25's sleep entry will have:
+    //   - sleepTime: user's input for Dec 25 bedtime (stored for Dec 26's calculation)
+    //   - wakeUpTime: 7 AM on Dec 25
+    //   - totalHours: calculated from Dec 24's sleepTime (11 PM) to Dec 25's wakeUpTime (7 AM) = 8 hours
+    //
+    // If previous day's sleep time was not recorded, return null to show "unknown"
+    if (_previousDaySleepTime == null || _wakeUpTime == null) return null;
 
     var duration = _wakeUpTime!.difference(_previousDaySleepTime!);
 
-    // If duration is negative, add a day (shouldn't normally happen)
+    // If duration is negative, the sleep time was after midnight
+    // (e.g., went to bed at 1 AM, woke up at 7 AM same calendar day)
     if (duration.isNegative) {
       duration = duration + const Duration(days: 1);
     }
@@ -223,6 +235,14 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
       }
     }
 
+    final db = ref.read(databaseProvider);
+
+    // Create sleep entry for this date with:
+    // - sleepTime: When user went to bed TODAY (will be used for NEXT day's calculation)
+    //              Note: This could be past midnight (e.g., went to bed at 1 AM)
+    // - wakeUpTime: When user woke up today
+    // - totalHours: Calculated from PREVIOUS day's sleepTime to today's wakeUpTime
+    //               (will be null/"unknown" if previous day's sleepTime wasn't recorded)
     final entry = SleepEntry(
       id: widget.entry?.id,
       date: _date,
@@ -233,10 +253,38 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
     );
 
     try {
-      final db = ref.read(databaseProvider);
 
       // Use upsert to either create or update entry for this date
       await db.upsertSleepEntry(entry);
+
+      // After saving this entry, update TOMORROW's entry with today's bedtime
+      // so tomorrow's sleep calculation will be correct
+      if (_sleepTime != null) {
+        final nextDate = _date.add(const Duration(days: 1));
+        final nextEntry = await db.getSleepEntryByDate(nextDate);
+        if (nextEntry != null) {
+          // Update tomorrow's entry with today's bedtime and recalculate its totalHours
+          final previousDaySleepForNext = _sleepTime;
+          final nextWakeTime = nextEntry.wakeUpTime;
+          double? nextTotalHours;
+
+          if (previousDaySleepForNext != null && nextWakeTime != null) {
+            var duration = nextWakeTime.difference(previousDaySleepForNext);
+            if (duration.isNegative) {
+              duration = duration + const Duration(days: 1);
+            }
+            nextTotalHours = duration.inMinutes / 60.0;
+          }
+
+          await db.updateSleepEntry(nextEntry.copyWith(
+            sleepTime: _sleepTime,
+            totalHours: nextTotalHours,
+          ));
+
+          // Refresh next day's data too
+          ref.invalidate(sleepEntriesProvider(nextDate));
+        }
+      }
 
       // Refresh sleep data for this date
       ref.invalidate(sleepEntriesProvider(_date));

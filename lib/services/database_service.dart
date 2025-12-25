@@ -407,6 +407,37 @@ class DatabaseService {
     return maps.map((map) => SleepEntry.fromMap(map)).toList();
   }
 
+  Future<SleepEntry?> getSleepEntryByDate(DateTime date) async {
+    final db = await database;
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final maps = await db.query(
+      'sleep_entries',
+      where: 'date >= ? AND date < ?',
+      whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
+      orderBy: 'wakeUpTime DESC',
+      limit: 1,
+    );
+
+    if (maps.isNotEmpty) {
+      return SleepEntry.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  Future<int> upsertSleepEntry(SleepEntry entry) async {
+    final db = await database;
+    final existing = await getSleepEntryByDate(entry.date);
+    if (existing != null) {
+      // Update existing entry, preserving the original ID
+      return await updateSleepEntry(entry.copyWith(id: existing.id));
+    } else {
+      // Create new entry
+      return await db.insert('sleep_entries', entry.toMap());
+    }
+  }
+
   Future<int> updateSleepEntry(SleepEntry entry) async {
     final db = await database;
     return await db.update(

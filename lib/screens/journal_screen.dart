@@ -211,6 +211,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                     MaterialPageRoute(
                       builder: (context) => AddSleepScreen(
                         entry: entries.isNotEmpty ? entries.first : null,
+                        date: date,
                       ),
                     ),
                   );
@@ -226,7 +227,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const AddSleepScreen(),
+                    builder: (context) => AddSleepScreen(date: date),
                   ),
                 );
               },
@@ -245,7 +246,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const AddSleepScreen(),
+                    builder: (context) => AddSleepScreen(date: date),
                   ),
                 );
               },
@@ -471,11 +472,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildMoodButton(context, ref, '😢', 'Very Bad', 1, currentMood?.moodLevel, date),
-                    _buildMoodButton(context, ref, '😟', 'Bad', 2, currentMood?.moodLevel, date),
-                    _buildMoodButton(context, ref, '😐', 'Okay', 3, currentMood?.moodLevel, date),
-                    _buildMoodButton(context, ref, '😊', 'Good', 4, currentMood?.moodLevel, date),
-                    _buildMoodButton(context, ref, '😄', 'Great', 5, currentMood?.moodLevel, date),
+                    _buildMoodButton(context, ref, UniconsLine.sad_crying, 'Very Bad', 1, currentMood?.moodLevel, date),
+                    _buildMoodButton(context, ref, UniconsLine.frown, 'Bad', 2, currentMood?.moodLevel, date),
+                    _buildMoodButton(context, ref, UniconsLine.meh, 'Okay', 3, currentMood?.moodLevel, date),
+                    _buildMoodButton(context, ref, UniconsLine.smile, 'Good', 4, currentMood?.moodLevel, date),
+                    _buildMoodButton(context, ref, UniconsLine.grin, 'Great', 5, currentMood?.moodLevel, date),
                   ],
                 );
               },
@@ -483,11 +484,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
               error: (_, __) => Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildMoodButton(context, ref, '😢', 'Very Bad', 1, null, date),
-                  _buildMoodButton(context, ref, '😟', 'Bad', 2, null, date),
-                  _buildMoodButton(context, ref, '😐', 'Okay', 3, null, date),
-                  _buildMoodButton(context, ref, '😊', 'Good', 4, null, date),
-                  _buildMoodButton(context, ref, '😄', 'Great', 5, null, date),
+                  _buildMoodButton(context, ref, UniconsLine.sad_crying, 'Very Bad', 1, null, date),
+                  _buildMoodButton(context, ref, UniconsLine.frown, 'Bad', 2, null, date),
+                  _buildMoodButton(context, ref, UniconsLine.meh, 'Okay', 3, null, date),
+                  _buildMoodButton(context, ref, UniconsLine.smile, 'Good', 4, null, date),
+                  _buildMoodButton(context, ref, UniconsLine.grin, 'Great', 5, null, date),
                 ],
               ),
             ),
@@ -500,7 +501,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
   Widget _buildMoodButton(
     BuildContext context,
     WidgetRef ref,
-    String emoji,
+    IconData icon,
     String label,
     int moodLevel,
     int? currentMoodLevel,
@@ -517,7 +518,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
           date: normalizedDate,
           timestamp: DateTime.now(),
           moodLevel: moodLevel,
-          emoji: emoji,
+          emoji: label, // Store the label as emoji for backwards compatibility
         );
 
         try {
@@ -555,12 +556,10 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              emoji,
-              style: TextStyle(
-                fontSize: 32,
-                color: isSelected ? AppTheme.rhythmBlack : null,
-              ),
+            Icon(
+              icon,
+              size: 32,
+              color: isSelected ? AppTheme.rhythmBlack : AppTheme.rhythmMediumGray,
             ),
             const SizedBox(height: AppTheme.spacePulse1),
             Text(
@@ -575,6 +574,21 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
         ),
       ),
     );
+  }
+
+  String _getSleepHoursDisplay(dynamic entry) {
+    // If totalHours is explicitly set, use it
+    if (entry.totalHours != null) {
+      return '${entry.totalHours!.toStringAsFixed(1)}h';
+    }
+
+    // If sleepTime is not recorded (previous day's sleep time missing), show "unknown"
+    if (entry.sleepTime == null) {
+      return 'unknown';
+    }
+
+    // Otherwise, use the calculated hours
+    return '${entry.calculatedHours.toStringAsFixed(1)}h';
   }
 
   Widget _buildSleepContent(BuildContext context, List entries) {
@@ -607,7 +621,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Total: ${entry.totalHours?.toStringAsFixed(1) ?? entry.calculatedHours.toStringAsFixed(1)}h',
+                'Total: ${_getSleepHoursDisplay(entry)}',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               if (entry.napHours != null && entry.napHours! > 0)
