@@ -4,7 +4,7 @@ SQLite via sqflite. `DatabaseService.schemaVersion` is the current version; ever
 upgrade path is covered by `test/database/migration_test.dart`, which also checks an
 upgraded database matches a fresh install.
 
-## v13 (in progress)
+## v13
 
 Additive: no existing table or column is removed, so current screens keep working
 while the garden UI is built.
@@ -49,9 +49,18 @@ The garden plant for a day is derived (from that day's activity tags, sleep, mov
 and moments), not stored, so it always reflects edits. Only the user's override is
 stored, in `day_checkins.plant_override`.
 
+## Export and import
+
+Every table is exported as a CSV in the export zip. New columns go at the end of a
+file so older exports still import; tags and catalog items are matched by name
+because IDs differ between devices. Import runs in one transaction with duplicate
+keys checked in memory (about 39k rows in 4 s on desktop) and reports progress.
+Journal moments count as duplicates only if day, time, text, mood and tags all match,
+because Daylio has entries in the same minute that differ only by mood or tags.
+
 ## Order of work
 
-1. **3a** data layer: tables, migration, models, repositories, tests.
-2. **3b** full import: the migration tool writes the new tables; the app's import reads
+1. ✅ **3a** data layer: tables, migration, models, repositories, tests.
+2. ✅ **3b** full import: the migration tool writes the new tables; the app's import reads
    them in one transaction with progress; the Daylio data is re-imported.
 3. **3c** garden UI: Today's plant + check-in, month garden, moments.

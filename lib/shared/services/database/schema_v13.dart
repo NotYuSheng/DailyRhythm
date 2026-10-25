@@ -12,6 +12,13 @@ class SchemaV13 {
     'Takeout', 'Fast Food', 'Homemade', 'Free Food', 'Restaurant', 'Food Court', 'Delivery', 'Supplement',
   ];
 
+  /// The kind a tag gets when none is recorded (the same rule as the
+  /// backfill below): known food sources, then Health tags as symptoms.
+  static String kindFor(String name, String category) {
+    if (foodSourceTags.contains(name)) return 'food_source';
+    return category == 'Health' ? 'symptom' : 'activity';
+  }
+
   static Future<void> apply(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS day_checkins (
