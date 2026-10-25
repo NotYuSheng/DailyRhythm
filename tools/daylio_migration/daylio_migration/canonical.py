@@ -1,7 +1,8 @@
 """Groups spelling variants of food, exercise and supplement names.
 
     python -m daylio_migration.canonical          # write proposals
-    (review data/migration/aliases.csv, set approve to yes/no)
+    (review data/migration/aliases.csv, set approve to yes/no; add rows with
+     how=synonym to rename one agreed name to another, e.g. Maggie -> Maggi)
     python -m daylio_migration ...                # parse again; approved aliases apply
 
 Exact variants (same letters once case, punctuation, spaces and simple
@@ -138,12 +139,22 @@ def load_aliases(path: Path) -> dict[tuple[str, str], str]:
     return aliases
 
 
+def resolve(aliases: dict[tuple[str, str], str], kind: str, name: str) -> str:
+    """Follows alias chains, so a spelling variant of a synonym ends at
+    the final name (maggie -> Maggie -> Maggi)."""
+    seen = set()
+    while (kind, name) in aliases and name not in seen:
+        seen.add(name)
+        name = aliases[(kind, name)]
+    return name
+
+
 def apply_aliases(days, aliases: dict[tuple[str, str], str]) -> None:
     """Sets ``canonical`` on every item; the original ``name`` is kept."""
     for day in days:
         for kind in KINDS:
             for item in getattr(day, kind):
-                item.canonical = aliases.get((kind, item.name), item.name) if item.name else None
+                item.canonical = resolve(aliases, kind, item.name) if item.name else None
 
 
 def main() -> None:
@@ -155,8 +166,13 @@ def main() -> None:
     if out.exists():  # keep earlier decisions
         with open(out, newline="", encoding="utf-8") as f:
             previous = {(r["kind"], r["variant"]): r["approve"] for r in csv.DictReader(f)}
+    manual = []
+    if out.exists():  # synonyms are added by hand; keep them
+        with open(out, newline="", encoding="utf-8") as f:
+            manual = [r for r in csv.DictReader(f) if r["how"] == "synonym"]
     for row in rows:
         row["approve"] = previous.get((row["kind"], row["variant"]), row["approve"])
+    rows = manual + rows
     with open(out, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDS)
         writer.writeheader()

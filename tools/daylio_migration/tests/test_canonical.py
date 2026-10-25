@@ -42,3 +42,13 @@ def test_apply_sets_canonical_and_keeps_original():
     d = Day(date="2024-01-01", mood=3, entries=[], exercises=[ExerciseSet(text="60 situps", name="situps")])
     apply_aliases([d], {("exercises", "situps"): "Sit ups"})
     assert (d.exercises[0].name, d.exercises[0].canonical) == ("situps", "Sit ups")
+
+
+def test_synonyms_chain_through_spelling_variants():
+    d = Day(date="2024-01-01", mood=3, entries=[], exercises=[])
+    from daylio_migration.model import Meal
+    d.meals = [Meal(text="maggie", name="maggie"), Meal(text="Cai Peng", name="Cai Peng")]
+    aliases = {("meals", "maggie"): "Maggie", ("meals", "Maggie"): "Maggi",
+               ("meals", "Cai Peng"): "Cai peng", ("meals", "Cai peng"): "Mixed rice"}
+    apply_aliases([d], aliases)
+    assert [m.canonical for m in d.meals] == ["Maggi", "Mixed rice"]
