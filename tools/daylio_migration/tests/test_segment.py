@@ -58,3 +58,22 @@ def test_without_splitter_keeps_piece_whole_and_flags_it():
     note = parse_run_together("0930 Reveille Subway Bar chor mee 0015 Sleep", Lexicon())
     assert [m.name for m in note.meals] == ["Subway Bar chor mee"]
     assert [f.code for f in note.flags] == ["unsplit"]
+
+
+def test_reused_splitter_answer_is_not_modified():
+    answer = ["chin ups"]
+    note = parse_run_together("0630 Reveille 0000 Sleep 6 chin ups 6 chin ups", Lexicon(), lambda *_: answer)
+    assert [(e.name, e.reps) for e in note.exercises] == [("chin ups", 6), ("chin ups", 6)]
+    assert answer == ["chin ups"]
+
+
+def test_leading_supplement_is_split_before_the_llm():
+    asked = []
+
+    def splitter(piece, zone, hints):
+        asked.append(piece)
+        return [piece]
+
+    note = parse_run_together("0700 Reveille X2 protein Bar chor mee 2300 Sleep", Lexicon(), splitter)
+    assert [(s.name, s.quantity) for s in note.supplements] == [("protein", 2)]
+    assert asked == ["Bar chor mee"]

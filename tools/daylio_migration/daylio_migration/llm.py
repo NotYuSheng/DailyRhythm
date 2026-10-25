@@ -64,6 +64,7 @@ def _prompt(piece: str, zone: str, hints: list[str]) -> str:
         "- Copy every item exactly from the text: same spelling, capitalisation and punctuation.\n"
         "- Together the items must cover the whole text, in order, with nothing added or dropped.\n"
         "- Keep multi-word dish and exercise names together; one dish can name several ingredients.\n"
+        "- A brand or shop name followed by its dish is one item (\"McDonald's prosperity burger\").\n"
         f"{known}\n\nText: {piece}"
     )
 
@@ -87,9 +88,12 @@ class LlmSplitter:
         self.api_key = api_key
         self.model = model
         self.workers = workers
-        self.cache: dict[str, list[str] | None] = (
-            json.loads(cache_path.read_text()) if cache_path.exists() else {}
-        )
+        cached = json.loads(cache_path.read_text()) if cache_path.exists() else {}
+        # Re-check every cached answer so a damaged entry is asked again.
+        self.cache: dict[str, list[str] | None] = {
+            key: items for key, items in cached.items()
+            if items is None or verify(key.split("|", 1)[1], items)
+        }
         self.pending: dict[str, tuple[str, list[str]]] = {}
 
     @classmethod
@@ -108,7 +112,8 @@ class LlmSplitter:
         ``run_pending`` and return None for now."""
         key = self._key(piece, zone)
         if key in self.cache:
-            return self.cache[key]
+            items = self.cache[key]
+            return None if items is None else list(items)
         self.pending[key] = (piece, hints)
         return None
 
@@ -124,7 +129,7 @@ class LlmSplitter:
                 data=body,
                 headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
             )
-            with urllib.request.urlopen(request, timeout=120) as response:
+            with urllib.request.urlopen(request, timeout=240) as response:
                 content = json.load(response)["choices"][0]["message"]["content"] or ""
             items = _extract_array(content)
             if items is not None and verify(piece, items):

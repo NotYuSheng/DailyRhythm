@@ -25,6 +25,7 @@ PRICE_TOKEN = re.compile(r"^[~$]?\d+\.\d{2}$")
 QTY_TOKEN = re.compile(r"^[xX]\d+(\.\d+)?$")
 COUNT_TOKEN = re.compile(r"^\d+$")
 MAX_PHRASE_WORDS = 7
+LEADING_SUPPLEMENT = re.compile(r"^(protein|creatine|multivitamins?|fish oil)\s+(?!bar\b(?!\s+chor)|shake\b)", re.IGNORECASE)
 
 
 def normalize(text: str) -> str:
@@ -135,6 +136,12 @@ def _split_piece(piece: str, zone: str, lexicon: Lexicon, splitter: Splitter | N
         tail = " " + tokens.pop() + tail
     body = " ".join(tokens)
 
+    # A supplement opening the piece ("X2 protein Bar chor mee") is its own
+    # item; otherwise "protein Bar" reads like a protein bar.
+    if (m := LEADING_SUPPLEMENT.match(body)) and m.end() < len(body):
+        rest = _split_piece(body[m.end():].strip(), zone, lexicon, splitter, note)
+        return [head + m.group(1)] + rest
+
     parts = lexicon.split(zone, body)
     if parts is None and len(body.split()) <= 1:
         parts = [body]
@@ -146,6 +153,7 @@ def _split_piece(piece: str, zone: str, lexicon: Lexicon, splitter: Splitter | N
     if parts is None:
         note.flags.append(Flag("unsplit", "Could not split into items; kept as one", piece))
         parts = [body]
+    parts = list(parts)  # never modify the splitter's (cached) list
     parts[0] = head + parts[0]
     parts[-1] = parts[-1] + tail
     return parts

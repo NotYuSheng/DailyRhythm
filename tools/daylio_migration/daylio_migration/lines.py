@@ -88,7 +88,7 @@ FEELING_WORDS = re.compile(
 # Used only when a note has no Sleep line to tell meals from remarks.
 FOOD_WORDS = re.compile(
     r"\b(rice|noodles?|soup|chicken|egg|eggs|bread|burger|pizza|prata|coffee|tea|juice|milo|mee|hoon|"
-    r"kway|teow|porridge|sandwich|nasi|lemak|wrap|nuggets?|fries|croissant|cake|pasta|spaghetti|fish|"
+    r"kway|teow|gyoza|porridge|sandwich|nasi|lemak|wrap|nuggets?|fries|croissant|cake|pasta|spaghetti|fish|"
     r"pork|beef|duck|mutton|tofu|curry|laksa|dumplings?|bao|bun|muffin|mcmuffin|mc\w+|kfc|subway|"
     r"food|meal|set|bento|salad|fruit|apple|banana|orange|biscuits?|chips|cereal|oat\w*|yoghurt|"
     r"ice cream|chocolate|snack|drink|kopi|teh|onigiri|sushi|ramen|udon|don|katsu|cai peng|bbq|buffet|"
