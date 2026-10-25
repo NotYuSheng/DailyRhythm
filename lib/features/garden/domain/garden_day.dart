@@ -11,6 +11,7 @@ class DayLog {
     this.workouts = 0,
     this.steps,
     this.sleepHours,
+    this.sleepLogged = false,
     this.dayMood,
     this.momentMoods = const [],
     this.momentCount = 0,
@@ -31,7 +32,12 @@ class DayLog {
   /// Workouts recorded by a watch or Health Connect / HealthKit.
   final int workouts;
   final double? steps;
+  /// Sleep length from the app's log, or the watch when there is none.
   final double? sleepHours;
+
+  /// Whether sleep was logged in the app; watch data alone doesn't count
+  /// as a logged day.
+  final bool sleepLogged;
   final int? dayMood;
   final List<int> momentMoods;
   final int momentCount;
@@ -44,7 +50,7 @@ class DayLog {
 
   bool get logged =>
       dayMood != null ||
-      sleepHours != null ||
+      sleepLogged ||
       tagNames.isNotEmpty ||
       exerciseKinds > 0 ||
       momentCount > 0 ||

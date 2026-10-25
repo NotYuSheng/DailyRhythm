@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/services/database/database_provider.dart';
+import '../services/fun_facts_service.dart';
 import '../services/metrics_service.dart';
 import '../models/metric_data.dart';
 
@@ -37,4 +38,9 @@ final activityMetricsProvider = FutureProvider.autoDispose.family<ActivityMetric
 final metricsInsightsProvider = FutureProvider.autoDispose.family<List<MetricsInsight>, DateRange>((ref, range) async {
   final service = ref.watch(metricsServiceProvider);
   return service.generateInsights(range);
+});
+
+/// Fun facts provider
+final funFactsProvider = FutureProvider.autoDispose.family<List<FunFact>, DateRange>((ref, range) async {
+  return FunFactsService(ref.watch(databaseProvider)).factsFor(range);
 });
