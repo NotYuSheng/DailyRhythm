@@ -62,11 +62,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 },
                 calendarStyle: CalendarStyle(
                   todayDecoration: BoxDecoration(
-                    color: theme.colorScheme.secondaryContainer,
+                    color: theme.colorScheme.primaryContainer,
                     shape: BoxShape.circle,
                   ),
                   todayTextStyle: TextStyle(
-                    color: theme.colorScheme.onSecondaryContainer,
+                    color: theme.colorScheme.onPrimaryContainer,
                     fontWeight: FontWeight.bold,
                   ),
                   selectedDecoration: BoxDecoration(
@@ -193,7 +193,7 @@ class _HoverableDayState extends State<_HoverableDay> {
   IconData _getMoodIcon(int moodLevel) {
     switch (moodLevel) {
       case 1:
-        return UniconsLine.sad_crying;
+        return UniconsLine.sad_squint;
       case 2:
         return UniconsLine.frown;
       case 3:
@@ -221,7 +221,7 @@ class _HoverableDayState extends State<_HoverableDay> {
           color: widget.isSelected
               ? theme.colorScheme.primary
               : widget.isToday
-                  ? theme.colorScheme.secondaryContainer
+                  ? theme.colorScheme.primaryContainer
                   : _isHovered
                       ? (isDark ? AppTheme.grey800 : AppTheme.grey100)
                       : Colors.transparent,
@@ -236,7 +236,7 @@ class _HoverableDayState extends State<_HoverableDay> {
                   color: widget.isSelected
                       ? theme.colorScheme.onPrimary
                       : widget.isToday
-                          ? theme.colorScheme.onSecondaryContainer
+                          ? theme.colorScheme.onPrimaryContainer
                           : theme.colorScheme.onSurface,
                   fontWeight: widget.isToday || widget.isSelected
                       ? FontWeight.bold
@@ -255,7 +255,7 @@ class _HoverableDayState extends State<_HoverableDay> {
                   color: widget.isSelected
                       ? theme.colorScheme.onPrimary
                       : widget.isToday
-                          ? theme.colorScheme.onSecondaryContainer
+                          ? theme.colorScheme.onPrimaryContainer
                           : theme.colorScheme.onSurface.withValues(alpha: 0.7),
                 ),
               ),

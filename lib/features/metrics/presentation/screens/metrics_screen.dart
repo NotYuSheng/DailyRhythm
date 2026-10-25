@@ -31,7 +31,6 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -53,7 +52,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Time Range Selector
-            _buildTimeRangeSelector(isDark),
+            _buildTimeRangeSelector(),
             const SizedBox(height: AppTheme.spacePulse4),
 
             // Quick Stats Cards
@@ -80,60 +79,32 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
     );
   }
 
-  Widget _buildTimeRangeSelector(bool isDark) {
-    return SizedBox(
-      height: 40,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: _dateRanges.length,
-        itemBuilder: (context, index) {
-          final theme = Theme.of(context);
-          final isSelected = index == _selectedRangeIndex;
-          final range = _dateRanges[index];
+  // Short labels so all five ranges fit on a narrow phone; the full name is
+  // the tooltip and what screen readers announce.
+  static const List<String> _rangeShortLabels = ['7D', '30D', 'Month', 'Year', 'All'];
 
-          return Padding(
-            padding: EdgeInsets.only(
-              right: index < _dateRanges.length - 1 ? AppTheme.spacePulse2 : 0,
-            ),
-            child: InkWell(
-              onTap: () {
-                setState(() {
-                  _selectedRangeIndex = index;
-                });
-              },
-              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppTheme.spacePulse3,
-                  vertical: AppTheme.spacePulse2,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                  border: Border.all(
-                    color: isSelected
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.outline,
-                    width: 1,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    range.label,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected
-                          ? theme.colorScheme.onPrimary
-                          : theme.colorScheme.onSurface,
-                    ),
-                  ),
-                ),
+  Widget _buildTimeRangeSelector() {
+    return SizedBox(
+      width: double.infinity,
+      child: SegmentedButton<int>(
+        showSelectedIcon: false,
+        segments: [
+          for (var i = 0; i < _dateRanges.length; i++)
+            ButtonSegment<int>(
+              value: i,
+              tooltip: _dateRanges[i].label,
+              label: Semantics(
+                label: _dateRanges[i].label,
+                excludeSemantics: true,
+                child: Text(_rangeShortLabels[i], maxLines: 1, softWrap: false),
               ),
             ),
-          );
+        ],
+        selected: {_selectedRangeIndex},
+        onSelectionChanged: (selection) {
+          setState(() {
+            _selectedRangeIndex = selection.first;
+          });
         },
       ),
     );
@@ -399,7 +370,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                     const SizedBox(height: AppTheme.spacePulse2),
                     _buildMoodBar(context, 'Bad (2)', UniconsLine.frown, metrics.distribution[2] ?? 0, total, isDark),
                     const SizedBox(height: AppTheme.spacePulse2),
-                    _buildMoodBar(context, 'Very Bad (1)', UniconsLine.sad_crying, metrics.distribution[1] ?? 0, total, isDark),
+                    _buildMoodBar(context, 'Very Bad (1)', UniconsLine.sad_squint, metrics.distribution[1] ?? 0, total, isDark),
                   ],
                 );
               },
