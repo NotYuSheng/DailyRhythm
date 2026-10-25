@@ -60,9 +60,8 @@ class DailyRhythmApp extends ConsumerWidget {
       onGenerateRoute: AppRouter.generateRoute,
       initialRoute: AppRoutes.home,
       builder: (context, child) {
-        // table_calendar and fl_chart still import the SDK's
-        // material.dart; the bridge passes our theme to them. Remove once
-        // they depend on package:material_ui.
+        // fl_chart still imports the SDK's material.dart; the bridge passes
+        // our theme to it. Remove once it depends on package:material_ui.
         // ignore: deprecated_member_use
         final bridged = MaterialUiCompatibilityBridge(child: child!);
         if (kIsWeb || defaultTargetPlatform == TargetPlatform.linux) {

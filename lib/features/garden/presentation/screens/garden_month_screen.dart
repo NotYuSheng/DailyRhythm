@@ -14,18 +14,19 @@ import 'garden_today_screen.dart';
 
 /// A month as a garden: one pot per day, a plant in each logged one.
 class GardenMonthScreen extends ConsumerStatefulWidget {
-  const GardenMonthScreen({super.key, required this.month});
+  const GardenMonthScreen({super.key, this.month});
 
-  /// Any date in the month to show first.
-  final DateTime month;
+  /// Any date in the month to show first; this month when null.
+  final DateTime? month;
 
   @override
   ConsumerState<GardenMonthScreen> createState() => _GardenMonthScreenState();
 }
 
 class _GardenMonthScreenState extends ConsumerState<GardenMonthScreen> {
-  late DateTime _month = DateTime(widget.month.year, widget.month.month);
-  late DateTime _picked = dayOf(widget.month);
+  late final DateTime _start = dayOf(widget.month ?? DateTime.now());
+  late DateTime _month = DateTime(_start.year, _start.month);
+  late DateTime _picked = _start;
 
   void _moveMonth(int delta) {
     setState(() {
@@ -59,13 +60,16 @@ class _GardenMonthScreenState extends ConsumerState<GardenMonthScreen> {
               children: [
                 Row(
                   children: [
-                    _RoundIcon(
-                      icon: Icons.chevron_left,
-                      label: 'Back to today',
-                      colors: colors,
-                      onPressed: () => Navigator.maybePop(context),
-                    ),
-                    const SizedBox(width: 12),
+                    // Shown when opened from Today; as a tab there is nowhere to go back to.
+                    if (Navigator.canPop(context)) ...[
+                      _RoundIcon(
+                        icon: Icons.chevron_left,
+                        label: 'Back to today',
+                        colors: colors,
+                        onPressed: () => Navigator.maybePop(context),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

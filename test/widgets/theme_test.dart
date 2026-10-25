@@ -49,12 +49,12 @@ void main() {
         expect(tester.takeException(), isNull, reason: 'Today tab threw while rendering');
         expect(find.text('Today\u2019s plant'), findsOneWidget);
 
-        for (final tab in ['Journal', 'Calendar', 'Metrics', 'Settings', 'Journal']) {
+        for (final tab in ['Garden', 'Metrics', 'Settings', 'Today']) {
           await tester.tap(find.text(tab).last);
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull, reason: '$tab tab threw while rendering');
         }
-        expect(Theme.of(tester.element(find.text('Mood'))).brightness,
+        expect(Theme.of(tester.element(find.text('Today\u2019s plant'))).brightness,
             mode == 'light' ? Brightness.light : Brightness.dark);
 
         // Icons must stand out against the page in both modes; the old

@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../shared/models/activity_entry.dart';
-import '../../../../shared/models/mood_entry.dart';
 import '../../../../shared/providers/common_providers.dart';
 import '../../../../shared/services/database/database_provider.dart';
 import '../../../exercise/data/models/exercise_entry.dart';
@@ -18,8 +17,6 @@ import '../../../tags/data/models/tag.dart';
 import '../../../tags/data/providers/tag_providers.dart';
 import '../../data/garden_providers.dart';
 import '../garden_style.dart';
-import 'garden_chip.dart';
-import 'moment_sheet.dart';
 
 /// Refreshes the day's entries and its plant after an edit.
 void invalidateDayLog(WidgetRef ref, DateTime day) {
@@ -31,8 +28,8 @@ void invalidateDayLog(WidgetRef ref, DateTime day) {
   invalidateGardenDay(ref, day);
 }
 
-/// The day's stats: mood, sleep, meals, exercise and activities, each
-/// opening the same editors as the Journal tab.
+/// The day's stats: sleep, meals, exercise and activities, each opening
+/// its editor.
 class DayLogCard extends ConsumerWidget {
   const DayLogCard({super.key, required this.day});
 
@@ -41,7 +38,6 @@ class DayLogCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = GardenColors.of(context);
-    final mood = ref.watch(moodEntryProvider(day)).value;
     final sleep = ref.watch(sleepEntriesProvider(day)).value ?? const [];
     final meals = ref.watch(mealEntriesProvider(day)).value ?? const <MealEntry>[];
     final exercises = ref.watch(exerciseEntriesProvider(day)).value ?? const <ExerciseEntry>[];
@@ -72,31 +68,6 @@ class DayLogCard extends ConsumerWidget {
         children: [
           Text('Your day', style: nunito(16, FontWeight.w900, colors.ink)),
           const SizedBox(height: 8),
-          Text('Mood', style: nunito(14, FontWeight.w800, colors.leaf)),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              for (final MapEntry(key: level, value: word) in momentMoodWords.entries) ...[
-                if (level > 1) const SizedBox(width: 6),
-                Expanded(
-                  child: GardenChip(
-                    label: word,
-                    compact: true,
-                    idle: colors.ground,
-                    selected: mood?.moodLevel == level,
-                    colors: colors,
-                    onPressed: () async {
-                      await ref.read(databaseProvider).upsertMoodEntry(
-                            MoodEntry(date: day, timestamp: DateTime.now(), moodLevel: level, emoji: ''),
-                          );
-                      invalidateDayLog(ref, day);
-                    },
-                  ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 6),
           _Row(
             icon: Icons.bedtime_outlined,
             title: 'Sleep',

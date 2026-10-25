@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../shared/models/day_checkin.dart';
+import '../../../../shared/models/mood_entry.dart';
+import '../../../../shared/providers/common_providers.dart';
 import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/services/database/repositories/checkin_repository.dart';
 import '../../../../shared/utils/date_utils.dart';
@@ -19,19 +21,30 @@ import '../widgets/moment_sheet.dart';
 import '../widgets/plant_view.dart';
 import 'garden_month_screen.dart';
 
-/// Today's plant, what today was mostly about, a quick check-in and the
-/// day's moments.
-class GardenTodayScreen extends ConsumerWidget {
+/// One day: its plant, what it was mostly about, how it went, its stats and
+/// moments. Opens on today; the arrows step to other days.
+class GardenTodayScreen extends ConsumerStatefulWidget {
   const GardenTodayScreen({super.key, this.day});
 
-  /// The day shown; today when null.
+  /// The day shown first; today when null.
   final DateTime? day;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GardenTodayScreen> createState() => _GardenTodayScreenState();
+}
+
+class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
+  late DateTime _day = dayOf(widget.day ?? DateTime.now());
+
+  void _go(int days) => setState(() => _day = DateTime(_day.year, _day.month, _day.day + days));
+
+  @override
+  Widget build(BuildContext context) {
     final colors = GardenColors.of(context);
-    final today = dayOf(day ?? DateTime.now());
-    final isToday = today == dayOf(DateTime.now());
+    final today = _day;
+    final now = dayOf(DateTime.now());
+    final isToday = today == now;
+    final mood = ref.watch(moodEntryProvider(today)).value;
     final garden = ref.watch(gardenDayProvider(today));
     final checkin = ref.watch(checkinProvider(today)).value;
     final moments = ref.watch(momentsProvider(today)).value ?? const <JournalEntry>[];
@@ -56,12 +69,7 @@ class GardenTodayScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   if (Navigator.canPop(context)) ...[
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      tooltip: 'Back',
-                      icon: const Icon(Icons.chevron_left),
-                      style: IconButton.styleFrom(minimumSize: const Size(44, 44), backgroundColor: colors.card, foregroundColor: colors.ink),
-                    ),
+                    _RoundButton(icon: Icons.close, tooltip: 'Close', colors: colors, onPressed: () => Navigator.pop(context)),
                     const SizedBox(width: 12),
                   ],
                   Expanded(
@@ -73,6 +81,24 @@ class GardenTodayScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  _RoundButton(icon: Icons.chevron_left, tooltip: 'Previous day', colors: colors, onPressed: () => _go(-1)),
+                  const SizedBox(width: 8),
+                  _RoundButton(
+                    icon: Icons.chevron_right,
+                    tooltip: 'Next day',
+                    colors: colors,
+                    onPressed: isToday ? null : () => _go(1),
+                  ),
+                  const Spacer(),
+                  if (!isToday) ...[
+                    _PillButton(label: 'Today', colors: colors, onPressed: () => setState(() => _day = now)),
+                    const SizedBox(width: 8),
+                  ],
                   _PillButton(
                     label: 'Garden',
                     colors: colors,
@@ -116,15 +142,23 @@ class GardenTodayScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               _Stats(day: g, momentCount: moments.length, colors: colors),
               const SizedBox(height: 16),
-              DayLogCard(day: today),
-              const SizedBox(height: 16),
               _CheckinCard(
                 checkin: checkin,
+                mood: mood?.moodLevel,
+                isToday: isToday,
                 colors: colors,
+                onMood: (level) async {
+                  await ref.read(databaseProvider).upsertMoodEntry(
+                        MoodEntry(date: today, timestamp: DateTime.now(), moodLevel: level, emoji: ''),
+                      );
+                  invalidateDayLog(ref, today);
+                },
                 onEnergy: (v) => saveCheckin(energy: v),
                 onStress: (v) => saveCheckin(stress: v),
                 onFocus: (v) => saveCheckin(focus: v),
               ),
+              const SizedBox(height: 16),
+              DayLogCard(day: today),
               const SizedBox(height: 16),
               _Moments(moments: moments, tagNames: tags, colors: colors),
               const SizedBox(height: 12),
@@ -242,10 +276,14 @@ class _Stat extends StatelessWidget {
   }
 }
 
-/// Energy, stress and focus relative to a usual day, from −2 to +2.
+/// How the day went: the day mood (1–5), then energy, stress and focus
+/// relative to a usual day (−2 to +2).
 class _CheckinCard extends StatelessWidget {
   const _CheckinCard({
     required this.checkin,
+    required this.mood,
+    required this.isToday,
+    required this.onMood,
     required this.colors,
     required this.onEnergy,
     required this.onStress,
@@ -253,10 +291,24 @@ class _CheckinCard extends StatelessWidget {
   });
 
   final DayCheckin? checkin;
+  final int? mood;
+  final bool isToday;
+  final ValueChanged<int> onMood;
   final GardenColors colors;
   final ValueChanged<int> onEnergy;
   final ValueChanged<int> onStress;
   final ValueChanged<int> onFocus;
+
+  /// Words under the left end, middle and right end of the dots.
+  Widget _scale(List<String> words) => ExcludeSemantics(
+        child: Row(
+          children: [
+            const SizedBox(width: _RatingRow.labelWidth),
+            for (final (word, align) in [(words[0], TextAlign.left), (words[1], TextAlign.center), (words[2], TextAlign.right)])
+              Expanded(child: Text(word, textAlign: align, style: nunito(12, FontWeight.w700, colors.muted))),
+          ],
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -266,17 +318,14 @@ class _CheckinCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Compared with a usual day', style: nunito(16, FontWeight.w900, colors.ink)),
+          Text(isToday ? 'How today went' : 'How the day went', style: nunito(16, FontWeight.w900, colors.ink)),
           const SizedBox(height: 6),
-          ExcludeSemantics(
-            child: Row(
-              children: [
-                const SizedBox(width: _RatingRow.labelWidth),
-                for (final (word, align) in const [('lower', TextAlign.left), ('usual', TextAlign.center), ('higher', TextAlign.right)])
-                  Expanded(child: Text(word, textAlign: align, style: nunito(12, FontWeight.w700, colors.muted))),
-              ],
-            ),
-          ),
+          _scale(const ['awful', 'meh', 'great']),
+          _RatingRow(label: 'Mood', value: mood, onChanged: onMood, colors: colors, words: _RatingRow.mood),
+          const SizedBox(height: 10),
+          Text('Compared with a usual day', style: nunito(14, FontWeight.w800, colors.leaf)),
+          const SizedBox(height: 4),
+          _scale(const ['lower', 'usual', 'higher']),
           _RatingRow(label: 'Energy', value: checkin?.energy, onChanged: onEnergy, colors: colors),
           _RatingRow(label: 'Stress', value: checkin?.stress, onChanged: onStress, colors: colors),
           _RatingRow(label: 'Focus', value: checkin?.focus, onChanged: onFocus, colors: colors),
@@ -287,16 +336,26 @@ class _CheckinCard extends StatelessWidget {
 }
 
 class _RatingRow extends StatelessWidget {
-  const _RatingRow({required this.label, required this.value, required this.onChanged, required this.colors});
+  const _RatingRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    required this.colors,
+    this.words = relative,
+  });
 
   final String label;
   final int? value;
   final ValueChanged<int> onChanged;
   final GardenColors colors;
 
+  /// The five choices, low to high, with the words read out for each.
+  final Map<int, String> words;
+
   static const labelWidth = 64.0;
 
-  static const _words = {-2: 'much lower', -1: 'a bit lower', 0: 'usual', 1: 'a bit higher', 2: 'much higher'};
+  static const relative = {-2: 'much lower', -1: 'a bit lower', 0: 'usual', 1: 'a bit higher', 2: 'much higher'};
+  static const mood = {1: 'awful', 2: 'bad', 3: 'meh', 4: 'good', 5: 'great'};
 
   @override
   Widget build(BuildContext context) {
@@ -306,7 +365,7 @@ class _RatingRow extends StatelessWidget {
         Expanded(
           child: Row(
             children: [
-              for (final MapEntry(key: v, value: word) in _words.entries)
+              for (final (i, MapEntry(key: v, value: word)) in words.entries.indexed)
                 Expanded(child: Semantics(
                   button: true,
                   selected: value == v,
@@ -319,8 +378,9 @@ class _RatingRow extends StatelessWidget {
                       child: Center(
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
-                          width: v == 0 ? 22 : 16 + v.abs() * 3,
-                          height: v == 0 ? 22 : 16 + v.abs() * 3,
+                          // The middle dot and the ends are larger.
+                          width: i == 2 ? 22 : 16 + (i - 2).abs() * 3,
+                          height: i == 2 ? 22 : 16 + (i - 2).abs() * 3,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: value == v ? colors.accent : Colors.transparent,
@@ -386,6 +446,31 @@ class MomentTile extends StatelessWidget {
           if (moment.text.isNotEmpty) Text(moment.text, style: nunito(15, FontWeight.w600, colors.ink)),
           if (about.isNotEmpty) Text(about, style: nunito(13, FontWeight.w700, colors.leaf)),
         ],
+      ),
+    );
+  }
+}
+
+class _RoundButton extends StatelessWidget {
+  const _RoundButton({required this.icon, required this.tooltip, required this.colors, required this.onPressed});
+
+  final IconData icon;
+  final String tooltip;
+  final GardenColors colors;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: tooltip,
+      icon: Icon(icon),
+      style: IconButton.styleFrom(
+        minimumSize: const Size(44, 44),
+        backgroundColor: colors.card,
+        foregroundColor: colors.ink,
+        disabledBackgroundColor: colors.card.withValues(alpha: 0.5),
+        disabledForegroundColor: colors.muted.withValues(alpha: 0.5),
       ),
     );
   }

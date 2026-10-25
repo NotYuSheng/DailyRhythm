@@ -3,7 +3,10 @@ import 'package:daily_rhythm/features/garden/presentation/screens/garden_today_s
 import 'package:daily_rhythm/features/garden/presentation/widgets/moment_sheet.dart';
 import 'package:daily_rhythm/features/garden/presentation/widgets/plant_view.dart';
 import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
+import 'package:daily_rhythm/features/exercise/presentation/screens/add_exercise_screen.dart';
 import 'package:daily_rhythm/features/meals/presentation/screens/add_meal_screen.dart';
+import 'package:daily_rhythm/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:daily_rhythm/shared/models/mood_entry.dart';
 import 'package:daily_rhythm/shared/services/database/database_service.dart';
 import 'package:daily_rhythm/shared/services/database/repositories/checkin_repository.dart';
@@ -15,11 +18,23 @@ import 'package:material_ui/material_ui.dart';
 
 import '../helpers/test_database.dart';
 
+/// Scrolls [finder] fully into view, then taps it. Lazily built rows can
+/// exist just off screen, where a tap would miss.
+Future<void> tapVisible(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+  await tester.tap(finder);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   late DatabaseService db;
   final today = dayOf(DateTime.now());
 
-  setUp(() async => db = await openTestDatabase());
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    db = await openTestDatabase();
+  });
   tearDown(closeTestDatabase);
 
   Future<void> pump(WidgetTester tester, Widget screen) async {
@@ -89,20 +104,18 @@ void main() {
     await tester.scrollUntilVisible(find.textContaining('is in bloom'), -300, scrollable: scrollable);
   });
 
-  testWidgets('your day sets the mood and tags activities, and the plant follows', (tester) async {
+  testWidgets('mood and activities are set for the day, and the plant follows', (tester) async {
     await pump(tester, const GardenTodayScreen());
     final scrollable = find.byType(Scrollable).first;
 
-    await tester.scrollUntilVisible(find.text('Good'), 200, scrollable: scrollable);
-    await tester.tap(find.text('Good'));
-    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.bySemanticsLabel('Mood good'), 200, scrollable: scrollable);
+    await tapVisible(tester, find.bySemanticsLabel('Mood good'));
     expect((await db.getMoodEntryByDate(today))?.moodLevel, 4);
     // A good day mood blooms (the caption is back at the top).
     await tester.scrollUntilVisible(find.textContaining('is in bloom'), -300, scrollable: scrollable);
 
     await tester.scrollUntilVisible(find.text('Activities'), 200, scrollable: scrollable);
-    await tester.tap(find.text('Activities'));
-    await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('Activities'));
     await tester.tap(find.widgetWithText(FilterChip, 'Work'));
     await tester.pumpAndSettle();
     expect(tester.widget<FilterChip>(find.widgetWithText(FilterChip, 'Work')).selected, isTrue);
@@ -130,6 +143,64 @@ void main() {
     await tester.tap(find.text('Chicken rice'));
     await tester.pumpAndSettle();
     expect(find.byType(AddMealScreen), findsOneWidget);
+  });
+
+  testWidgets('app opens on Today; Garden, Metrics and Settings are tabs', (tester) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await tester.pumpWidget(const ProviderScope(child: DailyRhythmApp()));
+    await tester.pumpAndSettle();
+    expect(find.text('Today\u2019s plant'), findsOneWidget);
+    expect(find.text('Journal'), findsNothing);
+
+    await tester.tap(find.text('Garden').last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining(' garden'), findsOneWidget);
+    expect(find.byTooltip('Back to today'), findsNothing, reason: 'a tab has nothing to go back to');
+  });
+
+  testWidgets('the arrows step through days, and edits go to the day shown', (tester) async {
+    final yesterday = DateTime(today.year, today.month, today.day - 1);
+    await db.createMealEntry(MealEntry(date: yesterday, time: yesterday, name: 'Chicken rice', price: 4));
+    await db.createMealEntry(MealEntry(date: yesterday, time: yesterday, name: 'Apple'));
+    await pump(tester, const GardenTodayScreen());
+    expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.chevron_right)).onPressed, isNull,
+        reason: 'no stepping into the future');
+
+    await tester.tap(find.byTooltip('Previous day'));
+    await tester.pumpAndSettle();
+    expect(find.text('This day\u2019s plant'), findsOneWidget);
+    final scrollable = find.byType(Scrollable).first;
+
+    await tester.scrollUntilVisible(find.bySemanticsLabel('Mood good'), 200, scrollable: scrollable);
+    await tapVisible(tester, find.bySemanticsLabel('Mood good'));
+    expect((await db.getMoodEntryByDate(yesterday))?.moodLevel, 4);
+    expect(await db.getMoodEntryByDate(today), isNull);
+
+    await tester.scrollUntilVisible(find.text('Apple'), 200, scrollable: scrollable);
+    expect(find.text('Chicken rice'), findsOneWidget);
+    expect(find.text('\$4.00'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Meals'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Meals'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<AddMealScreen>(find.byType(AddMealScreen)).date, yesterday);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Exercise'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Exercise'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<AddExerciseScreen>(find.byType(AddExerciseScreen)).date, yesterday);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('Today'), -300, scrollable: scrollable);
+    await tapVisible(tester, find.text('Today'));
+    expect(find.text('Today'), findsNothing, reason: 'no jump button on today itself');
+    await tester.scrollUntilVisible(find.text('Today\u2019s plant'), -300, scrollable: scrollable);
   });
 
   testWidgets('the month garden counts plants and flowers and shows a picked day', (tester) async {
