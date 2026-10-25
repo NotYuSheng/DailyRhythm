@@ -2,6 +2,11 @@
 
 Work agreed but not started. Newest first.
 
+Queued work is tracked as GitHub issues (#9–#17: exercise autocomplete, word-level
+aliases in the migration, Metrics on mood/energy/stress/focus, Tags screen, month and
+year recap, plant illustrations, calories, Health Connect / HealthKit sync, sleep
+picker repro). The sections below keep the design notes those issues refer to.
+
 ## Design direction: the garden (chosen 2026-10-25)
 
 Prototype: "DailyRhythm redesign" design canvas, row **B3 · Warm: garden**, plus the
@@ -45,8 +50,8 @@ How the plant is picked when the user doesn't choose:
 - A good day mood (4+) or a good moment adds the bloom. Daylio days are 85% "meh",
   so past months have few flowers; moments logged from now on add them.
 
-Still to do: year/month recap and stickers from the warm B row, Rive animation,
-real illustrations.
+Still to do: year/month recap (#13) and stickers from the warm B row, real
+illustrations with Rive animation (#14).
 
 ## Mood tracking redesign
 
