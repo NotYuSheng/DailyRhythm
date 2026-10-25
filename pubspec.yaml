@@ -19,7 +19,9 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.9.2
+  sdk: ^3.13.0
+  # material_ui ships separately from the SDK starting with Flutter 3.47
+  flutter: ">=3.47.0"
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -66,6 +68,8 @@ dependencies:
   extension_google_sign_in_as_googleapis_auth: ^2.0.12
   permission_handler: ^11.3.1
 
+  # Material widgets (moved out of the Flutter SDK in 3.47)
+  material_ui: ^1.8.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

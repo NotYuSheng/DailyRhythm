@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../features/journal/presentation/screens/journal_screen.dart';
 import '../../features/journal/presentation/screens/calendar_screen.dart';
 import '../../features/metrics/presentation/screens/metrics_screen.dart';

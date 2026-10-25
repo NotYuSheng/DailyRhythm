@@ -17,7 +17,7 @@ on:
 
 env:
   # Keep in sync with the version used for local development
-  FLUTTER_VERSION: '3.38.5'
+  FLUTTER_VERSION: '3.47.8'
 
 jobs:
   test:
