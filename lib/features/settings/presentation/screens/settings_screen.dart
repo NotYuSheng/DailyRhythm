@@ -48,7 +48,7 @@ class SettingsScreen extends ConsumerWidget {
                 ListTile(
                   leading: const Icon(Icons.download_outlined),
                   title: const Text('Export Data'),
-                  subtitle: const Text('Save to Downloads folder'),
+                  subtitle: const Text('Save all data as a zip of CSV files'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () => _handleExportData(context),
                 ),
@@ -56,7 +56,7 @@ class SettingsScreen extends ConsumerWidget {
                 ListTile(
                   leading: const Icon(Icons.upload_outlined),
                   title: const Text('Import Data'),
-                  subtitle: const Text('Load from CSV files'),
+                  subtitle: const Text('Load an export zip or CSV files'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () => _handleImportData(context, ref),
                 ),
@@ -151,7 +151,7 @@ class SettingsScreen extends ConsumerWidget {
       builder: (context) => AlertDialog(
         title: const Text('Export Data'),
         content: const Text(
-          'This will export all your data to CSV files in your Downloads folder. Continue?',
+          'This will export all your data as a zip of CSV files. You choose where to save it next. Continue?',
         ),
         actions: [
           TextButton(
@@ -195,8 +195,8 @@ class SettingsScreen extends ConsumerWidget {
     try {
       final exportService = ExportService.instance;
 
-      // Export all data - this will automatically trigger the share sheet
-      final result = await exportService.exportAllDataToCsv();
+      // Export all data - this opens the system save dialog
+      final result = await exportService.exportAllData();
 
       // Close loading dialog
       if (context.mounted) {
@@ -205,11 +205,12 @@ class SettingsScreen extends ConsumerWidget {
 
       // Show success message with location
       if (context.mounted) {
-        final folderName = result.path.split('/').last;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Exported ${result.totalEntries} entries in ${result.fileCount} files to Downloads/$folderName',
+              result == null
+                  ? 'Export cancelled'
+                  : 'Exported ${result.totalEntries} entries in ${result.fileCount} files',
             ),
             duration: const Duration(seconds: 4),
             behavior: SnackBarBehavior.floating,
@@ -262,7 +263,7 @@ class SettingsScreen extends ConsumerWidget {
       final exportService = ExportService.instance;
 
       // Import data - this will open a directory picker
-      final result = await exportService.importDataFromCsv();
+      final result = await exportService.importData();
 
       // Close loading dialog
       if (context.mounted) {
