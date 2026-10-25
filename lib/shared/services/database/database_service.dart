@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../../utils/date_utils.dart';
+import 'schema_v13.dart';
 import '../../../features/sleep/data/models/sleep_entry.dart';
 import '../../models/nap_entry.dart';
 import '../../../features/meals/data/models/meal_entry.dart';
@@ -15,7 +16,7 @@ class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
   static Database? _database;
 
-  static const int schemaVersion = 12;
+  static const int schemaVersion = 13;
 
   /// Overrides the database file location (e.g. `inMemoryDatabasePath`).
   @visibleForTesting
@@ -221,6 +222,9 @@ class DatabaseService {
           "WHERE date NOT LIKE '%T00:00:00.000'",
         );
       }
+    }
+    if (oldVersion < 13) {
+      await SchemaV13.apply(db);
     }
   }
 
@@ -448,6 +452,8 @@ class DatabaseService {
     for (final tag in defaultTags) {
       await db.insert('tags', tag);
     }
+
+    await SchemaV13.apply(db);
   }
 
   // ==================== Sleep Entry CRUD ====================
@@ -487,7 +493,7 @@ class DatabaseService {
 
   Future<List<SleepEntry>> getAllSleepEntries() async {
     final db = await database;
-    final maps = await db.query('sleep_entries', orderBy: 'date DESC');
+    final maps = await db.query('sleep_entries', orderBy: 'date DESC, id DESC');
     return maps.map((map) => SleepEntry.fromMap(map)).toList();
   }
 
@@ -609,7 +615,7 @@ class DatabaseService {
 
   Future<List<NapEntry>> getAllNapEntries() async {
     final db = await database;
-    final maps = await db.query('nap_entries', orderBy: 'date DESC');
+    final maps = await db.query('nap_entries', orderBy: 'date DESC, startTime DESC, id DESC');
     return maps.map((map) => NapEntry.fromMap(map)).toList();
   }
 
@@ -669,7 +675,7 @@ class DatabaseService {
 
   Future<List<MealEntry>> getAllMealEntries() async {
     final db = await database;
-    final maps = await db.query('meal_entries', orderBy: 'date DESC');
+    final maps = await db.query('meal_entries', orderBy: 'date DESC, time DESC, id DESC');
     return maps.map((map) => MealEntry.fromMap(map)).toList();
   }
 
@@ -1076,7 +1082,7 @@ class DatabaseService {
 
   Future<List<MoodEntry>> getAllMoodEntries() async {
     final db = await database;
-    final maps = await db.query('mood_entries', orderBy: 'date ASC');
+    final maps = await db.query('mood_entries', orderBy: 'date ASC, id ASC');
     return maps.map((map) => MoodEntry.fromMap(map)).toList();
   }
 

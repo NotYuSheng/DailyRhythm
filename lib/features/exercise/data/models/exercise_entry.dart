@@ -24,6 +24,8 @@ class ExerciseEntry {
   final int? sets;
 
   final String? notes;
+  final int? exerciseItemId; // canonical exercise in exercise_items
+  final String? rawText; // original Daylio line, when imported
 
   ExerciseEntry({
     this.id,
@@ -44,6 +46,8 @@ class ExerciseEntry {
     this.weight,
     this.sets,
     this.notes,
+    this.exerciseItemId,
+    this.rawText,
   });
 
   Map<String, dynamic> toMap() {
@@ -66,6 +70,8 @@ class ExerciseEntry {
       'weight': weight,
       'sets': sets,
       'notes': notes,
+      'exercise_item_id': exerciseItemId,
+      'raw_text': rawText,
     };
   }
 
@@ -110,6 +116,8 @@ class ExerciseEntry {
       weight: map['weight'] as double?,
       sets: map['sets'] as int?,
       notes: map['notes'] as String?,
+      exerciseItemId: map['exercise_item_id'] as int?,
+      rawText: map['raw_text'] as String?,
     );
   }
 
@@ -132,6 +140,8 @@ class ExerciseEntry {
     double? weight,
     int? sets,
     String? notes,
+    int? exerciseItemId,
+    String? rawText,
   }) {
     return ExerciseEntry(
       id: id ?? this.id,
@@ -152,6 +162,8 @@ class ExerciseEntry {
       weight: weight ?? this.weight,
       sets: sets ?? this.sets,
       notes: notes ?? this.notes,
+      exerciseItemId: exerciseItemId ?? this.exerciseItemId,
+      rawText: rawText ?? this.rawText,
     );
   }
 }
