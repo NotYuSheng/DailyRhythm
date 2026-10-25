@@ -1,6 +1,9 @@
 import 'package:daily_rhythm/features/garden/presentation/screens/garden_month_screen.dart';
 import 'package:daily_rhythm/features/garden/presentation/screens/garden_today_screen.dart';
+import 'package:daily_rhythm/features/garden/presentation/widgets/moment_sheet.dart';
 import 'package:daily_rhythm/features/garden/presentation/widgets/plant_view.dart';
+import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
+import 'package:daily_rhythm/features/meals/presentation/screens/add_meal_screen.dart';
 import 'package:daily_rhythm/shared/models/mood_entry.dart';
 import 'package:daily_rhythm/shared/services/database/database_service.dart';
 import 'package:daily_rhythm/shared/services/database/repositories/checkin_repository.dart';
@@ -57,6 +60,8 @@ void main() {
   testWidgets('check-in saves ratings relative to a usual day', (tester) async {
     await pump(tester, const GardenTodayScreen());
     await tester.scrollUntilVisible(find.bySemanticsLabel('Stress much lower'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.bySemanticsLabel('Stress much lower'));
+    await tester.pumpAndSettle();
     await tester.tap(find.bySemanticsLabel('Energy a bit higher'));
     await tester.tap(find.bySemanticsLabel('Stress much lower'));
     await tester.pumpAndSettle();
@@ -71,7 +76,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'Coffee with an old friend');
-    await tester.tap(find.text('Great'));
+    await tester.tap(find.descendant(of: find.byType(MomentSheet), matching: find.text('Great')));
     await tester.pump();
     await tester.ensureVisible(find.text('Save moment'));
     await tester.tap(find.text('Save moment'));
@@ -79,8 +84,52 @@ void main() {
 
     final saved = (await JournalRepository(db).forDay(today)).single;
     expect((saved.text, saved.mood, saved.time != null), ('Coffee with an old friend', 5, true));
-    expect(find.text('Coffee with an old friend'), findsOneWidget);
-    expect(find.textContaining('is in bloom'), findsOneWidget);
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('Coffee with an old friend'), 200, scrollable: scrollable);
+    await tester.scrollUntilVisible(find.textContaining('is in bloom'), -300, scrollable: scrollable);
+  });
+
+  testWidgets('your day sets the mood and tags activities, and the plant follows', (tester) async {
+    await pump(tester, const GardenTodayScreen());
+    final scrollable = find.byType(Scrollable).first;
+
+    await tester.scrollUntilVisible(find.text('Good'), 200, scrollable: scrollable);
+    await tester.tap(find.text('Good'));
+    await tester.pumpAndSettle();
+    expect((await db.getMoodEntryByDate(today))?.moodLevel, 4);
+    // A good day mood blooms (the caption is back at the top).
+    await tester.scrollUntilVisible(find.textContaining('is in bloom'), -300, scrollable: scrollable);
+
+    await tester.scrollUntilVisible(find.text('Activities'), 200, scrollable: scrollable);
+    await tester.tap(find.text('Activities'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilterChip, 'Work'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<FilterChip>(find.widgetWithText(FilterChip, 'Work')).selected, isTrue);
+    await tester.tap(find.widgetWithText(FilterChip, 'Work'));
+    await tester.pumpAndSettle();
+    expect(await db.getActivityEntriesByDate(today), isEmpty, reason: 'tapping again removes it');
+    await tester.tap(find.widgetWithText(FilterChip, 'Social Event'));
+    await tester.pumpAndSettle();
+    Navigator.of(tester.element(find.text('What today included'))).pop();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Social Event'), findsOneWidget);
+    await tester.scrollUntilVisible(find.textContaining('Your tulip is in bloom'), -300, scrollable: scrollable);
+  });
+
+  testWidgets('meals are listed and open the meal editor', (tester) async {
+    await db.createMealEntry(MealEntry(date: today, time: DateTime.now(), name: 'Chicken rice', price: 4.5));
+    await pump(tester, const GardenTodayScreen());
+    final scrollable = find.byType(Scrollable).first;
+
+    await tester.scrollUntilVisible(find.text('Chicken rice'), 200, scrollable: scrollable);
+    expect(find.text('1 meal \u00b7 \$4.50'), findsOneWidget);
+    await tester.ensureVisible(find.text('Chicken rice'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Chicken rice'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AddMealScreen), findsOneWidget);
   });
 
   testWidgets('the month garden counts plants and flowers and shows a picked day', (tester) async {

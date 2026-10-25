@@ -13,6 +13,8 @@ import '../../data/garden_providers.dart';
 import '../../domain/garden_day.dart';
 import '../../domain/plant.dart';
 import '../garden_style.dart';
+import '../widgets/day_log_card.dart';
+import '../widgets/garden_chip.dart';
 import '../widgets/moment_sheet.dart';
 import '../widgets/plant_view.dart';
 import 'garden_month_screen.dart';
@@ -100,7 +102,7 @@ class GardenTodayScreen extends ConsumerWidget {
                 runSpacing: 6,
                 children: [
                   for (final s in PlantSpecies.values)
-                    _Chip(
+                    GardenChip(
                       label: s.label,
                       selected: g.plant.species == s,
                       colors: colors,
@@ -113,6 +115,8 @@ class GardenTodayScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               _Stats(day: g, momentCount: moments.length, colors: colors),
+              const SizedBox(height: 16),
+              DayLogCard(day: today),
               const SizedBox(height: 16),
               _CheckinCard(
                 checkin: checkin,
@@ -382,34 +386,6 @@ class MomentTile extends StatelessWidget {
           if (moment.text.isNotEmpty) Text(moment.text, style: nunito(15, FontWeight.w600, colors.ink)),
           if (about.isNotEmpty) Text(about, style: nunito(13, FontWeight.w700, colors.leaf)),
         ],
-      ),
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.selected, required this.colors, required this.onPressed});
-
-  final String label;
-  final bool selected;
-  final GardenColors colors;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: TextButton(
-        onPressed: onPressed,
-        style: TextButton.styleFrom(
-          minimumSize: const Size(0, 44),
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          shape: const StadiumBorder(),
-          backgroundColor: selected ? colors.accent : colors.card,
-          foregroundColor: selected ? colors.onAccent : colors.leaf,
-        ),
-        child: Text(label, style: nunito(13, FontWeight.w800, selected ? colors.onAccent : colors.leaf)),
       ),
     );
   }
