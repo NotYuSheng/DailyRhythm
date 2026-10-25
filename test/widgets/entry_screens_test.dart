@@ -2,6 +2,8 @@ import 'package:daily_rhythm/features/exercise/data/models/exercise_entry.dart';
 import 'package:daily_rhythm/features/exercise/presentation/screens/add_exercise_screen.dart';
 import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
 import 'package:daily_rhythm/features/meals/presentation/screens/add_meal_screen.dart';
+import 'package:daily_rhythm/features/sleep/data/models/sleep_entry.dart';
+import 'package:daily_rhythm/features/sleep/presentation/screens/add_sleep_screen.dart';
 import 'package:daily_rhythm/shared/services/database/database_service.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +21,41 @@ void main() {
 
   setUp(() async => db = await openTestDatabase());
   tearDown(closeTestDatabase);
+
+  group('AddSleepScreen', () {
+    testWidgets('saves a wake time on its own, picked from usual times', (tester) async {
+      for (final d in [17, 18, 19]) {
+        await db.saveSleepEntry(SleepEntry(date: DateTime(2026, 10, d), wakeUpTime: DateTime(2026, 10, d, 7, 32)));
+      }
+      await db.saveSleepEntry(SleepEntry(date: DateTime(2026, 10, 19), sleepTime: DateTime(2026, 10, 19, 23, 50)));
+      await tester.pumpWidget(_app(AddSleepScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('07:30'));
+      await tester.pump();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      final entry = (await db.getSleepEntryByDate(pastDay))!;
+      expect(entry.wakeUpTime, DateTime(2026, 10, 20, 7, 30));
+      expect(entry.sleepTime, isNull);
+      expect(entry.totalHours, closeTo(7.67, 0.01), reason: 'from the previous night\u2019s bedtime');
+    });
+
+    testWidgets('asks for at least one time', (tester) async {
+      await tester.pumpWidget(_app(AddSleepScreen(date: pastDay)));
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      expect(find.text('Set when you woke up or went to bed'), findsOneWidget);
+    });
+
+    test('usual times are the most frequent, rounded, evening before night', () {
+      final times = [
+        for (final (h, m) in [(23, 50), (0, 5), (23, 55), (1, 10), (0, 2), (23, 46)]) DateTime(2026, 1, 1, h, m),
+      ];
+      expect(usualTimes(times).map((t) => (t.hour, t.minute)), [(23, 45), (0, 0), (1, 15)]);
+    });
+  });
 
   group('AddMealScreen', () {
     testWidgets('logs a meal without a price on the day it was opened for', (tester) async {

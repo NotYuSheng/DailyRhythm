@@ -179,7 +179,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 icon: Icon(
                   Icons.chevron_right,
                   color: _isFuture(date.add(const Duration(days: 1)))
-                      ? Theme.of(context).colorScheme.outline
+                      ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38)
                       : null,
                 ),
                 onPressed: _isFuture(date.add(const Duration(days: 1)))
