@@ -23,11 +23,24 @@ lookup (calories × quantity, prefilled like the last price).
 
 - The top 100 meal names cover ~48% of the 5,221 Daylio meals (before alias cleanup),
   so a small table covers most logging.
-- Sources, in order: Singapore HPB energy & nutrient composition database (local
-  dishes; check its terms before using it in the published app), USDA FoodData
-  Central (generic foods), Open Food Facts (packaged items), a one-time batch LLM
-  estimate for the rest, and the user's own correction, which always wins.
-- Record the source of each value and show values as estimates, not nutrition advice.
+- Must work for any user, not just the developer's diet: each user's food item links
+  once (user-confirmed) to a reference food; later logs are a lookup.
+- Reference data bundled on device per region, searched offline:
+  - USDA FoodData Central: generic foods, public domain.
+  - SG FoodID (HPB): licence in its terms §10 allows commercial use and distribution in
+    apps, with a conspicuous attribution notice + licence link and no implied HPB
+    endorsement. Check whether hawker dishes (old FOCOS data) are still included.
+  - Other national tables per region later (UK CoFID, AUSNUT, Canadian CNF); check each licence.
+- Packaged food: barcode lookup in Open Food Facts (online; only the barcode is sent;
+  ODbL — attribution, share-alike if redistributing their data).
+- New foods: search with synonyms (local names) and show top matches to confirm;
+  no match → build from ingredients, copy and adjust a similar food, or an opt-in
+  AI estimate that sends only the dish name.
+- Portions as small/regular/large multipliers plus quantity.
+- Record each value's source (usda / sgfoodid / off / estimate / user) and show values
+  as estimates, not nutrition advice.
+- Developer's own history: auto-match the cleaned Daylio food names above a confidence
+  threshold, review the rest, estimate the remainder with the local LLM (personal use).
 
 ## Year and month in review
 
