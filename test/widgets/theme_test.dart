@@ -40,17 +40,22 @@ void main() {
         tester.view.physicalSize = const Size(1080, 2340);
         tester.view.devicePixelRatio = 3;
         addTearDown(tester.view.reset);
+        // The plant sways unless reduced motion is on; tests can't settle on a loop.
+        tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
+        addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
 
         await tester.pumpWidget(const ProviderScope(child: DailyRhythmApp()));
         await tester.pumpAndSettle();
-        expect(Theme.of(tester.element(find.text('Mood'))).brightness,
-            mode == 'light' ? Brightness.light : Brightness.dark);
+        expect(tester.takeException(), isNull, reason: 'Today tab threw while rendering');
+        expect(find.text('Today\u2019s plant'), findsOneWidget);
 
-        for (final tab in ['Calendar', 'Metrics', 'Settings', 'Journal']) {
+        for (final tab in ['Journal', 'Calendar', 'Metrics', 'Settings', 'Journal']) {
           await tester.tap(find.text(tab).last);
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull, reason: '$tab tab threw while rendering');
         }
+        expect(Theme.of(tester.element(find.text('Mood'))).brightness,
+            mode == 'light' ? Brightness.light : Brightness.dark);
 
         // Icons must stand out against the page in both modes; the old
         // hardcoded black icons disappeared in dark mode.

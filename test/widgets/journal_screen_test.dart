@@ -30,12 +30,17 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('app starts on the journal', (tester) async {
+  testWidgets('app starts on today\u2019s plant, with the journal one tab away', (tester) async {
+    // The plant sways unless reduced motion is on; tests can't settle on a loop.
+    tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
     await tester.pumpWidget(const ProviderScope(child: DailyRhythmApp()));
     await tester.pumpAndSettle();
+    expect(find.text('Today\u2019s plant'), findsOneWidget);
 
+    await tester.tap(find.text('Journal'));
+    await tester.pumpAndSettle();
     expect(find.text('DailyRhythm'), findsOneWidget);
-    expect(find.text('Journal'), findsOneWidget);
     expect(find.text('Mood'), findsOneWidget);
   });
 

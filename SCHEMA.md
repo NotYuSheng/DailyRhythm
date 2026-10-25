@@ -63,4 +63,4 @@ because Daylio has entries in the same minute that differ only by mood or tags.
 1. ✅ **3a** data layer: tables, migration, models, repositories, tests.
 2. ✅ **3b** full import: the migration tool writes the new tables; the app's import reads
    them in one transaction with progress; the Daylio data is re-imported.
-3. **3c** garden UI: Today's plant + check-in, month garden, moments.
+3. ✅ **3c** garden UI: Today's plant + check-in, month garden, moments.

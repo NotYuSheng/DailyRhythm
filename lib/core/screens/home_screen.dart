@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import '../../features/garden/presentation/screens/garden_today_screen.dart';
 import '../../features/journal/presentation/screens/journal_screen.dart';
 import '../../features/journal/presentation/screens/calendar_screen.dart';
 import '../../features/metrics/presentation/screens/metrics_screen.dart';
@@ -16,6 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? _selectedDate;
 
   List<Widget> get _screens => [
+        const GardenTodayScreen(),
         JournalScreen(
           initialDate: _selectedDate,
           onTodayPressed: () {
@@ -33,7 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
           onDateSelected: (date) {
             setState(() {
               _selectedDate = date;
-              _currentIndex = 0; // Switch to Journal tab
+              _currentIndex = 1; // Switch to Journal tab
             });
           },
         ),
@@ -53,6 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         },
         destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.local_florist_outlined),
+            selectedIcon: Icon(Icons.local_florist),
+            label: 'Today',
+          ),
           NavigationDestination(
             icon: Icon(Icons.book_outlined),
             selectedIcon: Icon(Icons.book),

@@ -17,6 +17,33 @@ class CheckinRepository {
     await db.insert('day_checkins', map, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  /// Changes only the given fields of [day]'s check-in, keeping the rest of
+  /// what is stored, so quick successive edits can't undo each other.
+  Future<DayCheckin> update(
+    DateTime day, {
+    int? energy,
+    int? stress,
+    int? focus,
+    String? plantOverride,
+    bool clearPlant = false,
+  }) async {
+    final db = await _db.database;
+    final date = dayOf(day).toIso8601String();
+    return db.transaction((txn) async {
+      final rows = await txn.query('day_checkins', where: 'date = ?', whereArgs: [date]);
+      final current = rows.isEmpty ? null : DayCheckin.fromMap(rows.first);
+      final next = DayCheckin(
+        date: dayOf(day),
+        energy: energy ?? current?.energy,
+        stress: stress ?? current?.stress,
+        focus: focus ?? current?.focus,
+        plantOverride: clearPlant ? null : plantOverride ?? current?.plantOverride,
+      );
+      await txn.insert('day_checkins', next.toMap()..['date'] = date, conflictAlgorithm: ConflictAlgorithm.replace);
+      return next;
+    });
+  }
+
   Future<DayCheckin?> forDay(DateTime day) async {
     final db = await _db.database;
     final rows = await db.query('day_checkins', where: 'date = ?', whereArgs: [dayOf(day).toIso8601String()]);

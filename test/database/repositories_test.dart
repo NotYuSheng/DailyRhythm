@@ -81,6 +81,19 @@ void main() {
       expect(await repo.forDay(DateTime(2025, 6, 2)), isNull);
     });
 
+    test('update changes only the given fields', () async {
+      final repo = CheckinRepository(service);
+      final day = DateTime(2025, 6, 1);
+      await Future.wait([repo.update(day, energy: 1), repo.update(day, stress: -2)]);
+      await repo.update(day, plantOverride: 'fern');
+      var checkin = (await repo.forDay(day))!;
+      expect((checkin.energy, checkin.stress, checkin.plantOverride), (1, -2, 'fern'));
+
+      await repo.update(day, clearPlant: true);
+      checkin = (await repo.forDay(day))!;
+      expect((checkin.energy, checkin.plantOverride), (1, null));
+    });
+
     test('rejects ratings outside -2..2', () {
       expect(() => DayCheckin(date: DateTime(2025, 6, 1), focus: 3), throwsRangeError);
     });
