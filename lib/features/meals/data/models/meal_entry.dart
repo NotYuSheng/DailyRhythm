@@ -4,7 +4,7 @@ class MealEntry {
   final DateTime time;
   final String name;
   final int quantity;
-  final double price;
+  final double? price; // Total for the line; null when not recorded
   final int? calories;
   final List<String> tags;
   final String? notes;
@@ -15,7 +15,7 @@ class MealEntry {
     required this.time,
     required this.name,
     this.quantity = 1,
-    required this.price,
+    this.price,
     this.calories,
     this.tags = const [],
     this.notes,
@@ -44,7 +44,7 @@ class MealEntry {
       time: DateTime.parse(map['time'] as String),
       name: map['name'] as String,
       quantity: map['quantity'] as int? ?? 1,
-      price: map['price'] as double,
+      price: (map['price'] as num?)?.toDouble(),
       calories: map['calories'] as int?,
       tags: map['tags'] != null && (map['tags'] as String).isNotEmpty
           ? (map['tags'] as String).split(',')

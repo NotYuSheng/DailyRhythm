@@ -4,9 +4,15 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../database/database_service.dart';
+import '../../utils/date_utils.dart';
 import '../../../features/sleep/data/models/sleep_entry.dart';
 import '../../../features/meals/data/models/meal_entry.dart';
+import '../../../features/exercise/data/models/exercise_entry.dart';
+import '../../../features/tags/data/models/tag.dart';
 import '../../models/mood_entry.dart';
+import '../../models/nap_entry.dart';
+import '../../models/task_entry.dart';
+import '../../models/activity_entry.dart';
 
 class ExportResult {
   final String path;
@@ -20,11 +26,35 @@ class ExportResult {
   });
 }
 
+class ImportResult {
+  /// Rows added to the database.
+  int imported = 0;
+
+  /// Rows skipped because an identical entry already exists.
+  int duplicates = 0;
+
+  /// Rows that could not be parsed.
+  int invalid = 0;
+
+  /// Whether any recognised export file was found.
+  bool foundFiles = false;
+}
+
+/// Exports every table to CSV and imports those files back.
+///
+/// All rows are exported regardless of age. Import is idempotent: rows that
+/// already exist are skipped, so importing the same folder twice is safe.
+/// Activities are matched to tags by name, so they survive a fresh install
+/// where tag IDs differ.
 class ExportService {
   static final ExportService instance = ExportService._init();
   ExportService._init();
 
   final DatabaseService _db = DatabaseService.instance;
+
+  static const _converter = ListToCsvConverter();
+  // Keep every field as text; numbers are parsed explicitly per column.
+  static const _parser = CsvToListConverter(shouldParseNumbers: false);
 
   Future<ExportResult> exportAllDataToCsv() async {
     // Get the Downloads directory for each platform
@@ -54,52 +84,118 @@ class ExportService {
     }
 
     final timestamp = DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
-    final exportDir = Directory('${directory.path}/DailyRhythm_Export_$timestamp');
+    return exportToDirectory(Directory('${directory.path}/DailyRhythm_Export_$timestamp'));
+  }
+
+  /// Writes one CSV per table into [exportDir], creating it if needed.
+  Future<ExportResult> exportToDirectory(Directory exportDir) async {
     await exportDir.create(recursive: true);
 
-    // Export each data type to separate CSV files and count entries
+    final tags = await _db.getAllTags();
+    final tagsById = {for (final t in tags) t.id: t};
+
+    final files = <String, List<List<dynamic>>>{
+      'sleep_entries.csv': [
+        ['ID', 'Date', 'Wake Up Time', 'Sleep Time', 'Total Hours', 'Nap Hours', 'Tags'],
+        for (final e in await _db.getAllSleepEntries())
+          [
+            e.id ?? '',
+            e.date.toIso8601String(),
+            e.wakeUpTime?.toIso8601String() ?? '',
+            e.sleepTime?.toIso8601String() ?? '',
+            e.totalHours ?? '',
+            e.napHours ?? '',
+            e.tags.join(';'),
+          ],
+      ],
+      'nap_entries.csv': [
+        ['ID', 'Date', 'Start Time', 'Duration Hours', 'Tags'],
+        for (final e in await _db.getAllNapEntries())
+          [e.id ?? '', e.date.toIso8601String(), e.startTime.toIso8601String(), e.durationHours, e.tags.join(';')],
+      ],
+      'meal_entries.csv': [
+        ['ID', 'Date', 'Time', 'Name', 'Quantity', 'Price', 'Calories', 'Tags', 'Notes'],
+        for (final e in await _db.getAllMealEntries())
+          [
+            e.id ?? '',
+            e.date.toIso8601String(),
+            e.time.toIso8601String(),
+            e.name,
+            e.quantity,
+            e.price ?? '',
+            e.calories ?? '',
+            e.tags.join(';'),
+            e.notes ?? '',
+          ],
+      ],
+      'mood_entries.csv': [
+        ['ID', 'Date', 'Timestamp', 'Mood Level', 'Emoji', 'Notes'],
+        for (final e in await _db.getAllMoodEntries())
+          [e.id ?? '', e.date.toIso8601String(), e.timestamp.toIso8601String(), e.moodLevel, e.emoji, e.notes ?? ''],
+      ],
+      // Durations are written in seconds and enums by name so they parse back.
+      'exercise_entries.csv': [
+        [
+          'ID', 'Date', 'Timestamp', 'Type', 'Run Type', 'Distance',
+          'Duration Seconds', 'Pace Seconds', 'Interval Distance Seconds', 'Interval Time Seconds',
+          'Rest Time Seconds', 'Interval Count', 'Exercise Name', 'Equipment Type',
+          'Reps', 'Weight', 'Sets', 'Notes'
+        ],
+        for (final e in await _db.getAllExerciseEntries())
+          [
+            e.id ?? '',
+            e.date.toIso8601String(),
+            e.timestamp.toIso8601String(),
+            e.type.name,
+            e.runType?.name ?? '',
+            e.distance ?? '',
+            e.duration?.inSeconds ?? '',
+            e.pace?.inSeconds ?? '',
+            e.intervalDistance?.inSeconds ?? '',
+            e.intervalTime?.inSeconds ?? '',
+            e.restTime?.inSeconds ?? '',
+            e.intervalCount ?? '',
+            e.exerciseName ?? '',
+            e.equipmentType?.name ?? '',
+            e.reps ?? '',
+            e.weight ?? '',
+            e.sets ?? '',
+            e.notes ?? '',
+          ],
+      ],
+      'task_entries.csv': [
+        ['ID', 'Date', 'Timestamp', 'Task Type', 'Notes'],
+        for (final e in await _db.getAllTaskEntries())
+          [e.id ?? '', e.date.toIso8601String(), e.timestamp.toIso8601String(), e.taskType.name, e.notes ?? ''],
+      ],
+      'activity_entries.csv': [
+        ['ID', 'Date', 'Timestamp', 'Tag ID', 'Notes', 'Tag Name'],
+        for (final e in await _db.getAllActivityEntries())
+          [
+            e.id ?? '',
+            e.date.toIso8601String(),
+            e.timestamp.toIso8601String(),
+            e.tagId,
+            e.notes ?? '',
+            tagsById[e.tagId]?.name ?? '',
+          ],
+      ],
+      'tag_categories.csv': [
+        ['ID', 'Name', 'Color', 'Sort Order'],
+        for (final c in await _db.getAllTagCategories()) [c.id ?? '', c.name, c.color ?? '', c.sortOrder ?? ''],
+      ],
+      'tags.csv': [
+        ['ID', 'Name', 'Emoji', 'Category', 'Color', 'Sort Order'],
+        for (final t in tags) [t.id ?? '', t.name, t.emoji, t.category, t.color ?? '', t.sortOrder ?? ''],
+      ],
+    };
+
     int totalEntries = 0;
     int fileCount = 0;
-
-    final sleepCount = await _exportSleepEntries(exportDir.path);
-    if (sleepCount > 0) {
-      totalEntries += sleepCount;
-      fileCount++;
-    }
-
-    final mealCount = await _exportMealEntries(exportDir.path);
-    if (mealCount > 0) {
-      totalEntries += mealCount;
-      fileCount++;
-    }
-
-    final moodCount = await _exportMoodEntries(exportDir.path);
-    if (moodCount > 0) {
-      totalEntries += moodCount;
-      fileCount++;
-    }
-
-    final exerciseCount = await _exportExerciseEntries(exportDir.path);
-    if (exerciseCount > 0) {
-      totalEntries += exerciseCount;
-      fileCount++;
-    }
-
-    final taskCount = await _exportTaskEntries(exportDir.path);
-    if (taskCount > 0) {
-      totalEntries += taskCount;
-      fileCount++;
-    }
-
-    final activityCount = await _exportActivityEntries(exportDir.path);
-    if (activityCount > 0) {
-      totalEntries += activityCount;
-      fileCount++;
-    }
-
-    final tagCount = await _exportTags(exportDir.path);
-    if (tagCount > 0) {
-      totalEntries += tagCount;
+    for (final MapEntry(key: name, value: rows) in files.entries) {
+      if (rows.length <= 1) continue;
+      await File('${exportDir.path}/$name').writeAsString(_converter.convert(rows));
+      totalEntries += rows.length - 1;
       fileCount++;
     }
 
@@ -110,349 +206,243 @@ class ExportService {
     );
   }
 
-  Future<int> _exportSleepEntries(String dirPath) async {
-    final entries = await _db.getAllSleepEntries();
-    if (entries.isEmpty) return 0;
-
-    final List<List<dynamic>> rows = [
-      ['ID', 'Date', 'Wake Up Time', 'Sleep Time', 'Total Hours', 'Nap Hours', 'Tags']
-    ];
-
-    for (final entry in entries) {
-      rows.add([
-        entry.id ?? '',
-        entry.date.toIso8601String(),
-        entry.wakeUpTime?.toIso8601String() ?? '',
-        entry.sleepTime?.toIso8601String() ?? '',
-        entry.totalHours ?? '',
-        entry.napHours ?? '',
-        entry.tags.join(';'),
-      ]);
-    }
-
-    final csv = const ListToCsvConverter().convert(rows);
-    final file = File('$dirPath/sleep_entries.csv');
-    await file.writeAsString(csv);
-    return entries.length;
-  }
-
-  Future<int> _exportMealEntries(String dirPath) async {
-    final entries = await _db.getAllMealEntries();
-    if (entries.isEmpty) return 0;
-
-    final List<List<dynamic>> rows = [
-      ['ID', 'Date', 'Time', 'Name', 'Quantity', 'Price', 'Calories', 'Tags', 'Notes']
-    ];
-
-    for (final entry in entries) {
-      rows.add([
-        entry.id ?? '',
-        entry.date.toIso8601String(),
-        entry.time.toIso8601String(),
-        entry.name,
-        entry.quantity,
-        entry.price,
-        entry.calories ?? '',
-        entry.tags.join(';'),
-        entry.notes ?? '',
-      ]);
-    }
-
-    final csv = const ListToCsvConverter().convert(rows);
-    final file = File('$dirPath/meal_entries.csv');
-    await file.writeAsString(csv);
-    return entries.length;
-  }
-
-  Future<int> _exportMoodEntries(String dirPath) async {
-    final now = DateTime.now();
-    final oneYearAgo = now.subtract(const Duration(days: 365));
-    final entries = await _db.getMoodEntriesByDateRange(oneYearAgo, now);
-    if (entries.isEmpty) return 0;
-
-    final List<List<dynamic>> rows = [
-      ['ID', 'Date', 'Timestamp', 'Mood Level', 'Emoji', 'Notes']
-    ];
-
-    for (final entry in entries) {
-      rows.add([
-        entry.id ?? '',
-        entry.date.toIso8601String(),
-        entry.timestamp.toIso8601String(),
-        entry.moodLevel,
-        entry.emoji,
-        entry.notes ?? '',
-      ]);
-    }
-
-    final csv = const ListToCsvConverter().convert(rows);
-    final file = File('$dirPath/mood_entries.csv');
-    await file.writeAsString(csv);
-    return entries.length;
-  }
-
-  Future<int> _exportExerciseEntries(String dirPath) async {
-    final List<dynamic> allEntries = [];
-    final now = DateTime.now();
-
-    for (int i = 0; i < 365; i++) {
-      final date = now.subtract(Duration(days: i));
-      final entries = await _db.getExerciseEntriesByDate(date);
-      allEntries.addAll(entries);
-    }
-
-    if (allEntries.isEmpty) return 0;
-
-    final List<List<dynamic>> rows = [
-      [
-        'ID', 'Date', 'Timestamp', 'Type', 'Run Type', 'Distance',
-        'Duration', 'Pace', 'Interval Distance', 'Interval Time',
-        'Rest Time', 'Interval Count', 'Exercise Name', 'Equipment Type',
-        'Reps', 'Weight', 'Sets', 'Notes'
-      ]
-    ];
-
-    for (final entry in allEntries) {
-      rows.add([
-        entry.id ?? '',
-        entry.date.toIso8601String(),
-        entry.timestamp.toIso8601String(),
-        entry.type,
-        entry.runType ?? '',
-        entry.distance ?? '',
-        entry.duration ?? '',
-        entry.pace ?? '',
-        entry.intervalDistance ?? '',
-        entry.intervalTime ?? '',
-        entry.restTime ?? '',
-        entry.intervalCount ?? '',
-        entry.exerciseName ?? '',
-        entry.equipmentType ?? '',
-        entry.reps ?? '',
-        entry.weight ?? '',
-        entry.sets ?? '',
-        entry.notes ?? '',
-      ]);
-    }
-
-    final csv = const ListToCsvConverter().convert(rows);
-    final file = File('$dirPath/exercise_entries.csv');
-    await file.writeAsString(csv);
-    return allEntries.length;
-  }
-
-  Future<int> _exportTaskEntries(String dirPath) async {
-    final List<dynamic> allEntries = [];
-    final now = DateTime.now();
-
-    for (int i = 0; i < 365; i++) {
-      final date = now.subtract(Duration(days: i));
-      final entries = await _db.getTaskEntriesByDate(date);
-      allEntries.addAll(entries);
-    }
-
-    if (allEntries.isEmpty) return 0;
-
-    final List<List<dynamic>> rows = [
-      ['ID', 'Date', 'Timestamp', 'Task Type', 'Notes']
-    ];
-
-    for (final entry in allEntries) {
-      rows.add([
-        entry.id ?? '',
-        entry.date.toIso8601String(),
-        entry.timestamp.toIso8601String(),
-        entry.taskType,
-        entry.notes ?? '',
-      ]);
-    }
-
-    final csv = const ListToCsvConverter().convert(rows);
-    final file = File('$dirPath/task_entries.csv');
-    await file.writeAsString(csv);
-    return allEntries.length;
-  }
-
-  Future<int> _exportActivityEntries(String dirPath) async {
-    final List<dynamic> allEntries = [];
-    final now = DateTime.now();
-
-    for (int i = 0; i < 365; i++) {
-      final date = now.subtract(Duration(days: i));
-      final entries = await _db.getActivityEntriesByDate(date);
-      allEntries.addAll(entries);
-    }
-
-    if (allEntries.isEmpty) return 0;
-
-    final List<List<dynamic>> rows = [
-      ['ID', 'Date', 'Timestamp', 'Tag ID', 'Notes']
-    ];
-
-    for (final entry in allEntries) {
-      rows.add([
-        entry.id ?? '',
-        entry.date.toIso8601String(),
-        entry.timestamp.toIso8601String(),
-        entry.tagId,
-        entry.notes ?? '',
-      ]);
-    }
-
-    final csv = const ListToCsvConverter().convert(rows);
-    final file = File('$dirPath/activity_entries.csv');
-    await file.writeAsString(csv);
-    return allEntries.length;
-  }
-
-  Future<int> _exportTags(String dirPath) async {
-    final tags = await _db.getAllTags();
-    if (tags.isEmpty) return 0;
-
-    final List<List<dynamic>> rows = [
-      ['ID', 'Name', 'Emoji', 'Category', 'Color', 'Sort Order']
-    ];
-
-    for (final tag in tags) {
-      rows.add([
-        tag.id ?? '',
-        tag.name,
-        tag.emoji,
-        tag.category,
-        tag.color ?? '',
-        tag.sortOrder ?? '',
-      ]);
-    }
-
-    final csv = const ListToCsvConverter().convert(rows);
-    final file = File('$dirPath/tags.csv');
-    await file.writeAsString(csv);
-    return tags.length;
-  }
-
   // ==================== Import Methods ====================
 
-  Future<int> importDataFromCsv() async {
-    // Let user pick a directory
-    String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
+  /// Lets the user pick an export folder and imports it.
+  /// Returns null if the picker was cancelled.
+  Future<ImportResult?> importDataFromCsv() async {
+    final selectedDirectory = await FilePicker.platform.getDirectoryPath();
+    if (selectedDirectory == null) return null;
+    return importFromDirectory(selectedDirectory);
+  }
 
-    if (selectedDirectory == null) {
-      // User cancelled the picker
-      return 0;
-    }
-
-    final dir = Directory(selectedDirectory);
-    if (!await dir.exists()) {
+  /// Imports every recognised CSV file in [dirPath].
+  Future<ImportResult> importFromDirectory(String dirPath) async {
+    if (!await Directory(dirPath).exists()) {
       throw Exception('Selected directory does not exist');
     }
 
-    int totalImported = 0;
+    final result = ImportResult();
 
-    // Import each file type
-    totalImported += await _importSleepEntries('$selectedDirectory/sleep_entries.csv');
-    totalImported += await _importMealEntries('$selectedDirectory/meal_entries.csv');
-    totalImported += await _importMoodEntries('$selectedDirectory/mood_entries.csv');
-    // Note: Tags, exercises, tasks, and activities can be added later
+    // Categories and tags first so activities can be matched to them.
+    await _importRows(dirPath, 'tag_categories.csv', result, (row) async {
+      final name = _text(row, 1)!;
+      final existing = await _db.getAllTagCategories();
+      if (existing.any((c) => c.name == name)) return false;
+      await _db.createTagCategory(TagCategory(name: name, color: _text(row, 2), sortOrder: _int(row, 3)));
+      return true;
+    });
 
-    return totalImported;
+    // Maps the exporting device's tag IDs to this device's tags.
+    final exportedTagNames = <int, String>{};
+    await _importRows(dirPath, 'tags.csv', result, (row) async {
+      final name = _text(row, 1)!;
+      final exportedId = _int(row, 0);
+      if (exportedId != null) exportedTagNames[exportedId] = name;
+      final existing = await _db.getAllTags();
+      if (existing.any((t) => t.name == name)) return false;
+      await _db.createTag(Tag(
+        name: name,
+        emoji: _text(row, 2) ?? 'tag',
+        category: _text(row, 3) ?? 'General',
+        color: _text(row, 4),
+        sortOrder: _int(row, 5),
+      ));
+      return true;
+    });
+
+    await _importRows(dirPath, 'sleep_entries.csv', result, (row) async {
+      final entry = SleepEntry(
+        date: _day(row, 1)!,
+        wakeUpTime: _dateTime(row, 2),
+        sleepTime: _dateTime(row, 3),
+        totalHours: _double(row, 4),
+        napHours: _double(row, 5),
+        tags: _list(row, 6),
+      );
+      if (await _db.getSleepEntryByDate(entry.date) != null) return false;
+      await _db.createSleepEntry(entry);
+      return true;
+    });
+
+    await _importRows(dirPath, 'nap_entries.csv', result, (row) async {
+      final entry = NapEntry(
+        date: _day(row, 1)!,
+        startTime: _dateTime(row, 2)!,
+        durationHours: _double(row, 3)!,
+        tags: _list(row, 4),
+      );
+      if (await _exists('nap_entries', entry.toMap(), ['date', 'startTime'])) return false;
+      await _db.createNapEntry(entry);
+      return true;
+    });
+
+    await _importRows(dirPath, 'meal_entries.csv', result, (row) async {
+      final entry = MealEntry(
+        date: _day(row, 1)!,
+        time: _dateTime(row, 2)!,
+        name: _text(row, 3)!,
+        quantity: _int(row, 4) ?? 1,
+        price: _double(row, 5),
+        calories: _int(row, 6),
+        tags: _list(row, 7),
+        notes: _text(row, 8),
+      );
+      if (await _exists('meal_entries', entry.toMap(), ['date', 'time', 'name'])) return false;
+      await _db.createMealEntry(entry);
+      return true;
+    });
+
+    await _importRows(dirPath, 'mood_entries.csv', result, (row) async {
+      final entry = MoodEntry(
+        date: _day(row, 1)!,
+        timestamp: _dateTime(row, 2)!,
+        moodLevel: _int(row, 3)!,
+        emoji: _text(row, 4) ?? '',
+        notes: _text(row, 5),
+      );
+      if (await _db.getMoodEntryByDate(entry.date) != null) return false;
+      await _db.createMoodEntry(entry);
+      return true;
+    });
+
+    await _importRows(dirPath, 'exercise_entries.csv', result, (row) async {
+      final entry = ExerciseEntry(
+        date: _day(row, 1)!,
+        timestamp: _dateTime(row, 2)!,
+        type: _enum(ExerciseType.values, _text(row, 3))!,
+        runType: _enum(RunType.values, _text(row, 4)),
+        distance: _double(row, 5),
+        duration: _duration(row, 6),
+        pace: _duration(row, 7),
+        intervalDistance: _duration(row, 8),
+        intervalTime: _duration(row, 9),
+        restTime: _duration(row, 10),
+        intervalCount: _int(row, 11),
+        exerciseName: _text(row, 12),
+        equipmentType: _enum(EquipmentType.values, _text(row, 13)),
+        reps: _int(row, 14),
+        weight: _double(row, 15),
+        sets: _int(row, 16),
+        notes: _text(row, 17),
+      );
+      if (await _exists('exercise_entries', entry.toMap(), ['date', 'timestamp', 'type'])) return false;
+      await _db.createExerciseEntry(entry);
+      return true;
+    });
+
+    await _importRows(dirPath, 'task_entries.csv', result, (row) async {
+      final entry = TaskEntry(
+        date: _day(row, 1)!,
+        timestamp: _dateTime(row, 2)!,
+        taskType: _enum(TaskType.values, _text(row, 3))!,
+        notes: _text(row, 4),
+      );
+      if (await _exists('task_entries', entry.toMap(), ['date', 'timestamp', 'taskType'])) return false;
+      await _db.createTaskEntry(entry);
+      return true;
+    });
+
+    final tagIdsByName = {for (final t in await _db.getAllTags()) t.name: t.id!};
+    await _importRows(dirPath, 'activity_entries.csv', result, (row) async {
+      // Prefer the tag name column; older exports only have the tag ID.
+      final tagName = _text(row, 5) ?? exportedTagNames[_int(row, 3)];
+      final tagId = tagIdsByName[tagName];
+      if (tagId == null) throw const FormatException('Unknown tag');
+      final entry = ActivityEntry(
+        date: _day(row, 1)!,
+        timestamp: _dateTime(row, 2)!,
+        tagId: tagId,
+        notes: _text(row, 4),
+      );
+      if (await _exists('activity_entries', entry.toMap(), ['date', 'tagId'])) return false;
+      await _db.createActivityEntry(entry);
+      return true;
+    });
+
+    return result;
   }
 
-  Future<int> _importSleepEntries(String filePath) async {
-    final file = File(filePath);
-    if (!await file.exists()) return 0;
+  /// Parses [fileName] and runs [importRow] on each data row. [importRow]
+  /// returns false for a duplicate; a thrown error counts the row as invalid.
+  Future<void> _importRows(
+    String dirPath,
+    String fileName,
+    ImportResult result,
+    Future<bool> Function(List<dynamic> row) importRow,
+  ) async {
+    final file = File('$dirPath/$fileName');
+    if (!await file.exists()) return;
+    result.foundFiles = true;
 
-    try {
-      final csvString = await file.readAsString();
-      final rows = const CsvToListConverter().convert(csvString);
-
-      // Skip header row
-      int imported = 0;
-      for (int i = 1; i < rows.length; i++) {
-        final row = rows[i];
-        try {
-          final entry = SleepEntry(
-            date: DateTime.parse(row[1] as String),
-            wakeUpTime: row[2].toString().isNotEmpty ? DateTime.parse(row[2] as String) : null,
-            sleepTime: row[3].toString().isNotEmpty ? DateTime.parse(row[3] as String) : null,
-            totalHours: row[4].toString().isNotEmpty ? double.parse(row[4].toString()) : null,
-            napHours: row[5].toString().isNotEmpty ? double.parse(row[5].toString()) : null,
-            tags: row[6].toString().isNotEmpty ? row[6].toString().split(';') : [],
-          );
-          await _db.createSleepEntry(entry);
-          imported++;
-        } catch (e) {
-          // Skip invalid rows
-          continue;
+    final rows = _parser.convert(await file.readAsString());
+    for (final row in rows.skip(1)) {
+      if (row.every((cell) => cell.toString().isEmpty)) continue;
+      try {
+        if (await importRow(row)) {
+          result.imported++;
+        } else {
+          result.duplicates++;
         }
+      } catch (_) {
+        result.invalid++;
       }
-      return imported;
-    } catch (e) {
-      return 0;
     }
   }
 
-  Future<int> _importMealEntries(String filePath) async {
-    final file = File(filePath);
-    if (!await file.exists()) return 0;
-
-    try {
-      final csvString = await file.readAsString();
-      final rows = const CsvToListConverter().convert(csvString);
-
-      int imported = 0;
-      for (int i = 1; i < rows.length; i++) {
-        final row = rows[i];
-        try {
-          final entry = MealEntry(
-            date: DateTime.parse(row[1] as String),
-            time: DateTime.parse(row[2] as String),
-            name: row[3] as String,
-            quantity: int.parse(row[4].toString()),
-            price: double.parse(row[5].toString()),
-            calories: row[6].toString().isNotEmpty ? int.parse(row[6].toString()) : null,
-            tags: row[7].toString().isNotEmpty ? row[7].toString().split(';') : [],
-            notes: row[8].toString().isNotEmpty ? row[8] as String : null,
-          );
-          await _db.createMealEntry(entry);
-          imported++;
-        } catch (e) {
-          continue;
-        }
-      }
-      return imported;
-    } catch (e) {
-      return 0;
-    }
+  Future<bool> _exists(String table, Map<String, dynamic> map, List<String> keys) {
+    final values = {for (final k in keys) k: map[k]};
+    values['date'] = dayOf(DateTime.parse(map['date'] as String)).toIso8601String();
+    return _db.rowExists(table, values);
   }
 
-  Future<int> _importMoodEntries(String filePath) async {
-    final file = File(filePath);
-    if (!await file.exists()) return 0;
+  // ---- Cell parsing helpers; an empty cell is null. ----
 
-    try {
-      final csvString = await file.readAsString();
-      final rows = const CsvToListConverter().convert(csvString);
+  static String? _text(List<dynamic> row, int i) {
+    if (i >= row.length) return null;
+    final value = row[i].toString();
+    return value.isEmpty ? null : value;
+  }
 
-      int imported = 0;
-      for (int i = 1; i < rows.length; i++) {
-        final row = rows[i];
-        try {
-          final entry = MoodEntry(
-            date: DateTime.parse(row[1] as String),
-            timestamp: DateTime.parse(row[2] as String),
-            moodLevel: int.parse(row[3].toString()),
-            emoji: row[4] as String,
-            notes: row[5].toString().isNotEmpty ? row[5] as String : null,
-          );
-          await _db.createMoodEntry(entry);
-          imported++;
-        } catch (e) {
-          continue;
-        }
-      }
-      return imported;
-    } catch (e) {
-      return 0;
-    }
+  static int? _int(List<dynamic> row, int i) {
+    final text = _text(row, i);
+    return text == null ? null : int.parse(text);
+  }
+
+  static double? _double(List<dynamic> row, int i) {
+    final text = _text(row, i);
+    return text == null ? null : double.parse(text);
+  }
+
+  static DateTime? _dateTime(List<dynamic> row, int i) {
+    final text = _text(row, i);
+    return text == null ? null : DateTime.parse(text);
+  }
+
+  static DateTime? _day(List<dynamic> row, int i) {
+    final value = _dateTime(row, i);
+    return value == null ? null : dayOf(value);
+  }
+
+  /// Seconds, or the `H:MM:SS.ffffff` form written by older exports.
+  static Duration? _duration(List<dynamic> row, int i) {
+    final text = _text(row, i);
+    if (text == null) return null;
+    if (!text.contains(':')) return Duration(seconds: int.parse(text));
+    final parts = text.split(':');
+    return Duration(
+      hours: int.parse(parts[0]),
+      minutes: int.parse(parts[1]),
+      microseconds: (double.parse(parts[2]) * Duration.microsecondsPerSecond).round(),
+    );
+  }
+
+  static List<String> _list(List<dynamic> row, int i) => _text(row, i)?.split(';') ?? [];
+
+  /// Accepts `name` and the older `EnumType.name` form.
+  static T? _enum<T extends Enum>(List<T> values, String? text) {
+    if (text == null) return null;
+    final name = text.split('.').last;
+    return values.firstWhere((v) => v.name == name);
   }
 }

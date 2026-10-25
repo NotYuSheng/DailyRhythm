@@ -10,31 +10,31 @@ final metricsServiceProvider = Provider<MetricsService>((ref) {
 });
 
 /// Sleep metrics provider
-final sleepMetricsProvider = FutureProvider.family<SleepMetrics, DateRange>((ref, range) async {
+final sleepMetricsProvider = FutureProvider.autoDispose.family<SleepMetrics, DateRange>((ref, range) async {
   final service = ref.watch(metricsServiceProvider);
   return service.calculateSleepMetrics(range);
 });
 
 /// Mood metrics provider
-final moodMetricsProvider = FutureProvider.family<MoodMetrics, DateRange>((ref, range) async {
+final moodMetricsProvider = FutureProvider.autoDispose.family<MoodMetrics, DateRange>((ref, range) async {
   final service = ref.watch(metricsServiceProvider);
   return service.calculateMoodMetrics(range);
 });
 
 /// Exercise metrics provider
-final exerciseMetricsProvider = FutureProvider.family<ExerciseMetrics, DateRange>((ref, range) async {
+final exerciseMetricsProvider = FutureProvider.autoDispose.family<ExerciseMetrics, DateRange>((ref, range) async {
   final service = ref.watch(metricsServiceProvider);
   return service.calculateExerciseMetrics(range);
 });
 
 /// Activity metrics provider
-final activityMetricsProvider = FutureProvider.family<ActivityMetrics, DateRange>((ref, range) async {
+final activityMetricsProvider = FutureProvider.autoDispose.family<ActivityMetrics, DateRange>((ref, range) async {
   final service = ref.watch(metricsServiceProvider);
   return service.calculateActivityMetrics(range);
 });
 
 /// Insights provider
-final metricsInsightsProvider = FutureProvider.family<List<MetricsInsight>, DateRange>((ref, range) async {
+final metricsInsightsProvider = FutureProvider.autoDispose.family<List<MetricsInsight>, DateRange>((ref, range) async {
   final service = ref.watch(metricsServiceProvider);
   return service.generateInsights(range);
 });

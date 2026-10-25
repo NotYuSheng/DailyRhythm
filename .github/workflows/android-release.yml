@@ -9,12 +9,54 @@ on:
     tags:
       - 'v*.*.*'
 
+  # Run analyzer and tests on pull requests (no release build)
+  pull_request:
+
   # Allow manual trigger from Actions tab
   workflow_dispatch:
 
+env:
+  # Keep in sync with the version used for local development
+  FLUTTER_VERSION: '3.38.5'
+
 jobs:
+  test:
+    name: Analyze & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      # Database tests run against the system SQLite through sqflite_common_ffi
+      - name: Install SQLite
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+
+      # app_config.dart is gitignored; generate it from the example
+      - name: Create app config
+        run: cp lib/core/constants/app_config.dart.example lib/core/constants/app_config.dart
+
+      - name: Get Flutter dependencies
+        run: flutter pub get
+
+      # Infos (mostly deprecated color constants) are reported but not fatal
+      - name: Run Flutter analyzer
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run Flutter tests
+        run: flutter test --no-pub
+
   build-android:
     name: Build Android AAB & APK
+    needs: test
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -31,18 +73,24 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.30.3'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
+      # Release builds need the real OAuth client ID for Google Drive backup
+      - name: Create app config
+        env:
+          GOOGLE_SERVER_CLIENT_ID: ${{ secrets.GOOGLE_SERVER_CLIENT_ID }}
+        run: |
+          cp lib/core/constants/app_config.dart.example lib/core/constants/app_config.dart
+          if [ -z "$GOOGLE_SERVER_CLIENT_ID" ]; then
+            echo "::warning::GOOGLE_SERVER_CLIENT_ID secret is not set; Google Drive backup will not work in this build"
+          else
+            sed -i "s|YOUR_GOOGLE_SERVER_CLIENT_ID_HERE|$GOOGLE_SERVER_CLIENT_ID|" lib/core/constants/app_config.dart
+          fi
+
       - name: Get Flutter dependencies
         run: flutter pub get
-
-      - name: Run Flutter analyzer
-        run: flutter analyze
-
-      - name: Run Flutter tests
-        run: flutter test --no-pub
 
       - name: Decode keystore
         env:

@@ -91,6 +91,14 @@ class DateRange {
   }
 
   int get daysCount => end.difference(start).inDays + 1;
+
+  // Value equality so the range can be used as a provider family key.
+  @override
+  bool operator ==(Object other) =>
+      other is DateRange && other.start == start && other.end == end && other.label == label;
+
+  @override
+  int get hashCode => Object.hash(start, end, label);
 }
 
 class SleepMetrics {

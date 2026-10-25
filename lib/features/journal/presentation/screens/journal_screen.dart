@@ -144,9 +144,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
     final mealEntriesAsync = ref.watch(mealEntriesProvider(normalizedDate));
     final moodEntryAsync = ref.watch(moodEntryProvider(normalizedDate));
     final exerciseEntriesAsync = ref.watch(exerciseEntriesProvider(normalizedDate));
-    final taskEntriesAsync = ref.watch(taskEntriesProvider(normalizedDate));
     final activityEntriesAsync = ref.watch(activityEntriesProvider(normalizedDate));
-    final allTagsAsync = ref.watch(allTagsProvider);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.spacePulse3),
@@ -279,7 +277,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const AddMealScreen(),
+                      builder: (context) => AddMealScreen(date: date),
                     ),
                   );
                 },
@@ -294,7 +292,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const AddMealScreen(),
+                    builder: (context) => AddMealScreen(date: date),
                   ),
                 );
               },
@@ -313,7 +311,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const AddMealScreen(),
+                    builder: (context) => AddMealScreen(date: date),
                   ),
                 );
               },
@@ -342,7 +340,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const AddExerciseScreen(),
+                      builder: (context) => AddExerciseScreen(date: date),
                     ),
                   );
                 },
@@ -357,7 +355,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const AddExerciseScreen(),
+                    builder: (context) => AddExerciseScreen(date: date),
                   ),
                 );
               },
@@ -376,7 +374,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const AddExerciseScreen(),
+                    builder: (context) => AddExerciseScreen(date: date),
                   ),
                 );
               },
@@ -512,60 +510,70 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
     DateTime date,
   ) {
     final isSelected = currentMoodLevel == moodLevel;
+    final colors = Theme.of(context).colorScheme;
+    final color = isSelected ? colors.primary : colors.onSurfaceVariant;
 
-    return InkWell(
-      onTap: () async {
-        // Save mood to database
-        final db = ref.read(databaseProvider);
-        final normalizedDate = DateTime(date.year, date.month, date.day);
-        final entry = MoodEntry(
-          date: normalizedDate,
-          timestamp: DateTime.now(),
-          moodLevel: moodLevel,
-          emoji: '', // Empty string for backwards compatibility
-        );
-
-        try {
-          await db.upsertMoodEntry(entry);
-          // Refresh mood data for this date
-          ref.invalidate(moodEntryProvider(normalizedDate));
-        } catch (e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error saving mood: $e'),
-                duration: const Duration(seconds: 2),
-              ),
+    // Each button takes an equal share so five fit on narrow (360dp) phones.
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: InkWell(
+          onTap: () async {
+            // Save mood to database
+            final db = ref.read(databaseProvider);
+            final normalizedDate = DateTime(date.year, date.month, date.day);
+            final entry = MoodEntry(
+              date: normalizedDate,
+              timestamp: DateTime.now(),
+              moodLevel: moodLevel,
+              emoji: '', // Empty string for backwards compatibility
             );
-          }
-        }
-      },
-      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-      child: Container(
-        padding: const EdgeInsets.all(AppTheme.spacePulse2),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.rhythmBlack.withOpacity(0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-          border: isSelected ? Border.all(color: AppTheme.rhythmBlack, width: 2) : null,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 32,
-              color: isSelected ? AppTheme.rhythmBlack : AppTheme.rhythmMediumGray,
-            ),
-            const SizedBox(height: AppTheme.spacePulse1),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: isSelected ? AppTheme.rhythmBlack : AppTheme.rhythmMediumGray,
-                    fontSize: 10,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+
+            try {
+              await db.upsertMoodEntry(entry);
+              // Refresh mood data for this date
+              ref.invalidate(moodEntryProvider(normalizedDate));
+            } catch (e) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error saving mood: $e'),
+                    duration: const Duration(seconds: 2),
                   ),
+                );
+              }
+            }
+          },
+          borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: AppTheme.spacePulse2),
+            decoration: BoxDecoration(
+              color: isSelected ? colors.primary.withValues(alpha: 0.1) : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
+              border: isSelected ? Border.all(color: colors.primary, width: 2) : null,
             ),
-          ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 32,
+                  color: color,
+                ),
+                const SizedBox(height: AppTheme.spacePulse1),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: color,
+                        fontSize: 10,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -679,7 +687,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          '\$${entry.price.toStringAsFixed(2)}',
+                          entry.price != null ? '\$${entry.price!.toStringAsFixed(2)}' : '—',
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -706,7 +714,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               Text(
-                '\$${entries.fold<double>(0.0, (sum, entry) => sum + entry.price).toStringAsFixed(2)}',
+                '\$${entries.fold<double>(0.0, (sum, entry) => sum + (entry.price ?? 0)).toStringAsFixed(2)}',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
             ],
@@ -721,10 +729,12 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
     final totalSleepHours = sleepEntriesAsync.when(
       data: (entries) {
         if (entries.isEmpty) return '0h';
+        // Unknown without the previous night's bedtime
+        if (entries.every((e) => e.totalHours == null)) return 'unknown';
         double total = 0.0;
         for (final entry in entries) {
           // Add main sleep hours
-          total += entry.totalHours ?? entry.calculatedHours;
+          total += entry.totalHours ?? 0;
           // Add nap hours if available
           if (entry.napHours != null) {
             total += entry.napHours!;
@@ -742,7 +752,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
         if (entries.isEmpty) return '\$0.00';
         double total = 0.0;
         for (final entry in entries) {
-          total += entry.price;
+          total += entry.price ?? 0;
         }
         return '\$${total.toStringAsFixed(2)}';
       },

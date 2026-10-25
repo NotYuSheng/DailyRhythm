@@ -1,0 +1,151 @@
+import 'dart:io';
+
+import 'package:daily_rhythm/shared/services/database/database_service.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+import '../helpers/test_database.dart';
+
+/// Schema of a database created by app version 10 (or upgraded to 10).
+/// It has no `nap_entries` or `tag_categories`, and meal price is NOT NULL.
+Future<void> _createVersion10Schema(Database db) async {
+  await db.execute('''
+    CREATE TABLE sleep_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, wakeUpTime TEXT,
+      sleepTime TEXT, totalHours REAL, tags TEXT, napHours REAL)
+  ''');
+  await db.execute('''
+    CREATE TABLE meal_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, time TEXT NOT NULL,
+      name TEXT NOT NULL, price REAL NOT NULL, tags TEXT, notes TEXT,
+      calories INTEGER, quantity INTEGER DEFAULT 1)
+  ''');
+  await db.execute('''
+    CREATE TABLE mood_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, timestamp TEXT NOT NULL,
+      moodLevel INTEGER NOT NULL, emoji TEXT NOT NULL, notes TEXT)
+  ''');
+  await db.execute('''
+    CREATE TABLE exercise_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, timestamp TEXT NOT NULL,
+      type TEXT NOT NULL, runType TEXT, distance REAL, duration INTEGER, pace INTEGER,
+      intervalDistance INTEGER, intervalTime INTEGER, restTime INTEGER, intervalCount INTEGER,
+      exerciseName TEXT, reps INTEGER, weight REAL, sets INTEGER, notes TEXT, equipmentType TEXT)
+  ''');
+  await db.execute('''
+    CREATE TABLE task_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, timestamp TEXT NOT NULL,
+      taskType TEXT NOT NULL, notes TEXT)
+  ''');
+  await db.execute('''
+    CREATE TABLE activity_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, timestamp TEXT NOT NULL,
+      tagId INTEGER NOT NULL, notes TEXT, FOREIGN KEY (tagId) REFERENCES tags (id))
+  ''');
+  await db.execute('''
+    CREATE TABLE tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, emoji TEXT NOT NULL,
+      category TEXT NOT NULL, color TEXT, sort_order INTEGER)
+  ''');
+
+  await db.insert('tags', {'name': 'Push Day', 'emoji': 'dumbbell', 'category': 'Fitness', 'sort_order': 0});
+  await db.insert('meal_entries', {
+    'date': '2024-03-01T00:00:00.000',
+    'time': '2024-03-01T12:30:00.000',
+    'name': 'Wanton noodles',
+    'price': 3.5,
+    'quantity': 1,
+  });
+  // Saved by the old exercise screen with the time of day in `date`.
+  await db.insert('exercise_entries', {
+    'date': '2024-03-01T18:42:10.123',
+    'timestamp': '2024-03-01T18:42:10.123',
+    'type': 'ExerciseType.weightLifting',
+    'exerciseName': 'Situps',
+    'reps': 60,
+    'sets': 1,
+  });
+}
+
+Future<String> _prepareOldDatabase(Directory dir, int version) async {
+  final path = '${dir.path}/v$version.db';
+  sqfliteFfiInit();
+  final db = await databaseFactoryFfiNoIsolate.openDatabase(
+    path,
+    options: OpenDatabaseOptions(version: version, onCreate: (db, _) => _createVersion10Schema(db)),
+  );
+  await db.close();
+  return path;
+}
+
+Future<Map<String, List<String>>> _columns(Database db) async {
+  final tables = await db.rawQuery(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+  );
+  return {
+    for (final t in tables)
+      t['name'] as String: [
+        for (final c in await db.rawQuery("PRAGMA table_info('${t['name']}')")) '${c['name']}:${c['notnull']}',
+      ]..sort(),
+  };
+}
+
+void main() {
+  late Directory dir;
+
+  setUp(() async => dir = await Directory.systemTemp.createTemp('dailyrhythm_migration'));
+  tearDown(() async {
+    await closeTestDatabase();
+    await dir.delete(recursive: true);
+  });
+
+  // 11 is the broken state: the app shipped v11 with no upgrade step, so
+  // devices that upgraded from 10 report version 11 but lack the new tables.
+  for (final version in [10, 11]) {
+    group('upgrade from version $version', () {
+      late DatabaseService service;
+
+      setUp(() async => service = await openTestDatabase(path: await _prepareOldDatabase(dir, version)));
+
+      test('reaches the current schema version', () async {
+        final db = await service.database;
+        expect(await db.getVersion(), DatabaseService.schemaVersion);
+      });
+
+      test('creates the missing tag_categories and nap_entries tables', () async {
+        final categories = (await service.getAllTagCategories()).map((c) => c.name);
+        expect(categories, containsAll(['General', 'Health', 'Work', 'Hobby', 'Activity']));
+        // Categories already used by tags are kept, so those tags stay visible.
+        expect(categories, contains('Fitness'));
+        expect(await service.getAllNapEntries(), isEmpty);
+      });
+
+      test('keeps existing meals and makes price optional', () async {
+        final meals = await service.getAllMealEntries();
+        expect(meals.single.name, 'Wanton noodles');
+        expect(meals.single.price, 3.5);
+
+        final db = await service.database;
+        await db.insert('meal_entries', {
+          'date': '2024-03-02T00:00:00.000',
+          'time': '2024-03-02T10:00:00.000',
+          'name': 'Apple',
+          'price': null,
+        });
+      });
+
+      test('normalizes dates so old entries show up on their day', () async {
+        final entries = await service.getExerciseEntriesByDate(DateTime(2024, 3, 1));
+        expect(entries.single.exerciseName, 'Situps');
+        expect(entries.single.date, DateTime(2024, 3, 1));
+      });
+
+      test('matches the schema of a fresh install', () async {
+        final upgraded = await _columns(await service.database);
+        await closeTestDatabase();
+        final fresh = await _columns(await (await openTestDatabase()).database);
+        expect(upgraded, fresh);
+      });
+    });
+  }
+}

@@ -1,8 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../../shared/services/export/export_service.dart';
+import '../../../../shared/providers/common_providers.dart';
+import '../../../sleep/data/providers/sleep_providers.dart';
+import '../../../meals/data/providers/meal_providers.dart';
+import '../../../exercise/data/providers/exercise_providers.dart';
+import '../../../tags/data/providers/tag_providers.dart';
 import 'backup_settings_screen.dart';
 import 'debug_database_screen.dart';
 
@@ -52,7 +58,7 @@ class SettingsScreen extends ConsumerWidget {
                   title: const Text('Import Data'),
                   subtitle: const Text('Load from CSV files'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () => _handleImportData(context),
+                  onTap: () => _handleImportData(context, ref),
                 ),
               ],
             ),
@@ -87,21 +93,24 @@ class SettingsScreen extends ConsumerWidget {
           Card(
             child: Column(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.bug_report_outlined),
-                  title: const Text('Debug Database'),
-                  subtitle: const Text('View database contents'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const DebugDatabaseScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const Divider(height: 1),
+                // Raw database viewer is for development builds only
+                if (kDebugMode) ...[
+                  ListTile(
+                    leading: const Icon(Icons.bug_report_outlined),
+                    title: const Text('Debug Database'),
+                    subtitle: const Text('View database contents'),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DebugDatabaseScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const Divider(height: 1),
+                ],
                 ListTile(
                   leading: const Icon(Icons.info_outlined),
                   title: const Text('About'),
@@ -142,7 +151,7 @@ class SettingsScreen extends ConsumerWidget {
       builder: (context) => AlertDialog(
         title: const Text('Export Data'),
         content: const Text(
-          'This will export all your data (sleep, meals, and tags) to CSV files in your Downloads folder. Continue?',
+          'This will export all your data to CSV files in your Downloads folder. Continue?',
         ),
         actions: [
           TextButton(
@@ -227,7 +236,7 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _handleImportData(BuildContext context) async {
+  Future<void> _handleImportData(BuildContext context, WidgetRef ref) async {
     // Show loading dialog
     showDialog(
       context: context,
@@ -253,35 +262,45 @@ class SettingsScreen extends ConsumerWidget {
       final exportService = ExportService.instance;
 
       // Import data - this will open a directory picker
-      final importedCount = await exportService.importDataFromCsv();
+      final result = await exportService.importDataFromCsv();
 
       // Close loading dialog
       if (context.mounted) {
         Navigator.pop(context);
       }
 
-      if (importedCount == 0) {
-        // User cancelled or no data was imported
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Import cancelled or no valid data found'),
-              duration: Duration(seconds: 3),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
+      // Refresh every screen that shows imported data
+      for (final provider in [
+        sleepEntriesProvider,
+        mealEntriesProvider,
+        moodEntryProvider,
+        exerciseEntriesProvider,
+        taskEntriesProvider,
+        activityEntriesProvider,
+      ]) {
+        ref.invalidate(provider);
+      }
+      ref.invalidate(allTagsProvider);
+      ref.invalidate(allTagCategoriesProvider);
+
+      final String message;
+      if (result == null) {
+        message = 'Import cancelled';
+      } else if (!result.foundFiles) {
+        message = 'No DailyRhythm export files found in that folder';
       } else {
-        // Show success message
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Successfully imported $importedCount entries'),
-              duration: const Duration(seconds: 3),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
+        message = 'Imported ${result.imported} entries'
+            '${result.duplicates > 0 ? ', skipped ${result.duplicates} already present' : ''}'
+            '${result.invalid > 0 ? ', ${result.invalid} unreadable rows' : ''}';
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     } catch (e) {
       // Close loading dialog

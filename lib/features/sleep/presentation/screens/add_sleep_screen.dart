@@ -5,6 +5,8 @@ import '../../data/models/sleep_entry.dart';
 import '../../../../shared/services/database/database_provider.dart';
 import '../../data/providers/sleep_providers.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/utils/date_utils.dart';
+import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 
 class AddSleepScreen extends ConsumerStatefulWidget {
   final SleepEntry? entry; // For editing existing entries
@@ -129,7 +131,7 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
                     const SizedBox(height: AppTheme.spacePulse1),
                     if (_previousDaySleepTime != null && _wakeUpTime != null)
                       Text(
-                        'From ${DateFormat('MMM d, h:mm a').format(_previousDaySleepTime!)} to ${DateFormat('h:mm a').format(_wakeUpTime!)}',
+                        'From ${DateFormat('h:mm a').format(_previousDaySleepTime!)} to ${DateFormat('h:mm a').format(_wakeUpTime!)}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.grey,
                         ),
@@ -178,14 +180,7 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
             initialTime: defaultTime,
           );
           if (pickedTime != null) {
-            final now = DateTime.now();
-            onSelect(DateTime(
-              now.year,
-              now.month,
-              now.day,
-              pickedTime.hour,
-              pickedTime.minute,
-            ));
+            onSelect(atTimeOfDay(_date, pickedTime.hour, pickedTime.minute));
           }
         },
       ),
@@ -204,16 +199,7 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
     //
     // If previous day's sleep time was not recorded, return null to show "unknown"
     if (_previousDaySleepTime == null || _wakeUpTime == null) return null;
-
-    var duration = _wakeUpTime!.difference(_previousDaySleepTime!);
-
-    // If duration is negative, the sleep time was after midnight
-    // (e.g., went to bed at 1 AM, woke up at 7 AM same calendar day)
-    if (duration.isNegative) {
-      duration = duration + const Duration(days: 1);
-    }
-
-    return duration.inMinutes / 60.0;
+    return sleepDurationHours(_previousDaySleepTime!, _wakeUpTime!);
   }
 
   Future<void> _saveSleep() async {
@@ -238,57 +224,23 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
 
     final db = ref.read(databaseProvider);
 
-    // Create sleep entry for this date with:
-    // - sleepTime: When user went to bed TODAY (will be used for NEXT day's calculation)
+    // - sleepTime: When user went to bed TODAY (used for NEXT day's total)
     //              Note: This could be past midnight (e.g., went to bed at 1 AM)
     // - wakeUpTime: When user woke up today
-    // - totalHours: Calculated from PREVIOUS day's sleepTime to today's wakeUpTime
-    //               (will be null/"unknown" if previous day's sleepTime wasn't recorded)
+    // The database computes totalHours from the previous day's bedtime.
     final entry = SleepEntry(
       id: widget.entry?.id,
       date: _date,
       sleepTime: _sleepTime,
       wakeUpTime: _wakeUpTime,
-      totalHours: _calculateHours(),
       napHours: napHours,
     );
 
     try {
+      await db.saveSleepEntry(entry);
 
-      // Use upsert to either create or update entry for this date
-      await db.upsertSleepEntry(entry);
-
-      // After saving this entry, update TOMORROW's entry with today's bedtime
-      // so tomorrow's sleep calculation will be correct
-      if (_sleepTime != null) {
-        final nextDate = _date.add(const Duration(days: 1));
-        final nextEntry = await db.getSleepEntryByDate(nextDate);
-        if (nextEntry != null) {
-          // Update tomorrow's entry with today's bedtime and recalculate its totalHours
-          final previousDaySleepForNext = _sleepTime;
-          final nextWakeTime = nextEntry.wakeUpTime;
-          double? nextTotalHours;
-
-          if (previousDaySleepForNext != null && nextWakeTime != null) {
-            var duration = nextWakeTime.difference(previousDaySleepForNext);
-            if (duration.isNegative) {
-              duration = duration + const Duration(days: 1);
-            }
-            nextTotalHours = duration.inMinutes / 60.0;
-          }
-
-          await db.updateSleepEntry(nextEntry.copyWith(
-            sleepTime: _sleepTime,
-            totalHours: nextTotalHours,
-          ));
-
-          // Refresh next day's data too
-          ref.invalidate(sleepEntriesProvider(nextDate));
-        }
-      }
-
-      // Refresh sleep data for this date
       ref.invalidate(sleepEntriesProvider(_date));
+      ref.invalidate(sleepEntriesProvider(DateTime(_date.year, _date.month, _date.day + 1)));
       ref.invalidate(todaySleepEntriesProvider);
 
       if (mounted) {
@@ -306,45 +258,22 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
     }
   }
 
-  void _confirmDelete() {
-    showDialog(
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDeleteConfirmationDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Delete Sleep Entry'),
-          content: const Text('Are you sure you want to delete this sleep entry?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                if (widget.entry?.id != null) {
-                  final db = ref.read(databaseProvider);
-                  await db.deleteSleepEntry(widget.entry!.id!);
+      title: 'Delete Sleep Entry',
+      message: 'Are you sure you want to delete this sleep entry?',
+    );
+    if (!confirmed || widget.entry?.id == null) return;
 
-                  if (mounted) {
-                    // Invalidate the provider to refresh the list
-                    ref.invalidate(sleepEntriesProvider(widget.entry!.date));
+    await ref.read(databaseProvider).deleteSleepEntry(widget.entry!.id!);
+    ref.invalidate(sleepEntriesProvider(widget.entry!.date));
+    if (!mounted) return;
 
-                    Navigator.pop(context); // Close dialog
-                    Navigator.pop(context); // Close edit screen
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Sleep entry deleted'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Delete', style: TextStyle(color: AppTheme.rhythmBlack)),
-            ),
-          ],
-        );
-      },
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.pop(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Sleep entry deleted'), duration: Duration(seconds: 2)),
     );
   }
 }

@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:unicons/unicons.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/metric_data.dart';
-import '../../../../shared/services/database/database_provider.dart';
 import '../../data/providers/metrics_providers.dart';
 import '../widgets/quick_stat_card.dart';
 
@@ -270,8 +269,6 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
   }
 
   Widget _buildSleepLineChart(SleepMetrics metrics) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     final spots = metrics.dailyData
         .asMap()
@@ -573,7 +570,6 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
   Widget _buildInsights() {
     final insightsAsync = ref.watch(metricsInsightsProvider(_selectedRange));
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Card(
       child: Padding(

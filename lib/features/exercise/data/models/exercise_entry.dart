@@ -199,7 +199,7 @@ extension EquipmentTypeExtension on EquipmentType {
       case EquipmentType.kettlebell:
         return 'Weight per kettlebell (kg)';
       case EquipmentType.bodyweight:
-        return 'Additional weight (kg)';
+        return 'Additional weight (kg, optional)';
       case EquipmentType.machine:
         return 'Weight (kg)';
     }
