@@ -51,6 +51,14 @@ void main() {
       expect(find.text('Set when you woke up or went to bed'), findsOneWidget);
     });
 
+    test('bedtime offers rounded times just after now', () {
+      String fmt(TimeOfDay t) => '${t.hour}:${t.minute.toString().padLeft(2, '0')}';
+      expect(laterTimes(DateTime(2026, 1, 1, 23, 7)).map(fmt), ['23:10', '23:15', '23:30', '23:45']);
+      expect(laterTimes(DateTime(2026, 1, 1, 23, 10)).map(fmt), ['23:15', '23:30', '23:45', '0:00'],
+          reason: 'strictly after now, wrapping past midnight');
+      expect(laterTimes(DateTime(2026, 1, 1, 22, 58)).map(fmt), ['23:00', '23:15', '23:30', '23:45']);
+    });
+
     test('usual times are the most frequent, rounded, evening before night', () {
       final times = [
         for (final (h, m) in [(23, 50), (0, 5), (23, 55), (1, 10), (0, 2), (23, 46)]) DateTime(2026, 1, 1, h, m),

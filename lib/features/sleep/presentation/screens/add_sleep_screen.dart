@@ -21,6 +21,18 @@ List<TimeOfDay> usualTimes(Iterable<DateTime?> times) {
   return [for (final m in top) TimeOfDay(hour: m ~/ 60, minute: m % 60)];
 }
 
+/// Rounded times just after [now] for a bedtime about to happen: the next
+/// 5-minute mark, then the quarter hours after it, [count] in all.
+List<TimeOfDay> laterTimes(DateTime now, {int count = 4}) {
+  final minutes = now.hour * 60 + now.minute;
+  final first = (minutes ~/ 5 + 1) * 5;
+  final times = [first];
+  while (times.length < count) {
+    times.add((times.last ~/ 15 + 1) * 15);
+  }
+  return [for (final m in times) TimeOfDay(hour: m ~/ 60 % 24, minute: m % 60)];
+}
+
 class AddSleepScreen extends ConsumerStatefulWidget {
   final SleepEntry? entry; // For editing existing entries
   final DateTime? date; // For specifying the date when creating new entries
@@ -118,6 +130,7 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
             label: 'Went to bed',
             time: _sleepTime,
             usual: _usualBed,
+            soon: true,
             fallback: const TimeOfDay(hour: 23, minute: 0),
             onSelect: (time) => setState(() => _sleepTime = time),
           ),
@@ -196,12 +209,22 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
     required List<TimeOfDay> usual,
     required TimeOfDay fallback,
     required ValueChanged<DateTime?> onSelect,
+    bool soon = false,
   }) {
     final format = DateFormat('HH:mm');
     final now = DateTime.now();
     final isToday = dayOf(now) == dayOf(_date);
     final selected = time == null ? null : TimeOfDay.fromDateTime(time);
-    final choices = [if (isToday) TimeOfDay.fromDateTime(now), ...usual];
+    // Today: Now first; for bedtime also the next few rounded times, since
+    // it is often logged just before going to bed. Then the usual times.
+    final choices = <TimeOfDay>[];
+    for (final t in [
+      if (isToday) TimeOfDay.fromDateTime(now),
+      if (isToday && soon) ...laterTimes(now),
+      ...usual,
+    ]) {
+      if (!choices.contains(t)) choices.add(t);
+    }
 
     Future<void> pickOther() async {
       final picked = await showTimePicker(
