@@ -77,7 +77,7 @@ def build(days: list[dict]) -> dict[str, str]:
                           _iso(day, d["bed"]) if d["bed"] else "", total, "", ""])
 
         meal_rows = [(m, []) for m in d["meals"]] + [
-            ({"name": s["name"], "quantity": s["quantity"], "price": None, "currency": "SGD",
+            ({"name": s.get("canonical") or s["name"], "quantity": s["quantity"], "price": None, "currency": "SGD",
               "comment": None, "price_approx": False}, ["Supplement"]) for s in d["supplements"]]
         for i, (m, tags) in enumerate(meal_rows):
             if not m["name"]:
@@ -94,7 +94,7 @@ def build(days: list[dict]) -> dict[str, str]:
                 price = None
             elif m.get("price_approx"):
                 notes.append("approximate price")
-            meals.append(["", midnight, _iso(day, "12:00", i), m["name"], max(1, round(quantity)),
+            meals.append(["", midnight, _iso(day, "12:00", i), m.get("canonical") or m["name"], max(1, round(quantity)),
                           "" if price is None else price, "", ";".join(tags), "; ".join(notes)])
 
         if d["mood"] is not None:
@@ -118,7 +118,7 @@ def build(days: list[dict]) -> dict[str, str]:
                 "run" if is_cardio else "weightLifting", "flat" if is_cardio else "",
                 x["distance_km"] if is_cardio else "",
                 int(x["duration_min"] * 60) if is_cardio and x["duration_min"] else "",
-                "", "", "", "", "", x["name"], "" if is_cardio else "bodyweight",
+                "", "", "", "", "", x.get("canonical") or x["name"], "" if is_cardio else "bodyweight",
                 x["reps"] if x["reps"] is not None else "", x["weight_kg"] if x["weight_kg"] is not None else "",
                 x["sets"] if x["sets"] is not None else "", notes,
             ])

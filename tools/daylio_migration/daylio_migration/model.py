@@ -13,6 +13,7 @@ from dataclasses import asdict, dataclass, field
 class Meal:
     text: str
     name: str
+    canonical: str | None = None  # agreed spelling, from aliases.csv
     quantity: float | None = None
     price: float | None = None
     currency: str = "SGD"  # USD/MYR when the note says so
@@ -24,6 +25,7 @@ class Meal:
 class ExerciseSet:
     text: str
     name: str
+    canonical: str | None = None
     reps: int | None = None
     sets: int | None = None
     weight_kg: float | None = None
@@ -36,6 +38,7 @@ class ExerciseSet:
 class Supplement:
     text: str
     name: str
+    canonical: str | None = None
     quantity: float | None = None
 
 

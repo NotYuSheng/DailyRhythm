@@ -103,6 +103,11 @@ class LlmSplitter:
             raise SystemExit(f"Set {', '.join(missing)} in .env to use the LLM splitter")
         return cls(cache_path, os.environ["LLM_BASE_URL"], os.environ["LLM_API_KEY"], os.environ["LLM_MODEL"])
 
+    @classmethod
+    def cache_only(cls, cache_path: Path) -> "LlmSplitter":
+        """Answers only from the cache; unknown pieces stay unsplit."""
+        return cls(cache_path, base_url="", api_key="", model="")
+
     @staticmethod
     def _key(piece: str, zone: str) -> str:
         return f"{zone}|{piece}"

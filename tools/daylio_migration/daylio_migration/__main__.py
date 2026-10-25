@@ -16,6 +16,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
+from .canonical import apply_aliases, load_aliases
 from .llm import LlmSplitter, load_env
 from .load import build_days, read_entries
 from .validate import validate
@@ -27,20 +28,24 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("export", type=Path)
     parser.add_argument("--out", type=Path, default=REPO_ROOT / "data" / "migration")
-    parser.add_argument("--llm", action="store_true", help="split leftover run-together text with the LLM in .env")
+    parser.add_argument("--llm", action="store_true", help="ask the LLM in .env about pieces not in the cache yet")
     args = parser.parse_args()
 
     entries = read_entries(args.export)
+    cache = args.out / "llm_cache.json"
     splitter = None
     if args.llm:
         load_env(REPO_ROOT / ".env")
-        splitter = LlmSplitter.from_env(args.out / "llm_cache.json")
+        splitter = LlmSplitter.from_env(cache)
         build_days(entries, splitter)  # first pass queues unknown pieces
         if splitter.pending:
             print(f"Asking the LLM about {len(splitter.pending)} pieces...")
             splitter.run_pending()
+    elif cache.exists():
+        splitter = LlmSplitter.cache_only(cache)  # reuse earlier answers, ask nothing
 
     days = build_days(entries, splitter)
+    apply_aliases(days, load_aliases(args.out / "aliases.csv"))
     validate(days)
     write_outputs(days, args.out)
 
