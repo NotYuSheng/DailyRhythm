@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../data/models/meal_entry.dart';
 import '../../../../shared/services/database/database_provider.dart';
 import '../../data/providers/meal_providers.dart';
-import '../../../tags/data/providers/tag_providers.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/utils/date_utils.dart';
+import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 
 class AddMealScreen extends ConsumerStatefulWidget {
-  final MealEntry? entry;
+  final MealEntry? entry; // For editing existing entries
+  final DateTime? date; // Day to log a new meal on (defaults to today)
 
-  const AddMealScreen({super.key, this.entry});
+  const AddMealScreen({super.key, this.entry, this.date});
 
   @override
   ConsumerState<AddMealScreen> createState() => _AddMealScreenState();
@@ -42,11 +43,10 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _date = widget.entry?.date ?? DateTime(now.year, now.month, now.day);
+    _date = dayOf(widget.entry?.date ?? widget.date ?? DateTime.now());
     _nameController.text = widget.entry?.name ?? '';
     _quantityController.text = widget.entry?.quantity.toString() ?? '1';
-    _priceController.text = widget.entry?.price.toString() ?? '';
+    _priceController.text = widget.entry?.price?.toString() ?? '';
     _caloriesController.text = widget.entry?.calories?.toString() ?? '';
     _notesController.text = widget.entry?.notes ?? '';
     if (widget.entry != null) {
@@ -133,7 +133,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                     child: TextField(
                       controller: _priceController,
                       decoration: const InputDecoration(
-                        labelText: 'Price',
+                        labelText: 'Price (optional)',
                         hintText: 'Enter amount',
                         border: OutlineInputBorder(),
                         prefixText: '\$ ',
@@ -233,23 +233,23 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       return;
     }
 
-    if (_priceController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a price')),
-      );
-      return;
+    // Price is optional (fruit, snacks and free food often have none)
+    double? price;
+    final priceText = _priceController.text.trim();
+    if (priceText.isNotEmpty) {
+      price = double.tryParse(priceText);
+      if (price == null || price < 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a valid price')),
+        );
+        return;
+      }
     }
 
-    final price = double.tryParse(_priceController.text.trim());
-    if (price == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid price')),
-      );
-      return;
-    }
-
-    // Use current time if editing existing entry, otherwise use entry's time
-    final time = widget.entry?.time ?? DateTime.now();
+    // Keep the original time when editing; new meals use the current clock
+    // time on the selected day.
+    final now = DateTime.now();
+    final time = widget.entry?.time ?? atTimeOfDay(_date, now.hour, now.minute);
 
     // Parse quantity (default to 1)
     int quantity = 1;
@@ -306,45 +306,22 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     }
   }
 
-  void _confirmDelete() {
-    showDialog(
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDeleteConfirmationDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Delete Meal'),
-          content: const Text('Are you sure you want to delete this meal entry?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                if (widget.entry?.id != null) {
-                  final db = ref.read(databaseProvider);
-                  await db.deleteMealEntry(widget.entry!.id!);
+      title: 'Delete Meal',
+      message: 'Are you sure you want to delete this meal entry?',
+    );
+    if (!confirmed || widget.entry?.id == null) return;
 
-                  if (mounted) {
-                    // Invalidate the provider to refresh the list
-                    ref.invalidate(mealEntriesProvider(widget.entry!.date));
+    await ref.read(databaseProvider).deleteMealEntry(widget.entry!.id!);
+    ref.invalidate(mealEntriesProvider(dayOf(widget.entry!.date)));
+    if (!mounted) return;
 
-                    Navigator.pop(context); // Close dialog
-                    Navigator.pop(context); // Close edit screen
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Meal deleted'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Delete', style: TextStyle(color: AppTheme.rhythmBlack)),
-            ),
-          ],
-        );
-      },
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.pop(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Meal deleted'), duration: Duration(seconds: 2)),
     );
   }
 }

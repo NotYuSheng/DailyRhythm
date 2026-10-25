@@ -17,8 +17,6 @@ class TagsScreen extends ConsumerStatefulWidget {
 class _TagsScreenState extends ConsumerState<TagsScreen> {
   @override
   Widget build(BuildContext context) {
-    final tagsAsync = ref.watch(allTagsProvider);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tags'),
@@ -76,12 +74,6 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
             for (final tag in tags) {
               grouped.putIfAbsent(tag.category, () => []).add(tag);
             }
-
-            // Ensure categories list covers all keys
-            final orderedCategories = [
-              ...categories.map((c) => c.name),
-              ...grouped.keys.where((k) => !categories.any((c) => c.name == k)),
-            ];
 
             return ListView(
               padding: const EdgeInsets.all(AppTheme.spacePulse3),
@@ -574,83 +566,6 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
       MaterialPageRoute(
         builder: (context) => EditTagScreen(tag: tag),
       ),
-    );
-  }
-
-  void _confirmDelete(BuildContext context, WidgetRef ref, Tag tag) async {
-    if (tag.id == null) return;
-
-    // Get count of activity entries using this tag
-    final db = ref.read(databaseProvider);
-    final activityCount = await db.getActivityCountForTag(tag.id!);
-
-    if (!context.mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Delete Tag'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Are you sure you want to delete "${tag.name}"?'),
-              if (activityCount > 0) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.rhythmLightGray,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.rhythmMediumGray),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.warning, color: AppTheme.rhythmBlack, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'This will also delete $activityCount activity ${activityCount == 1 ? 'entry' : 'entries'} using this tag.',
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                final db = ref.read(databaseProvider);
-                await db.deleteTag(tag.id!);
-                ref.invalidate(allTagsProvider);
-
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(activityCount > 0
-                        ? 'Tag and $activityCount ${activityCount == 1 ? 'activity' : 'activities'} deleted'
-                        : 'Tag deleted'),
-                    ),
-                  );
-                }
-              },
-              child: Text(
-                'Delete',
-                style: TextStyle(color: activityCount > 0 ? AppTheme.rhythmBlack : null),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -1341,9 +1256,10 @@ class _EditTagScreenState extends ConsumerState<EditTagScreen> {
                 ref.invalidate(allTagsProvider);
 
                 if (mounted) {
+                  final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(dialogContext); // Close dialog
                   Navigator.pop(context); // Close edit screen
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  messenger.showSnackBar(
                     SnackBar(
                       content: Text(activityCount > 0
                         ? 'Tag and $activityCount ${activityCount == 1 ? 'activity' : 'activities'} deleted'

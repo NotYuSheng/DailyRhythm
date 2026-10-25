@@ -13,27 +13,29 @@ class MetricsService {
   // ==================== Sleep Metrics ====================
 
   Future<SleepMetrics> calculateSleepMetrics(DateRange range, {DateRange? previousRange}) async {
-    final entries = await _db.getSleepEntriesInRange(range.start, range.end);
+    // Only days with a computed total count. Without the previous night's
+    // bedtime a day's sleep is unknown, not zero or same-day bed-to-wake.
+    final entries = (await _db.getSleepEntriesInRange(range.start, range.end))
+        .where((e) => e.totalHours != null)
+        .toList();
 
     // Calculate daily data points
     final dailyData = <DailyDataPoint>[];
     for (final entry in entries) {
-      final hours = entry.totalHours ?? entry.calculatedHours;
-      dailyData.add(DailyDataPoint(date: entry.date, value: hours));
+      dailyData.add(DailyDataPoint(date: entry.date, value: entry.totalHours!));
     }
 
     // Calculate average
     final averageHours = entries.isEmpty
         ? 0.0
-        : entries.fold<double>(0.0, (sum, entry) => sum + (entry.totalHours ?? entry.calculatedHours)) / entries.length;
+        : entries.fold<double>(0.0, (sum, entry) => sum + entry.totalHours!) / entries.length;
 
     // Calculate consistency (standard deviation)
     double consistency = 0.0;
     if (entries.length > 1) {
       final mean = averageHours;
       final variance = entries.fold<double>(0.0, (sum, entry) {
-        final hours = entry.totalHours ?? entry.calculatedHours;
-        return sum + pow(hours - mean, 2);
+        return sum + pow(entry.totalHours! - mean, 2);
       }) / entries.length;
       consistency = sqrt(variance);
     }
@@ -41,11 +43,13 @@ class MetricsService {
     // Calculate previous period average if provided
     double? previousAverageHours;
     if (previousRange != null) {
-      final previousEntries = await _db.getSleepEntriesInRange(previousRange.start, previousRange.end);
+      final previousEntries = (await _db.getSleepEntriesInRange(previousRange.start, previousRange.end))
+          .where((e) => e.totalHours != null)
+          .toList();
       if (previousEntries.isNotEmpty) {
         previousAverageHours = previousEntries.fold<double>(
           0.0,
-          (sum, entry) => sum + (entry.totalHours ?? entry.calculatedHours),
+          (sum, entry) => sum + entry.totalHours!,
         ) / previousEntries.length;
       }
     }

@@ -4,11 +4,14 @@ import '../../../../core/theme/app_theme.dart';
 import '../../data/models/exercise_entry.dart';
 import '../../../../shared/services/database/database_provider.dart';
 import '../../data/providers/exercise_providers.dart';
+import '../../../../shared/utils/date_utils.dart';
+import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 
 class AddExerciseScreen extends ConsumerStatefulWidget {
-  final ExerciseEntry? entry;
+  final ExerciseEntry? entry; // For editing existing entries
+  final DateTime? date; // Day to log a new exercise on (defaults to today)
 
-  const AddExerciseScreen({super.key, this.entry});
+  const AddExerciseScreen({super.key, this.entry, this.date});
 
   @override
   ConsumerState<AddExerciseScreen> createState() => _AddExerciseScreenState();
@@ -608,8 +611,10 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
 
   Future<void> _saveExercise() async {
     try {
+      // Editing keeps the entry on its original day and time.
       final now = DateTime.now();
-      final date = DateTime(now.year, now.month, now.day);
+      final date = dayOf(widget.entry?.date ?? widget.date ?? now);
+      final timestamp = widget.entry?.timestamp ?? atTimeOfDay(date, now.hour, now.minute);
 
       ExerciseEntry entry;
 
@@ -630,7 +635,7 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
           entry = ExerciseEntry(
             id: widget.entry?.id,
             date: date,
-            timestamp: now,
+            timestamp: timestamp,
             type: ExerciseType.run,
             runType: RunType.flat,
             distance: distance,
@@ -661,7 +666,7 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
           entry = ExerciseEntry(
             id: widget.entry?.id,
             date: date,
-            timestamp: now,
+            timestamp: timestamp,
             type: ExerciseType.run,
             runType: RunType.interval,
             distance: distance,
@@ -675,7 +680,10 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
         // Weight lifting
         final exerciseName = _exerciseNameController.text.trim();
         final reps = int.tryParse(_repsController.text);
-        final weight = double.tryParse(_weightController.text);
+        final weightText = _weightController.text.trim();
+        final weight = weightText.isEmpty ? null : double.tryParse(weightText);
+        // Bodyweight sets (push-ups, sit-ups, planks) need no added weight.
+        final weightRequired = _selectedEquipmentType != EquipmentType.bodyweight;
         final sets = int.tryParse(_setsController.text);
 
         if (exerciseName.isEmpty) {
@@ -686,7 +694,11 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
           _showError('Please enter valid reps');
           return;
         }
-        if (weight == null || weight <= 0) {
+        if (weightText.isNotEmpty && (weight == null || weight < 0)) {
+          _showError('Please enter valid weight');
+          return;
+        }
+        if (weightRequired && (weight == null || weight <= 0)) {
           _showError('Please enter valid weight');
           return;
         }
@@ -698,7 +710,7 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
         entry = ExerciseEntry(
           id: widget.entry?.id,
           date: date,
-          timestamp: now,
+          timestamp: timestamp,
           type: ExerciseType.weightLifting,
           exerciseName: exerciseName,
           equipmentType: _selectedEquipmentType,
@@ -718,13 +730,16 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
 
       // Refresh exercise data
       ref.invalidate(exerciseEntriesProvider(date));
+      if (widget.entry != null) {
+        ref.invalidate(exerciseEntriesProvider(dayOf(widget.entry!.date)));
+      }
 
       if (mounted) {
+        final messenger = ScaffoldMessenger.of(context);
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
             content: Text(widget.entry == null ? 'Exercise added!' : 'Exercise updated!'),
-            backgroundColor: AppTheme.rhythmBlack,
           ),
         );
       }
@@ -744,45 +759,22 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
     }
   }
 
-  void _confirmDelete() {
-    showDialog(
+  Future<void> _confirmDelete() async {
+    final confirmed = await showDeleteConfirmationDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Delete Exercise'),
-          content: const Text('Are you sure you want to delete this exercise entry?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                if (widget.entry?.id != null) {
-                  final db = ref.read(databaseProvider);
-                  await db.deleteExerciseEntry(widget.entry!.id!);
+      title: 'Delete Exercise',
+      message: 'Are you sure you want to delete this exercise entry?',
+    );
+    if (!confirmed || widget.entry?.id == null) return;
 
-                  if (mounted) {
-                    // Invalidate the provider to refresh the list
-                    ref.invalidate(exerciseEntriesProvider(widget.entry!.date));
+    await ref.read(databaseProvider).deleteExerciseEntry(widget.entry!.id!);
+    ref.invalidate(exerciseEntriesProvider(dayOf(widget.entry!.date)));
+    if (!mounted) return;
 
-                    Navigator.pop(context); // Close dialog
-                    Navigator.pop(context); // Close edit screen
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Exercise deleted'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Delete', style: TextStyle(color: AppTheme.rhythmBlack)),
-            ),
-          ],
-        );
-      },
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.pop(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Exercise deleted'), duration: Duration(seconds: 2)),
     );
   }
 }

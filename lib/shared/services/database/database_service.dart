@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import '../../utils/date_utils.dart';
 import '../../../features/sleep/data/models/sleep_entry.dart';
 import '../../models/nap_entry.dart';
 import '../../../features/meals/data/models/meal_entry.dart';
@@ -8,11 +10,16 @@ import '../../../features/exercise/data/models/exercise_entry.dart';
 import '../../models/task_entry.dart';
 import '../../models/activity_entry.dart';
 import '../../../features/tags/data/models/tag.dart';
-import '../../../core/constants/app_config.dart';
 
 class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
   static Database? _database;
+
+  static const int schemaVersion = 12;
+
+  /// Overrides the database file location (e.g. `inMemoryDatabasePath`).
+  @visibleForTesting
+  static String? databasePathOverride;
 
   DatabaseService._init();
 
@@ -23,12 +30,11 @@ class DatabaseService {
   }
 
   Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
+    final path = databasePathOverride ?? join(await getDatabasesPath(), filePath);
 
     return await openDatabase(
       path,
-      version: 11,
+      version: schemaVersion,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -184,6 +190,108 @@ class DatabaseService {
         order++;
       }
     }
+    if (oldVersion < 12) {
+      // Version 11 shipped without an upgrade step, so databases upgraded from
+      // version 10 or earlier never received these tables.
+      await db.execute(_napEntriesSql(ifNotExists: true));
+      await db.execute(_tagCategoriesSql(ifNotExists: true));
+      await _seedTagCategories(db);
+
+      // Price becomes optional (fruit, snacks and free food often have none).
+      // SQLite cannot drop NOT NULL in place, so rebuild the table.
+      await db.execute(_mealEntriesSql(table: 'meal_entries_new'));
+      await db.execute('''
+        INSERT INTO meal_entries_new (id, date, time, name, quantity, price, calories, tags, notes)
+        SELECT id, date, time, name, quantity, price, calories, tags, notes FROM meal_entries
+      ''');
+      await db.execute('DROP TABLE meal_entries');
+      await db.execute('ALTER TABLE meal_entries_new RENAME TO meal_entries');
+
+      // Some screens stored the save time in `date`, which hid those entries
+      // from exact-date lookups. Every `date` is a calendar day.
+      for (final table in _datedTables) {
+        await db.execute(
+          "UPDATE $table SET date = substr(date, 1, 10) || 'T00:00:00.000' "
+          "WHERE date NOT LIKE '%T00:00:00.000'",
+        );
+      }
+    }
+  }
+
+  static const List<String> _datedTables = [
+    'sleep_entries',
+    'nap_entries',
+    'meal_entries',
+    'mood_entries',
+    'exercise_entries',
+    'task_entries',
+    'activity_entries',
+  ];
+
+  static String _napEntriesSql({bool ifNotExists = false}) => '''
+    CREATE TABLE ${ifNotExists ? 'IF NOT EXISTS ' : ''}nap_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      startTime TEXT NOT NULL,
+      durationHours REAL NOT NULL,
+      tags TEXT
+    )
+  ''';
+
+  static String _tagCategoriesSql({bool ifNotExists = false}) => '''
+    CREATE TABLE ${ifNotExists ? 'IF NOT EXISTS ' : ''}tag_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      color TEXT,
+      sort_order INTEGER
+    )
+  ''';
+
+  static String _mealEntriesSql({String table = 'meal_entries'}) => '''
+    CREATE TABLE $table (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      time TEXT NOT NULL,
+      name TEXT NOT NULL,
+      quantity INTEGER DEFAULT 1,
+      price REAL,
+      calories INTEGER,
+      tags TEXT,
+      notes TEXT
+    )
+  ''';
+
+  /// Ensures the default categories, plus any category already referenced by
+  /// a tag, exist in `tag_categories`.
+  static Future<void> _seedTagCategories(DatabaseExecutor db) async {
+    const defaults = ['General', 'Health', 'Work', 'Hobby', 'Activity'];
+    final existing = (await db.query('tag_categories', columns: ['name']))
+        .map((row) => row['name'] as String)
+        .toSet();
+    final used = (await db.rawQuery('SELECT DISTINCT category FROM tags ORDER BY category'))
+        .map((row) => row['category'] as String);
+
+    var order = existing.length;
+    for (final name in {...defaults, ...used}) {
+      if (existing.add(name)) {
+        await db.insert('tag_categories', {'name': name, 'color': null, 'sort_order': order++});
+      }
+    }
+  }
+
+  /// Returns [map] with its `date` normalized to the start of that day.
+  static Map<String, dynamic> _withDay(Map<String, dynamic> map) {
+    final date = map['date'];
+    if (date is String) {
+      map['date'] = dayOf(DateTime.parse(date)).toIso8601String();
+    }
+    return map;
+  }
+
+  static List<String> _dayRangeArgs(DateTime date) {
+    final start = dayOf(date);
+    final end = DateTime(start.year, start.month, start.day + 1);
+    return [start.toIso8601String(), end.toIso8601String()];
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -201,30 +309,10 @@ class DatabaseService {
     ''');
 
     // Nap entries table
-    await db.execute('''
-      CREATE TABLE nap_entries (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date TEXT NOT NULL,
-        startTime TEXT NOT NULL,
-        durationHours REAL NOT NULL,
-        tags TEXT
-      )
-    ''');
+    await db.execute(_napEntriesSql());
 
     // Meal entries table
-    await db.execute('''
-      CREATE TABLE meal_entries (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date TEXT NOT NULL,
-        time TEXT NOT NULL,
-        name TEXT NOT NULL,
-        quantity INTEGER DEFAULT 1,
-        price REAL NOT NULL,
-        calories INTEGER,
-        tags TEXT,
-        notes TEXT
-      )
-    ''');
+    await db.execute(_mealEntriesSql());
 
     // Mood entries table
     await db.execute('''
@@ -298,21 +386,10 @@ class DatabaseService {
     ''');
 
     // Tag categories table
-    await db.execute('''
-      CREATE TABLE tag_categories (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE,
-        color TEXT,
-        sort_order INTEGER
-      )
-    ''');
+    await db.execute(_tagCategoriesSql());
 
     // Create default categories with sort order
-    await db.insert('tag_categories', {'name': 'General', 'color': null, 'sort_order': 0});
-    await db.insert('tag_categories', {'name': 'Health', 'color': null, 'sort_order': 1});
-    await db.insert('tag_categories', {'name': 'Work', 'color': null, 'sort_order': 2});
-    await db.insert('tag_categories', {'name': 'Hobby', 'color': null, 'sort_order': 3});
-    await db.insert('tag_categories', {'name': 'Activity', 'color': null, 'sort_order': 4});
+    await _seedTagCategories(db);
 
     // Create default tags
     // Using Unicons - storing icon names instead of unicode
@@ -371,7 +448,7 @@ class DatabaseService {
 
   Future<int> createSleepEntry(SleepEntry entry) async {
     final db = await database;
-    return await db.insert('sleep_entries', entry.toMap());
+    return await db.insert('sleep_entries', _withDay(entry.toMap()));
   }
 
   Future<SleepEntry?> getSleepEntry(int id) async {
@@ -435,15 +512,46 @@ class DatabaseService {
       return await updateSleepEntry(entry.copyWith(id: existing.id));
     } else {
       // Create new entry
-      return await db.insert('sleep_entries', entry.toMap());
+      return await db.insert('sleep_entries', _withDay(entry.toMap()));
     }
+  }
+
+  /// Saves the sleep entry for its day and keeps day totals consistent.
+  ///
+  /// A day's total runs from the previous day's bedtime to that day's wake
+  /// time, so saving day N computes N's total and recomputes N+1's.
+  /// Returns the saved total for day N, or null if it cannot be computed.
+  Future<double?> saveSleepEntry(SleepEntry entry) async {
+    final day = dayOf(entry.date);
+    final previous = await getSleepEntryByDate(DateTime(day.year, day.month, day.day - 1));
+    final totalHours = previous?.sleepTime != null && entry.wakeUpTime != null
+        ? sleepDurationHours(previous!.sleepTime!, entry.wakeUpTime!)
+        : null;
+
+    await upsertSleepEntry(SleepEntry(
+      id: entry.id,
+      date: day,
+      wakeUpTime: entry.wakeUpTime,
+      sleepTime: entry.sleepTime,
+      totalHours: totalHours,
+      napHours: entry.napHours,
+      tags: entry.tags,
+    ));
+
+    final next = await getSleepEntryByDate(DateTime(day.year, day.month, day.day + 1));
+    if (next != null && next.wakeUpTime != null && entry.sleepTime != null) {
+      await updateSleepEntry(next.copyWith(
+        totalHours: sleepDurationHours(entry.sleepTime!, next.wakeUpTime!),
+      ));
+    }
+    return totalHours;
   }
 
   Future<int> updateSleepEntry(SleepEntry entry) async {
     final db = await database;
     return await db.update(
       'sleep_entries',
-      entry.toMap(),
+      _withDay(entry.toMap()),
       where: 'id = ?',
       whereArgs: [entry.id],
     );
@@ -462,7 +570,7 @@ class DatabaseService {
 
   Future<int> createNapEntry(NapEntry entry) async {
     final db = await database;
-    return await db.insert('nap_entries', entry.toMap());
+    return await db.insert('nap_entries', _withDay(entry.toMap()));
   }
 
   Future<NapEntry?> getNapEntry(int id) async {
@@ -503,7 +611,7 @@ class DatabaseService {
     final db = await database;
     return await db.update(
       'nap_entries',
-      entry.toMap(),
+      _withDay(entry.toMap()),
       where: 'id = ?',
       whereArgs: [entry.id],
     );
@@ -522,7 +630,7 @@ class DatabaseService {
 
   Future<int> createMealEntry(MealEntry entry) async {
     final db = await database;
-    return await db.insert('meal_entries', entry.toMap());
+    return await db.insert('meal_entries', _withDay(entry.toMap()));
   }
 
   Future<MealEntry?> getMealEntry(int id) async {
@@ -563,7 +671,7 @@ class DatabaseService {
     final db = await database;
     return await db.update(
       'meal_entries',
-      entry.toMap(),
+      _withDay(entry.toMap()),
       where: 'id = ?',
       whereArgs: [entry.id],
     );
@@ -669,7 +777,7 @@ class DatabaseService {
 
   Future<int> createMoodEntry(MoodEntry entry) async {
     final db = await database;
-    return await db.insert('mood_entries', entry.toMap());
+    return await db.insert('mood_entries', _withDay(entry.toMap()));
   }
 
   Future<int> upsertMoodEntry(MoodEntry entry) async {
@@ -679,7 +787,7 @@ class DatabaseService {
       // Preserve the original ID when updating
       return await updateMoodEntry(entry.copyWith(id: existing.id));
     } else {
-      return await db.insert('mood_entries', entry.toMap());
+      return await db.insert('mood_entries', _withDay(entry.toMap()));
     }
   }
 
@@ -717,7 +825,7 @@ class DatabaseService {
     final db = await database;
     return await db.update(
       'mood_entries',
-      entry.toMap(),
+      _withDay(entry.toMap()),
       where: 'id = ?',
       whereArgs: [entry.id],
     );
@@ -745,14 +853,36 @@ class DatabaseService {
     return maps.map((map) => TagCategory.fromMap(map)).toList();
   }
 
+  /// Updates a category. Tags reference categories by name, so a rename is
+  /// applied to its tags in the same transaction.
   Future<int> updateTagCategory(TagCategory category) async {
     final db = await database;
-    return await db.update(
-      'tag_categories',
-      category.toMap(),
-      where: 'id = ?',
-      whereArgs: [category.id],
-    );
+    return await db.transaction((txn) async {
+      final previous = await txn.query(
+        'tag_categories',
+        columns: ['name'],
+        where: 'id = ?',
+        whereArgs: [category.id],
+      );
+      final count = await txn.update(
+        'tag_categories',
+        category.toMap(),
+        where: 'id = ?',
+        whereArgs: [category.id],
+      );
+      if (previous.isNotEmpty) {
+        final oldName = previous.first['name'] as String;
+        if (oldName != category.name) {
+          await txn.update(
+            'tags',
+            {'category': category.name},
+            where: 'category = ?',
+            whereArgs: [oldName],
+          );
+        }
+      }
+      return count;
+    });
   }
 
   Future<int> deleteTagCategory(int id) async {
@@ -782,16 +912,15 @@ class DatabaseService {
 
   Future<int> createExerciseEntry(ExerciseEntry entry) async {
     final db = await database;
-    return await db.insert('exercise_entries', entry.toMap());
+    return await db.insert('exercise_entries', _withDay(entry.toMap()));
   }
 
   Future<List<ExerciseEntry>> getExerciseEntriesByDate(DateTime date) async {
     final db = await database;
-    final normalizedDate = DateTime(date.year, date.month, date.day);
     final maps = await db.query(
       'exercise_entries',
-      where: 'date = ?',
-      whereArgs: [normalizedDate.toIso8601String()],
+      where: 'date >= ? AND date < ?',
+      whereArgs: _dayRangeArgs(date),
       orderBy: 'timestamp DESC',
     );
     return maps.map((map) => ExerciseEntry.fromMap(map)).toList();
@@ -801,7 +930,7 @@ class DatabaseService {
     final db = await database;
     return await db.update(
       'exercise_entries',
-      entry.toMap(),
+      _withDay(entry.toMap()),
       where: 'id = ?',
       whereArgs: [entry.id],
     );
@@ -820,16 +949,15 @@ class DatabaseService {
 
   Future<int> createTaskEntry(TaskEntry entry) async {
     final db = await database;
-    return await db.insert('task_entries', entry.toMap());
+    return await db.insert('task_entries', _withDay(entry.toMap()));
   }
 
   Future<List<TaskEntry>> getTaskEntriesByDate(DateTime date) async {
     final db = await database;
-    final normalizedDate = DateTime(date.year, date.month, date.day);
     final maps = await db.query(
       'task_entries',
-      where: 'date = ?',
-      whereArgs: [normalizedDate.toIso8601String()],
+      where: 'date >= ? AND date < ?',
+      whereArgs: _dayRangeArgs(date),
       orderBy: 'timestamp DESC',
     );
     return maps.map((map) => TaskEntry.fromMap(map)).toList();
@@ -848,16 +976,15 @@ class DatabaseService {
 
   Future<int> createActivityEntry(ActivityEntry entry) async {
     final db = await database;
-    return await db.insert('activity_entries', entry.toMap());
+    return await db.insert('activity_entries', _withDay(entry.toMap()));
   }
 
   Future<List<ActivityEntry>> getActivityEntriesByDate(DateTime date) async {
     final db = await database;
-    final normalizedDate = DateTime(date.year, date.month, date.day);
     final maps = await db.query(
       'activity_entries',
-      where: 'date = ?',
-      whereArgs: [normalizedDate.toIso8601String()],
+      where: 'date >= ? AND date < ?',
+      whereArgs: _dayRangeArgs(date),
       orderBy: 'timestamp DESC',
     );
     return maps.map((map) => ActivityEntry.fromMap(map)).toList();
@@ -937,6 +1064,42 @@ class DatabaseService {
       orderBy: 'date ASC',
     );
     return maps.map((map) => MealEntry.fromMap(map)).toList();
+  }
+
+  // ==================== Full-table Queries (for Export) ====================
+
+  Future<List<MoodEntry>> getAllMoodEntries() async {
+    final db = await database;
+    final maps = await db.query('mood_entries', orderBy: 'date ASC');
+    return maps.map((map) => MoodEntry.fromMap(map)).toList();
+  }
+
+  Future<List<ExerciseEntry>> getAllExerciseEntries() async {
+    final db = await database;
+    final maps = await db.query('exercise_entries', orderBy: 'date ASC, timestamp ASC');
+    return maps.map((map) => ExerciseEntry.fromMap(map)).toList();
+  }
+
+  Future<List<TaskEntry>> getAllTaskEntries() async {
+    final db = await database;
+    final maps = await db.query('task_entries', orderBy: 'date ASC, timestamp ASC');
+    return maps.map((map) => TaskEntry.fromMap(map)).toList();
+  }
+
+  Future<List<ActivityEntry>> getAllActivityEntries() async {
+    final db = await database;
+    final maps = await db.query('activity_entries', orderBy: 'date ASC, timestamp ASC');
+    return maps.map((map) => ActivityEntry.fromMap(map)).toList();
+  }
+
+  /// Whether [table] has a row whose columns equal [values].
+  /// Used by import to skip rows that already exist.
+  Future<bool> rowExists(String table, Map<String, Object?> values) async {
+    final db = await database;
+    final where = values.keys.map((k) => values[k] == null ? '$k IS NULL' : '$k = ?').join(' AND ');
+    final args = values.values.where((v) => v != null).toList();
+    final result = await db.query(table, columns: ['id'], where: where, whereArgs: args, limit: 1);
+    return result.isNotEmpty;
   }
 
   // ==================== Utility ====================
