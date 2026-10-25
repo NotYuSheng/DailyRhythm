@@ -50,6 +50,23 @@ class ExerciseEntry {
     this.rawText,
   });
 
+  /// Short description of the amount: "5.0 km", "3×12 @ 20 kg", "40 reps".
+  /// Null when nothing beyond the name was recorded.
+  String? get amount {
+    if (type == ExerciseType.run) {
+      final parts = [
+        if (runType == RunType.interval && intervalCount != null) '$intervalCount×',
+        if (distance != null) '$distance km',
+      ];
+      return parts.isEmpty ? null : parts.join();
+    }
+    final parts = [
+      if (sets != null && reps != null) '$sets×$reps' else if (reps != null) '$reps reps',
+      if (weight != null && weight! > 0) '$weight kg',
+    ];
+    return parts.isEmpty ? null : parts.join(' @ ');
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,

@@ -132,7 +132,6 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Nap Hours',
                   hintText: 'Enter hours (e.g., 1.5)',
-                  border: OutlineInputBorder(),
                   suffixText: 'hours',
                 ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),

@@ -198,7 +198,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Notes (Optional)',
                   hintText: 'Add any notes...',
-                  border: OutlineInputBorder(),
                 ),
                 maxLines: 3,
               ),
@@ -264,7 +263,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
             decoration: const InputDecoration(
               labelText: 'Distance (km)',
               hintText: '5.0',
-              border: OutlineInputBorder(),
             ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
@@ -293,7 +291,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Minutes',
                         hintText: '30',
-                        border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -305,7 +302,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Seconds',
                         hintText: '45',
-                        border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -339,7 +335,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Minutes',
                         hintText: '5',
-                        border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -351,7 +346,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Seconds',
                         hintText: '30',
-                        border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -376,7 +370,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
             decoration: const InputDecoration(
               labelText: 'Distance per interval (km)',
               hintText: '0.4',
-              border: OutlineInputBorder(),
             ),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
@@ -405,7 +398,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Minutes',
                         hintText: '2',
-                        border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -417,7 +409,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Seconds',
                         hintText: '0',
-                        border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -451,7 +442,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Minutes',
                         hintText: '1',
-                        border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -463,7 +453,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Seconds',
                         hintText: '30',
-                        border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -486,7 +475,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
             decoration: const InputDecoration(
               labelText: 'Number of intervals',
               hintText: '8',
-              border: OutlineInputBorder(),
             ),
             keyboardType: TextInputType.number,
           ),
@@ -548,7 +536,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
             decoration: const InputDecoration(
               labelText: 'Exercise Name',
               hintText: 'Bench Press',
-              border: OutlineInputBorder(),
             ),
           ),
         ),
@@ -571,7 +558,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Reps',
                         hintText: '10',
-                        border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
                     ),
@@ -583,7 +569,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                       decoration: InputDecoration(
                         labelText: _selectedEquipmentType.weightLabel,
                         hintText: '60',
-                        border: const OutlineInputBorder(),
                       ),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     ),
@@ -595,7 +580,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Sets',
                         hintText: '3',
-                        border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
                     ),

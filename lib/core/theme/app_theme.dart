@@ -139,6 +139,9 @@ class AppTheme {
     inputDecoratorRadius: 16,
     inputDecoratorBorderType: FlexInputBorderType.outline,
     inputDecoratorIsFilled: true,
+    // A soft leaf tint rather than grey; a border only while focused.
+    inputDecoratorSchemeColor: SchemeColor.primary,
+    inputDecoratorBackgroundAlpha: 0x14,
     inputDecoratorUnfocusedHasBorder: false,
     chipRadius: 20,
     dialogRadius: 28,

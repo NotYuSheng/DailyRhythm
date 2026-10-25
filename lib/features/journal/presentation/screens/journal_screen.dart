@@ -692,7 +692,9 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                                 fontWeight: FontWeight.bold,
                               ),
                         ),
-                        Text(
+                        // Imported meals have no time of day.
+                        if (entry.timeKnown)
+                          Text(
                           DateFormat('h:mm a').format(entry.time),
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -838,7 +840,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 ),
                 const SizedBox(width: AppTheme.spacePulse2),
                 Text(
-                  '${entry.intervalCount}x ${entry.distance}km',
+                  entry.amount ?? '',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
@@ -856,7 +858,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 ),
                 const SizedBox(width: AppTheme.spacePulse2),
                 Text(
-                  '${entry.distance}km',
+                  entry.amount ?? '',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
@@ -876,7 +878,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
               ),
               const SizedBox(width: AppTheme.spacePulse2),
               Text(
-                '${entry.sets}x${entry.reps} @ ${entry.weight}kg',
+                entry.amount ?? '',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ],

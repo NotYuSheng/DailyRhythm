@@ -11,6 +11,16 @@ class FoodSource {
   static const delivery = 'delivery';
 
   static const all = [takeout, fastFood, homemade, free, restaurant, foodCourt, delivery];
+
+  static const labels = {
+    homemade: 'Home cooked',
+    takeout: 'Takeout',
+    foodCourt: 'Food court',
+    restaurant: 'Restaurant',
+    fastFood: 'Fast food',
+    delivery: 'Delivery',
+    free: 'Free',
+  };
 }
 
 class MealEntry {

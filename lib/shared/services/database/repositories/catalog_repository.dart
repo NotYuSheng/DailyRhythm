@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../../../features/exercise/data/models/exercise_item.dart';
 import '../../../../features/meals/data/models/food_item.dart';
+import '../../../../features/meals/domain/food_matcher.dart';
 import '../database_service.dart';
 
 /// Canonical foods and exercises, with aliases, for autocomplete.
@@ -50,6 +51,34 @@ class CatalogRepository {
   Future<List<FoodItem>> searchFoods(String query, {int limit = 8}) async {
     final rows = await _search('food_items', 'meal_entries', 'food_item_id', query, limit);
     return rows.map(FoodItem.fromMap).toList();
+  }
+
+  /// Every food with how often it has been logged, most logged first.
+  Future<List<FoodChoice>> foodsWithUses() async {
+    final db = await _db.database;
+    final rows = await db.rawQuery('''
+      SELECT f.*, (SELECT COUNT(*) FROM meal_entries m WHERE m.food_item_id = f.id) AS uses
+      FROM food_items f ORDER BY uses DESC, f.name
+    ''');
+    return [for (final r in rows) FoodChoice(FoodItem.fromMap(r), r['uses'] as int)];
+  }
+
+  /// Foods logged most over the [days] before [day], most recent breaking
+  /// ties, leaving out ones already logged on [day]: likely next meals.
+  Future<List<FoodChoice>> usualFoods(DateTime day, {int days = 30, int limit = 8}) async {
+    final db = await _db.database;
+    final start = DateTime(day.year, day.month, day.day - days).toIso8601String();
+    final today = DateTime(day.year, day.month, day.day).toIso8601String();
+    final rows = await db.rawQuery('''
+      SELECT f.*, COUNT(*) AS uses, MAX(m.date) AS last
+      FROM meal_entries m JOIN food_items f ON f.id = m.food_item_id
+      WHERE m.date >= ? AND m.date < ?
+        AND f.id NOT IN (SELECT food_item_id FROM meal_entries WHERE date = ? AND food_item_id IS NOT NULL)
+      GROUP BY f.id
+      ORDER BY uses DESC, last DESC
+      LIMIT ?
+    ''', [start, today, today, limit]);
+    return [for (final r in rows) FoodChoice(FoodItem.fromMap(r), r['uses'] as int)];
   }
 
   // ==================== Exercises ====================

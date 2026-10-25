@@ -132,7 +132,7 @@ class DayLogCard extends ConsumerWidget {
           for (final x in exercises)
             _Item(
               text: x.type == ExerciseType.run ? 'Run' : x.exerciseName ?? 'Weights',
-              trailing: _exerciseDetail(x),
+              trailing: x.amount,
               colors: colors,
               onTap: () => open(AddExerciseScreen(entry: x)),
             ),
@@ -154,15 +154,6 @@ class DayLogCard extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  static String? _exerciseDetail(ExerciseEntry x) {
-    if (x.type == ExerciseType.run) return x.distance == null ? null : '${x.distance} km';
-    final parts = [
-      if (x.sets != null && x.reps != null) '${x.sets}×${x.reps}' else if (x.reps != null) '${x.reps} reps',
-      if (x.weight != null && x.weight! > 0) '${x.weight} kg',
-    ];
-    return parts.isEmpty ? null : parts.join(' @ ');
   }
 }
 

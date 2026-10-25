@@ -81,7 +81,7 @@ class _MomentSheetState extends ConsumerState<MomentSheet> {
               minLines: 2,
               maxLines: 5,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(labelText: 'What happened?', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'What happened?'),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 16),

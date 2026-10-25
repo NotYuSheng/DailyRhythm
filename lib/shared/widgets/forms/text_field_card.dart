@@ -33,7 +33,6 @@ class TextFieldCard extends StatelessWidget {
           decoration: InputDecoration(
             labelText: labelText,
             hintText: hintText,
-            border: const OutlineInputBorder(),
           ),
           keyboardType: keyboardType,
           maxLines: maxLines,
