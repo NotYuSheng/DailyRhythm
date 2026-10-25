@@ -2,6 +2,36 @@
 
 Work agreed but not started. Newest first.
 
+## Design direction: the garden (chosen 2026-10-25)
+
+Prototype: "DailyRhythm redesign" design canvas, row **B3 · Warm: garden**, plus the
+"What grows when" sheet (https://claude.ai/artifact/5kGywedoqNP2C8EHV7H5iH, private).
+Other rows on that canvas were explored and not chosen.
+
+Every logged day grows a plant in a pot:
+
+| Day mostly about (from activity tags) | Plant | Good moment adds |
+|---|---|---|
+| Exercise | Sunflower | yellow head |
+| Rest | Succulent | small pink flower |
+| Social / family | Tulip | open tulip |
+| Work | Cactus | flower on top |
+| Study | Fern | a ladybug |
+| Gaming / videos | Monstera | cream spathe |
+| A mix | Sprout | pink flower |
+| Big days (trips, birthdays) | Little tree | blossoms |
+
+- Sleep sets the plant's size, movement adds leaves (or cactus arms), a good journal
+  moment adds the bloom.
+- Missed days are empty pots. Nothing wilts, dies or loses a streak.
+- Screens: Today's plant (with a "today was mostly…" override), the month as a garden,
+  and the warm B row's calendar, rhythm zone, recap and sticker ideas where they fit.
+- Look: warm pastels on a soft green ground, rounded Nunito type, gentle neutral
+  wording with no advice, subtle sway animation (off with reduced motion).
+- The prototype draws plants in code. Production plants need real illustration
+  (commissioned or licence-checked asset set), animated with Rive.
+- Must not reward or punish sleep length itself: size reflects the night, not a grade.
+
 ## Mood tracking redesign
 
 The 5-point day mood barely moves (85% of Daylio days are "meh"), so it can't show
