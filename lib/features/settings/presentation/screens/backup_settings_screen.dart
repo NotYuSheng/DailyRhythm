@@ -3,7 +3,6 @@ import 'package:material_ui/material_ui.dart';
 import 'package:intl/intl.dart';
 import '../../../../shared/services/backup/google_drive_service.dart';
 import '../../../../shared/services/backup/backup_service.dart';
-import '../../../../core/theme/app_theme.dart';
 
 class BackupSettingsScreen extends StatefulWidget {
   const BackupSettingsScreen({super.key});
@@ -92,7 +91,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.message ?? 'Platform not supported'),
-            backgroundColor: AppTheme.rhythmMediumGray,
+            backgroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
             duration: const Duration(seconds: 5),
           ),
         );
@@ -102,7 +101,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Sign in error: $e'),
-            backgroundColor: AppTheme.rhythmMediumGray,
+            backgroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         );
       }
@@ -141,7 +140,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.message),
-          backgroundColor: result.success ? Colors.green : Colors.red,
+          backgroundColor: result.success ? null : Theme.of(context).colorScheme.error,
         ),
       );
     }
@@ -173,7 +172,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.rhythmMediumGray,
+              backgroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             child: const Text('Restore'),
           ),
@@ -191,7 +190,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.message),
-          backgroundColor: result.success ? Colors.green : Colors.red,
+          backgroundColor: result.success ? null : Theme.of(context).colorScheme.error,
           duration: const Duration(seconds: 5),
         ),
       );
@@ -289,7 +288,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
             child: const Text('Delete'),
           ),
@@ -307,7 +306,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(success ? 'Backup deleted' : 'Failed to delete backup'),
-          backgroundColor: success ? Colors.green : Colors.red,
+          backgroundColor: success ? null : Theme.of(context).colorScheme.error,
         ),
       );
     }
@@ -342,11 +341,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
                 // Platform warning banner
                 if (!platformSupported)
                   Card(
-                    color: platformSupported
-                        ? null
-                        : (theme.brightness == Brightness.dark
-                            ? AppTheme.rhythmAccent1
-                            : const Color(0x4DB0B0B0)), // 30% opacity rhythmLightGray
+                    color: theme.colorScheme.tertiaryContainer,
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Row(
@@ -354,8 +349,8 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
                           Icon(
                             Icons.info_outline,
                             color: theme.brightness == Brightness.dark
-                                ? AppTheme.rhythmLightGray
-                                : AppTheme.rhythmMediumGray,
+                                ? Theme.of(context).colorScheme.outline
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -456,7 +451,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
                                   icon: const Icon(Icons.cloud_download),
                                   label: const Text('Restore'),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.rhythmMediumGray,
+                                    backgroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ),
@@ -542,7 +537,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
                                 ),
                                 subtitle: Text(backup.formattedSize),
                                 trailing: IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                  icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
                                   onPressed: () => _deleteBackup(backup),
                                 ),
                               );

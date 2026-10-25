@@ -159,7 +159,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                   trendPercentage: _calculateTrendPercentage(metrics.averageHours, metrics.previousAverageHours),
                 ),
                 loading: () => _buildLoadingCard(),
-                error: (_, __) => _buildErrorCard('Sleep'),
+                error: (_, _) => _buildErrorCard('Sleep'),
               ),
             ),
             const SizedBox(width: AppTheme.spacePulse2),
@@ -173,7 +173,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                   trendPercentage: _calculateTrendPercentage(metrics.averageMood, metrics.previousAverageMood),
                 ),
                 loading: () => _buildLoadingCard(),
-                error: (_, __) => _buildErrorCard('Mood'),
+                error: (_, _) => _buildErrorCard('Mood'),
               ),
             ),
           ],
@@ -197,7 +197,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                   ),
                 ),
                 loading: () => _buildLoadingCard(),
-                error: (_, __) => _buildErrorCard('Exercise'),
+                error: (_, _) => _buildErrorCard('Exercise'),
               ),
             ),
             const SizedBox(width: AppTheme.spacePulse2),
@@ -217,7 +217,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                   ),
                 ),
                 loading: () => _buildLoadingCard(),
-                error: (_, __) => _buildErrorCard('Activities'),
+                error: (_, _) => _buildErrorCard('Activities'),
               ),
             ),
           ],
@@ -235,16 +235,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.bedtime_outlined, size: 20),
-                const SizedBox(width: AppTheme.spacePulse2),
-                Text(
-                  'Sleep Pattern',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ],
-            ),
+            _buildCardHeader(Icons.bedtime_outlined, 'Sleep Pattern'),
             const SizedBox(height: AppTheme.spacePulse3),
             sleepAsync.when(
               data: (metrics) {
@@ -260,7 +251,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                 height: 200,
                 child: Center(child: CircularProgressIndicator()),
               ),
-              error: (_, __) => _buildEmptyState('Error loading sleep data'),
+              error: (_, _) => _buildEmptyState('Error loading sleep data'),
             ),
           ],
         ),
@@ -385,16 +376,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.sentiment_satisfied_alt_outlined, size: 20),
-                const SizedBox(width: AppTheme.spacePulse2),
-                Text(
-                  'Mood Distribution',
-                  style: theme.textTheme.titleMedium,
-                ),
-              ],
-            ),
+            _buildCardHeader(Icons.sentiment_satisfied_alt_outlined, 'Mood Distribution'),
             const SizedBox(height: AppTheme.spacePulse3),
             moodAsync.when(
               data: (metrics) {
@@ -425,7 +407,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                 height: 150,
                 child: Center(child: CircularProgressIndicator()),
               ),
-              error: (_, __) => _buildEmptyState('Error loading mood data'),
+              error: (_, _) => _buildEmptyState('Error loading mood data'),
             ),
           ],
         ),
@@ -510,16 +492,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.local_activity_outlined, size: 20),
-                const SizedBox(width: AppTheme.spacePulse2),
-                Text(
-                  'Top Activities',
-                  style: theme.textTheme.titleMedium,
-                ),
-              ],
-            ),
+            _buildCardHeader(Icons.local_activity_outlined, 'Top Activities'),
             const SizedBox(height: AppTheme.spacePulse3),
             activityAsync.when(
               data: (metrics) {
@@ -559,7 +532,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => _buildEmptyState('Error loading activity data'),
+              error: (_, _) => _buildEmptyState('Error loading activity data'),
             ),
           ],
         ),
@@ -577,16 +550,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.lightbulb_outlined, size: 20),
-                const SizedBox(width: AppTheme.spacePulse2),
-                Text(
-                  'Insights',
-                  style: theme.textTheme.titleMedium,
-                ),
-              ],
-            ),
+            _buildCardHeader(Icons.lightbulb_outlined, 'Insights'),
             const SizedBox(height: AppTheme.spacePulse3),
             insightsAsync.when(
               data: (insights) {
@@ -621,7 +585,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => _buildEmptyState('Error generating insights'),
+              error: (_, _) => _buildEmptyState('Error generating insights'),
             ),
           ],
         ),
@@ -662,11 +626,29 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
             'Error loading $label',
             style: TextStyle(
               fontSize: 12,
-              color: AppTheme.grey600,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),
       ),
+    );
+  }
+
+  /// Icon and title row at the top of each card. The title shortens with
+  /// an ellipsis instead of overflowing at large accessibility font sizes.
+  Widget _buildCardHeader(IconData icon, String title) {
+    return Row(
+      children: [
+        Icon(icon, size: 20),
+        const SizedBox(width: AppTheme.spacePulse2),
+        Flexible(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 
@@ -678,7 +660,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
           message,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: AppTheme.grey600,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 14,
           ),
         ),

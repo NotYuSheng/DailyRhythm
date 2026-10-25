@@ -753,7 +753,7 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: AppTheme.rhythmBlack,
+          backgroundColor: Theme.of(context).colorScheme.onSurface,
         ),
       );
     }

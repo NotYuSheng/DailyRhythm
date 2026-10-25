@@ -49,7 +49,6 @@ dependencies:
   intl: ^0.20.2
 
   # UI Components
-  flutter_slidable: ^4.0.3
   table_calendar: ^3.1.2
   unicons: ^3.0.0
   fl_chart: ^1.1.1
@@ -70,6 +69,7 @@ dependencies:
 
   # Material widgets (moved out of the Flutter SDK in 3.47)
   material_ui: ^1.8.0
+  flex_color_scheme: ^9.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

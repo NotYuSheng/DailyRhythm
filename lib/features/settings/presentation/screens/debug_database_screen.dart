@@ -71,7 +71,7 @@ class _DebugDatabaseScreenState extends ConsumerState<DebugDatabaseScreen> {
           Container(
             padding: const EdgeInsets.all(AppTheme.spacePulse3),
             child: DropdownButtonFormField<String>(
-              value: _selectedTable,
+              initialValue: _selectedTable,
               decoration: const InputDecoration(
                 labelText: 'Select Table',
                 border: OutlineInputBorder(),
