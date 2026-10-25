@@ -153,15 +153,19 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
     setState(() => _isLoading = false);
   }
 
-  Future<void> _performRestore() async {
+  /// Restores [backup], or the newest backup when null.
+  Future<void> _performRestore([BackupFile? backup]) async {
+    final which = backup == null
+        ? 'the latest backup'
+        : 'the backup from ${DateFormat.yMMMd().add_jm().format(backup.createdTime)}';
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Restore from Backup'),
-        content: const Text(
-          'This will replace all current data with the latest backup. '
-          'Your current data will be backed up first.\n\n'
+        content: Text(
+          'This will replace all current data with $which. '
+          'Your current data will be kept on this device as a fallback.\n\n'
           'Continue?',
         ),
         actions: [
@@ -169,11 +173,8 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
             child: const Text('Restore'),
           ),
         ],
@@ -184,7 +185,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
 
     setState(() => _isLoading = true);
 
-    final result = await _backupService.restoreFromGoogleDrive();
+    final result = await _backupService.restoreFromGoogleDrive(fileId: backup?.id);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -525,6 +526,13 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'The newest ${BackupService.backupsToKeep} backups are kept; older ones are deleted automatically.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
                           const SizedBox(height: 16),
                           if (_backupFiles.isEmpty)
                             const Text('No backups found')
@@ -536,9 +544,20 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
                                   DateFormat.yMMMd().add_jm().format(backup.createdTime),
                                 ),
                                 subtitle: Text(backup.formattedSize),
-                                trailing: IconButton(
-                                  icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
-                                  onPressed: () => _deleteBackup(backup),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.settings_backup_restore),
+                                      tooltip: 'Restore this backup',
+                                      onPressed: () => _performRestore(backup),
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+                                      tooltip: 'Delete this backup',
+                                      onPressed: () => _deleteBackup(backup),
+                                    ),
+                                  ],
                                 ),
                               );
                             }),

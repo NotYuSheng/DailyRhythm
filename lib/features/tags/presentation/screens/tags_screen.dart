@@ -1242,6 +1242,8 @@ class _EditTagScreenState extends ConsumerState<EditTagScreen> {
                 final db = ref.read(databaseProvider);
                 await db.deleteTag(widget.tag.id!);
                 ref.invalidate(allTagsProvider);
+                // Deleting a tag also deletes its activity entries
+                ref.invalidate(activityEntriesProvider);
 
                 if (mounted && dialogContext.mounted) {
                   final messenger = ScaffoldMessenger.of(context);

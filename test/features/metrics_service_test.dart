@@ -112,4 +112,45 @@ void main() {
       expect(result.topActivities.first.count, 2);
     });
   });
+
+  group('insights', () {
+    // Week of Oct 8-14, compared against Oct 1-7.
+    final week = DateRange(start: DateTime(2026, 10, 8), end: DateTime(2026, 10, 14), label: 'Week');
+
+    Future<void> logDays(int fromDay, int count, {required double sleep, required int mood}) async {
+      for (var d = fromDay; d < fromDay + count; d++) {
+        await db.createSleepEntry(SleepEntry(date: DateTime(2026, 10, d), totalHours: sleep));
+        await db.upsertMoodEntry(MoodEntry(date: DateTime(2026, 10, d), timestamp: DateTime(2026, 10, d), moodLevel: mood, emoji: ''));
+      }
+    }
+
+    test('says nothing about periods with too little data', () async {
+      await logDays(8, MetricsService.minDaysForInsight - 1, sleep: 4, mood: 1);
+      expect(await metrics.generateInsights(week), isEmpty);
+    });
+
+    test('compares with the previous period only when both have enough data', () async {
+      await logDays(1, 7, sleep: 6, mood: 3);
+      await logDays(8, 7, sleep: 7.5, mood: 4);
+      final texts = (await metrics.generateInsights(week)).map((i) => i.text).toList();
+
+      expect(texts, contains('Average sleep was 7.5h over 7 nights, 1.5h more than the previous period'));
+      expect(texts, contains('Average mood was 4.0/5 over 7 days, up from 3.0 in the previous period'));
+    });
+
+    test('never gives health advice or claims cause and effect', () async {
+      await logDays(1, 7, sleep: 9, mood: 5);
+      await logDays(8, 7, sleep: 4, mood: 1);
+      final texts = (await metrics.generateInsights(DateRange(start: DateTime(2026, 10, 8), end: DateTime(2026, 10, 21), label: 'Two weeks')))
+          .map((i) => i.text.toLowerCase())
+          .toList();
+
+      expect(texts, isNotEmpty);
+      for (final text in texts) {
+        for (final phrase in ['try ', 'consider', 'should', 'improve', 'keep up', 'great', 'aligned', 'boost']) {
+          expect(text, isNot(contains(phrase)), reason: text);
+        }
+      }
+    });
+  });
 }
