@@ -51,7 +51,6 @@ dependencies:
   health: ^13.3.1
 
   # UI Components
-  unicons: ^3.0.0
   fl_chart: ^1.1.1
 
   # Shared Preferences
