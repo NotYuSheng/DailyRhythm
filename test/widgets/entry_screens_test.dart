@@ -1,4 +1,5 @@
 import 'package:daily_rhythm/features/exercise/data/models/exercise_entry.dart';
+import 'package:daily_rhythm/features/exercise/data/models/exercise_item.dart';
 import 'package:daily_rhythm/features/exercise/presentation/screens/add_exercise_screen.dart';
 import 'package:daily_rhythm/features/meals/data/models/food_item.dart';
 import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
@@ -173,7 +174,13 @@ void main() {
 
   group('AddExerciseScreen', () {
     Future<void> openWeights(WidgetTester tester, Widget screen) async {
+      // Tall enough that usual chips and suggestions don't scroll the form
+      // out of the lazily built list.
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       await tester.pumpWidget(_app(screen));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Weights'));
       await tester.pumpAndSettle();
     }
@@ -204,6 +211,95 @@ void main() {
 
       expect(find.text('Please enter valid weight'), findsOneWidget);
       expect(await db.getAllExerciseEntries(), isEmpty);
+    });
+
+    Future<void> seedExercises(DatabaseService db) async {
+      final catalog = CatalogRepository(db);
+      final pushups = await catalog.saveExercise(ExerciseItem(name: 'Push ups', aliases: ['pushups']));
+      final run = await catalog.saveExercise(ExerciseItem(name: 'Run', category: ExerciseItem.cardio));
+      for (final d in [17, 18, 19]) {
+        await db.createExerciseEntry(ExerciseEntry(
+          date: DateTime(2026, 10, d), timestamp: DateTime(2026, 10, d, 19), type: ExerciseType.weightLifting,
+          exerciseName: 'Push ups', equipmentType: EquipmentType.bodyweight, reps: 20 + d - 17, sets: 3,
+          exerciseItemId: pushups,
+        ));
+      }
+      await db.createExerciseEntry(ExerciseEntry(
+        date: DateTime(2026, 10, 18), timestamp: DateTime(2026, 10, 18, 7), type: ExerciseType.run,
+        runType: RunType.flat, distance: 5.2, duration: const Duration(minutes: 31), exerciseItemId: run,
+      ));
+    }
+
+    testWidgets('a usual exercise is one tap plus Save, prefilled from last time', (tester) async {
+      await seedExercises(db);
+      await tester.pumpWidget(_app(AddExerciseScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      expect(find.text('Your usual'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(ActionChip, 'Push ups'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      final saved = (await db.getExerciseEntriesByDate(pastDay)).single;
+      final item = await CatalogRepository(db).findExercise('Push ups');
+      expect((saved.exerciseName, saved.reps, saved.sets, saved.equipmentType), ('Push ups', 22, 3, EquipmentType.bodyweight));
+      expect(saved.exerciseItemId, item!.id);
+    });
+
+    testWidgets('a usual run comes back as a run with its distance', (tester) async {
+      await seedExercises(db);
+      await tester.pumpWidget(_app(AddExerciseScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ActionChip, 'Run'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(_field('Distance (km)')).controller!.text, '5.2');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final saved = (await db.getExerciseEntriesByDate(pastDay)).single;
+      expect((saved.type, saved.distance, saved.duration), (ExerciseType.run, 5.2, const Duration(minutes: 31)));
+    });
+
+    testWidgets('suggests exercises while typing and corrects an alias', (tester) async {
+      await seedExercises(db);
+      await openWeights(tester, AddExerciseScreen(date: pastDay));
+      await tester.enterText(_field('Exercise Name'), 'pus');
+      await tester.pump();
+      expect(find.widgetWithText(ListTile, 'Push ups'), findsOneWidget);
+
+      await tester.enterText(_field('Exercise Name'), 'pushups');
+      await tester.pump();
+      expect(find.text('Did you mean Push ups?', findRichText: true), findsOneWidget);
+    });
+
+    testWidgets('a typed alias saves under the catalog name', (tester) async {
+      await seedExercises(db);
+      await openWeights(tester, AddExerciseScreen(date: pastDay));
+      await tester.tap(find.text('Bodyweight'));
+      await tester.pumpAndSettle();
+      // Amounts first: suggestions under the name push them down the list.
+      await tester.enterText(_field('Reps'), '15');
+      await tester.enterText(_field('Sets'), '2');
+      await tester.enterText(_field('Exercise Name'), 'pushups');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect((await db.getExerciseEntriesByDate(pastDay)).single.exerciseName, 'Push ups');
+    });
+
+    testWidgets('a new exercise joins the catalog', (tester) async {
+      await seedExercises(db);
+      await openWeights(tester, AddExerciseScreen(date: pastDay));
+      await tester.tap(find.text('Bodyweight'));
+      await tester.pumpAndSettle();
+      // Amounts first: suggestions under the name push them down the list.
+      await tester.enterText(_field('Reps'), '10');
+      await tester.enterText(_field('Sets'), '1');
+      await tester.enterText(_field('Exercise Name'), 'Burpees');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final burpees = await CatalogRepository(db).findExercise('burpees');
+      expect(burpees, isNotNull);
+      expect((await db.getExerciseEntriesByDate(pastDay)).map((e) => e.exerciseItemId), contains(burpees!.id));
     });
 
     testWidgets('editing a past entry does not move it to today', (tester) async {

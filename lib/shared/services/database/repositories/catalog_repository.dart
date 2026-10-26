@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import '../../../../features/exercise/data/models/exercise_entry.dart';
 import '../../../../features/exercise/data/models/exercise_item.dart';
+import '../../../../features/exercise/domain/exercise_matcher.dart';
 import '../../../../features/meals/data/models/food_item.dart';
 import '../../../../features/meals/domain/food_matcher.dart';
 import '../database_service.dart';
@@ -102,6 +104,47 @@ class CatalogRepository {
       );
       return current.id!;
     });
+  }
+
+  /// Every exercise with how often it has been logged, most logged first.
+  Future<List<ExerciseChoice>> exercisesWithUses() async {
+    final db = await _db.database;
+    final rows = await db.rawQuery('''
+      SELECT x.*, (SELECT COUNT(*) FROM exercise_entries e WHERE e.exercise_item_id = x.id) AS uses
+      FROM exercise_items x ORDER BY uses DESC, x.name
+    ''');
+    return [for (final r in rows) ExerciseChoice(ExerciseItem.fromMap(r), r['uses'] as int)];
+  }
+
+  /// Exercises logged most over the [days] before [day], leaving out ones
+  /// already logged on [day]: likely next exercises.
+  Future<List<ExerciseChoice>> usualExercises(DateTime day, {int days = 30, int limit = 8}) async {
+    final db = await _db.database;
+    final start = DateTime(day.year, day.month, day.day - days).toIso8601String();
+    final today = DateTime(day.year, day.month, day.day).toIso8601String();
+    final rows = await db.rawQuery('''
+      SELECT x.*, COUNT(*) AS uses, MAX(e.date) AS last
+      FROM exercise_entries e JOIN exercise_items x ON x.id = e.exercise_item_id
+      WHERE e.date >= ? AND e.date < ?
+        AND x.id NOT IN (SELECT exercise_item_id FROM exercise_entries WHERE date = ? AND exercise_item_id IS NOT NULL)
+      GROUP BY x.id
+      ORDER BY uses DESC, last DESC
+      LIMIT ?
+    ''', [start, today, today, limit]);
+    return [for (final r in rows) ExerciseChoice(ExerciseItem.fromMap(r), r['uses'] as int)];
+  }
+
+  /// The latest entry for the exercise [itemId], to prefill the next one.
+  Future<ExerciseEntry?> lastExercise(int itemId) async {
+    final db = await _db.database;
+    final rows = await db.query(
+      'exercise_entries',
+      where: 'exercise_item_id = ?',
+      whereArgs: [itemId],
+      orderBy: 'date DESC, timestamp DESC, id DESC',
+      limit: 1,
+    );
+    return rows.isEmpty ? null : ExerciseEntry.fromMap(rows.first);
   }
 
   Future<ExerciseItem?> findExercise(String name) async {

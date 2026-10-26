@@ -115,7 +115,7 @@ class DayLogCard extends ConsumerWidget {
           ),
           for (final x in exercises)
             _Item(
-              text: x.type == ExerciseType.run ? 'Run' : x.exerciseName ?? 'Weights',
+              text: x.exerciseName ?? (x.type == ExerciseType.run ? 'Run' : 'Weights'),
               trailing: x.amount,
               colors: colors,
               onTap: () => open(AddExerciseScreen(entry: x)),

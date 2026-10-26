@@ -9,6 +9,7 @@ import '../../data/providers/meal_providers.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/date_utils.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
+import '../../../../shared/widgets/name_suggestions.dart';
 
 class AddMealScreen extends ConsumerStatefulWidget {
   final MealEntry? entry; // For editing existing entries
@@ -88,10 +89,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final text = _nameController.text;
-    final suggestions = _nameFocus.hasFocus ? _matcher.suggest(text) : const <FoodChoice>[];
-    final correction = _matcher.didYouMean(text);
 
     return Scaffold(
       appBar: AppBar(
@@ -131,65 +129,17 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                       textInputAction: TextInputAction.next,
                     ),
                   ),
-                  // "maggie": do you mean Maggi?
-                  if (correction != null) ...[
-                    const SizedBox(height: AppTheme.spacePulse2),
-                    Material(
-                      color: colors.tertiaryContainer,
-                      borderRadius: BorderRadius.circular(16),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () => _choose(correction.item),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text.rich(TextSpan(children: [
-                                  const TextSpan(text: 'Did you mean '),
-                                  TextSpan(text: correction.item.name, style: const TextStyle(fontWeight: FontWeight.w800)),
-                                  const TextSpan(text: '?'),
-                                ])),
-                              ),
-                              Text('Use it', style: TextStyle(color: colors.onTertiaryContainer, fontWeight: FontWeight.w800)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                  for (final s in suggestions)
-                    ListTile(
-                      dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                      title: Text(s.item.name),
-                      subtitle: s.item.aliases.isEmpty ? null : Text('also ${s.item.aliases.take(3).join(', ')}', maxLines: 1),
-                      trailing: s.item.lastPrice == null ? null : Text('\$${_formatPrice(s.item.lastPrice!)}'),
-                      onTap: () {
-                        _choose(s.item);
-                        _nameFocus.unfocus();
-                      },
-                    ),
-                  // Likely meals before anything is typed.
-                  if (text.trim().isEmpty && _usual.isNotEmpty) ...[
-                    const SizedBox(height: AppTheme.spacePulse3),
-                    Text('Your usual', style: Theme.of(context).textTheme.labelLarge),
-                    const SizedBox(height: AppTheme.spacePulse2),
-                    Wrap(
-                      spacing: AppTheme.spacePulse2,
-                      runSpacing: AppTheme.spacePulse2,
-                      children: [
-                        for (final u in _usual)
-                          ActionChip(
-                            label: Text(u.item.name),
-                            onPressed: () {
-                              _choose(u.item);
-                              _nameFocus.unfocus();
-                            },
-                          ),
-                      ],
-                    ),
-                  ],
+                  NameSuggestions<FoodItem>(
+                    text: text,
+                    focused: _nameFocus.hasFocus,
+                    matcher: _matcher,
+                    usual: _usual,
+                    trailing: (f) => f.lastPrice == null ? null : '\$${_formatPrice(f.lastPrice!)}',
+                    onChoose: (f) {
+                      _choose(f);
+                      _nameFocus.unfocus();
+                    },
+                  ),
                 ],
               ),
             ),

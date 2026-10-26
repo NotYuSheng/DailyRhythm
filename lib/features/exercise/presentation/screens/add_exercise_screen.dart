@@ -2,7 +2,11 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/exercise_entry.dart';
+import '../../data/models/exercise_item.dart';
+import '../../domain/exercise_matcher.dart';
 import '../../../../shared/services/database/database_provider.dart';
+import '../../../../shared/services/database/repositories/catalog_repository.dart';
+import '../../../../shared/widgets/name_suggestions.dart';
 import '../../data/providers/exercise_providers.dart';
 import '../../../../shared/utils/date_utils.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
@@ -43,65 +47,73 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
   final TextEditingController _setsController = TextEditingController();
 
   final TextEditingController _notesController = TextEditingController();
+  final FocusNode _nameFocus = FocusNode();
+
+  /// The user's exercises, for suggestions; empty until loaded.
+  ExerciseMatcher _matcher = ExerciseMatcher(const []);
+  List<ExerciseChoice> _usual = const [];
 
   @override
   void initState() {
     super.initState();
-    if (widget.entry != null) {
-      _selectedType = widget.entry!.type;
-      _selectedRunType = widget.entry!.runType ?? RunType.flat;
-      _selectedEquipmentType = widget.entry!.equipmentType ?? EquipmentType.dumbbell;
-
-      // Populate fields based on entry type
-      if (_selectedType == ExerciseType.run) {
-        if (widget.entry!.distance != null) {
-          _distanceController.text = widget.entry!.distance!.toString();
-        }
-
-        if (_selectedRunType == RunType.flat) {
-          if (widget.entry!.duration != null) {
-            _durationMinutesController.text = (widget.entry!.duration!.inMinutes).toString();
-            _durationSecondsController.text = (widget.entry!.duration!.inSeconds % 60).toString();
-          }
-          if (widget.entry!.pace != null) {
-            _paceMinutesController.text = (widget.entry!.pace!.inMinutes).toString();
-            _paceSecondsController.text = (widget.entry!.pace!.inSeconds % 60).toString();
-          }
-        } else {
-          // Interval run
-          if (widget.entry!.intervalTime != null) {
-            _intervalTimeMinutesController.text = (widget.entry!.intervalTime!.inMinutes).toString();
-            _intervalTimeSecondsController.text = (widget.entry!.intervalTime!.inSeconds % 60).toString();
-          }
-          if (widget.entry!.restTime != null) {
-            _restTimeMinutesController.text = (widget.entry!.restTime!.inMinutes).toString();
-            _restTimeSecondsController.text = (widget.entry!.restTime!.inSeconds % 60).toString();
-          }
-          if (widget.entry!.intervalCount != null) {
-            _intervalCountController.text = widget.entry!.intervalCount!.toString();
-          }
-        }
-      } else {
-        // Weight lifting
-        if (widget.entry!.exerciseName != null) {
-          _exerciseNameController.text = widget.entry!.exerciseName!;
-        }
-        if (widget.entry!.reps != null) {
-          _repsController.text = widget.entry!.reps!.toString();
-        }
-        if (widget.entry!.weight != null) {
-          _weightController.text = widget.entry!.weight!.toString();
-        }
-        if (widget.entry!.sets != null) {
-          _setsController.text = widget.entry!.sets!.toString();
-        }
-      }
-
-      // Notes (common to both types)
-      if (widget.entry!.notes != null) {
-        _notesController.text = widget.entry!.notes!;
-      }
+    final entry = widget.entry;
+    if (entry != null) {
+      _exerciseNameController.text = entry.exerciseName ?? '';
+      _fill(entry);
+      _notesController.text = entry.notes ?? '';
     }
+    _exerciseNameController.addListener(() => setState(() {}));
+    _loadExercises();
+  }
+
+  Future<void> _loadExercises() async {
+    final catalog = CatalogRepository(ref.read(databaseProvider));
+    final exercises = await catalog.exercisesWithUses();
+    final day = dayOf(widget.date ?? DateTime.now());
+    final usual = widget.entry == null ? await catalog.usualExercises(day) : const <ExerciseChoice>[];
+    if (mounted) {
+      setState(() {
+        _matcher = ExerciseMatcher(exercises);
+        _usual = usual;
+      });
+    }
+  }
+
+  /// Sets the type and amounts from [e] (not its name or notes).
+  void _fill(ExerciseEntry e) {
+    _selectedType = e.type;
+    _selectedRunType = e.runType ?? RunType.flat;
+    _selectedEquipmentType = e.equipmentType ?? EquipmentType.dumbbell;
+    String text(num? v) => v?.toString() ?? '';
+    String minutes(Duration? d) => d == null ? '' : d.inMinutes.toString();
+    String seconds(Duration? d) => d == null ? '' : (d.inSeconds % 60).toString();
+    _distanceController.text = text(e.distance);
+    _durationMinutesController.text = minutes(e.duration);
+    _durationSecondsController.text = seconds(e.duration);
+    _paceMinutesController.text = minutes(e.pace);
+    _paceSecondsController.text = seconds(e.pace);
+    _intervalTimeMinutesController.text = minutes(e.intervalTime);
+    _intervalTimeSecondsController.text = seconds(e.intervalTime);
+    _restTimeMinutesController.text = minutes(e.restTime);
+    _restTimeSecondsController.text = seconds(e.restTime);
+    _intervalCountController.text = text(e.intervalCount);
+    _repsController.text = text(e.reps);
+    _weightController.text = text(e.weight);
+    _setsController.text = text(e.sets);
+  }
+
+  /// Picks a known exercise: its name, and the type and amounts from the
+  /// last time it was logged, so a repeat needs only Save.
+  Future<void> _choose(ExerciseItem item) async {
+    _nameFocus.unfocus();
+    setState(() {
+      _exerciseNameController.text = item.name;
+      _exerciseNameController.selection = TextSelection.collapsed(offset: item.name.length);
+      if (item.category == ExerciseItem.cardio) _selectedType = ExerciseType.run;
+    });
+    if (item.id == null) return;
+    final last = await CatalogRepository(ref.read(databaseProvider)).lastExercise(item.id!);
+    if (last != null && mounted) setState(() => _fill(last));
   }
 
   @override
@@ -121,6 +133,7 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
     _weightController.dispose();
     _setsController.dispose();
     _notesController.dispose();
+    _nameFocus.dispose();
     super.dispose();
   }
 
@@ -144,6 +157,38 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
       body: ListView(
         padding: const EdgeInsets.all(AppTheme.spacePulse3),
         children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTheme.spacePulse3),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Focus(
+                    onFocusChange: (_) => setState(() {}),
+                    child: TextField(
+                      controller: _exerciseNameController,
+                      focusNode: _nameFocus,
+                      decoration: InputDecoration(
+                        labelText: 'Exercise Name',
+                        hintText: _selectedType == ExerciseType.run ? 'Run (optional)' : 'Bench Press',
+                      ),
+                      textCapitalization: TextCapitalization.sentences,
+                    ),
+                  ),
+                  NameSuggestions<ExerciseItem>(
+                    text: _exerciseNameController.text,
+                    focused: _nameFocus.hasFocus,
+                    matcher: _matcher,
+                    usual: _usual,
+                    onChoose: _choose,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: AppTheme.spacePulse3),
+
           // Exercise Type Selector
           Card(
             child: Padding(
@@ -189,18 +234,28 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
 
           const SizedBox(height: AppTheme.spacePulse3),
 
-          // Notes
+          // Rarely needed: pace and notes.
           Card(
-            child: Padding(
-              padding: const EdgeInsets.all(AppTheme.spacePulse3),
-              child: TextField(
-                controller: _notesController,
-                decoration: const InputDecoration(
-                  labelText: 'Notes (Optional)',
-                  hintText: 'Add any notes...',
+            clipBehavior: Clip.antiAlias,
+            child: ExpansionTile(
+              title: const Text('More'),
+              subtitle: const Text('Pace and notes'),
+              childrenPadding: const EdgeInsets.fromLTRB(AppTheme.spacePulse3, 0, AppTheme.spacePulse3, AppTheme.spacePulse3),
+              initiallyExpanded: _notesController.text.isNotEmpty || _paceMinutesController.text.isNotEmpty,
+              children: [
+                if (_selectedType == ExerciseType.run && _selectedRunType == RunType.flat) ...[
+                  _buildPace(),
+                  const SizedBox(height: AppTheme.spacePulse3),
+                ],
+                TextField(
+                  controller: _notesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Notes (Optional)',
+                    hintText: 'Add any notes...',
+                  ),
+                  maxLines: 3,
                 ),
-                maxLines: 3,
-              ),
+              ],
             ),
           ),
         ],
@@ -313,50 +368,45 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
         ),
       ),
 
-      const SizedBox(height: AppTheme.spacePulse3),
-
-      // Pace (Optional - can be calculated)
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(AppTheme.spacePulse3),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Pace per km (Optional)',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: AppTheme.spacePulse2),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _paceMinutesController,
-                      decoration: const InputDecoration(
-                        labelText: 'Minutes',
-                        hintText: '5',
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  const SizedBox(width: AppTheme.spacePulse2),
-                  Expanded(
-                    child: TextField(
-                      controller: _paceSecondsController,
-                      decoration: const InputDecoration(
-                        labelText: 'Seconds',
-                        hintText: '30',
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
     ];
+  }
+
+  Widget _buildPace() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Pace per km (Optional)',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: AppTheme.spacePulse2),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _paceMinutesController,
+                decoration: const InputDecoration(
+                  labelText: 'Minutes',
+                  hintText: '5',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            const SizedBox(width: AppTheme.spacePulse2),
+            Expanded(
+              child: TextField(
+                controller: _paceSecondsController,
+                decoration: const InputDecoration(
+                  labelText: 'Seconds',
+                  hintText: '30',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   List<Widget> _buildIntervalRunForm() {
@@ -527,22 +577,6 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
 
       const SizedBox(height: AppTheme.spacePulse3),
 
-      // Exercise name
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(AppTheme.spacePulse3),
-          child: TextField(
-            controller: _exerciseNameController,
-            decoration: const InputDecoration(
-              labelText: 'Exercise Name',
-              hintText: 'Bench Press',
-            ),
-          ),
-        ),
-      ),
-
-      const SizedBox(height: AppTheme.spacePulse3),
-
       // Reps, Weight, Sets in a row
       Card(
         child: Padding(
@@ -627,6 +661,7 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
             pace: paceMinutes > 0 || paceSeconds > 0
                 ? Duration(minutes: paceMinutes, seconds: paceSeconds)
                 : null,
+            exerciseName: _typedName,
             notes: _notesController.text.isEmpty ? null : _notesController.text,
           );
         } else {
@@ -657,12 +692,13 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
             intervalTime: Duration(minutes: intervalTimeMinutes, seconds: intervalTimeSeconds),
             restTime: Duration(minutes: restTimeMinutes, seconds: restTimeSeconds),
             intervalCount: intervalCount,
+            exerciseName: _typedName,
             notes: _notesController.text.isEmpty ? null : _notesController.text,
           );
         }
       } else {
         // Weight lifting
-        final exerciseName = _exerciseNameController.text.trim();
+        final exerciseName = _typedName ?? '';
         final reps = int.tryParse(_repsController.text);
         final weightText = _weightController.text.trim();
         final weight = weightText.isEmpty ? null : double.tryParse(weightText);
@@ -705,15 +741,18 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
         );
       }
 
-      // Editing keeps the imported line, and the catalog link while it is
-      // still the same exercise.
-      final old = widget.entry;
-      if (old != null) {
-        final sameItem = old.type == entry.type && (old.exerciseName ?? '').toLowerCase() == (entry.exerciseName ?? '').toLowerCase();
-        entry = entry.copyWith(exerciseItemId: sameItem ? old.exerciseItemId : null, rawText: old.rawText);
-      }
-
+      // Link to the catalog (adding new exercises to it); a run with no
+      // name is just "Run". Editing keeps the imported line.
       final db = ref.read(databaseProvider);
+      final itemName = entry.exerciseName ?? (entry.type == ExerciseType.run ? 'Run' : null);
+      final itemId = itemName == null
+          ? null
+          : await CatalogRepository(db).saveExercise(ExerciseItem(
+              name: itemName,
+              category: entry.type == ExerciseType.run ? ExerciseItem.cardio : ExerciseItem.strength,
+            ));
+      entry = entry.copyWith(exerciseItemId: itemId, rawText: widget.entry?.rawText);
+
       if (widget.entry == null) {
         await db.createExerciseEntry(entry);
       } else {
@@ -738,6 +777,14 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
     } catch (e) {
       _showError('Error saving exercise: $e');
     }
+  }
+
+  /// The typed name as the catalog spells it (an alias becomes its
+  /// exercise's name), or null when nothing is typed.
+  String? get _typedName {
+    final typed = _exerciseNameController.text.trim();
+    if (typed.isEmpty) return null;
+    return _matcher.exact(typed)?.item.name ?? typed;
   }
 
   void _showError(String message) {
