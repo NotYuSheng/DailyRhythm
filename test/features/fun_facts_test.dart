@@ -135,4 +135,17 @@ void main() {
     expect(facts['Biggest treat']!.detail, endsWith('\$20.00 on food in all'));
     expect((facts['Events & gifts']!.value, facts['Events & gifts']!.detail), ('\$260.00', '2 of them. The biggest: A wedding'));
   });
+
+  test('all time starts at the first entry and has no memory card', () async {
+    for (final d in [1, 2, 3]) {
+      await db.upsertMoodEntry(MoodEntry(date: DateTime(2026, 3, d), timestamp: DateTime(2026, 3, d), moodLevel: 3, emoji: ''));
+    }
+    await JournalRepository(db).save(JournalEntry(date: DateTime(2025, 3, 31), text: 'A year ago'));
+    final all = DateRange(start: DateTime(2020), end: DateTime(2026, 3, 31), label: 'All Time', isAllTime: true);
+    final facts = byTitle(await FunFactsService(db).factsFor(all, today: DateTime(2026, 3, 31)));
+    expect(facts['Days logged']!.value, '4 of 366', reason: 'from 31 Mar 2025, the first entry');
+    expect(facts.containsKey('On this day'), isFalse);
+    final month = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
+    expect(month['On this day']!.value, 'A year ago');
+  });
 }

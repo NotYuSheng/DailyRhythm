@@ -858,6 +858,19 @@ class DatabaseService {
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
+  /// The first day anything was logged, or null for an empty database.
+  Future<DateTime?> firstLoggedDay() async {
+    final db = await database;
+    final row = (await db.rawQuery('''
+      SELECT MIN(d) AS first FROM (
+        SELECT MIN(date) AS d FROM sleep_entries UNION ALL SELECT MIN(date) FROM meal_entries
+        UNION ALL SELECT MIN(date) FROM mood_entries UNION ALL SELECT MIN(date) FROM exercise_entries
+        UNION ALL SELECT MIN(date) FROM activity_entries UNION ALL SELECT MIN(date) FROM journal_entries
+      )
+    ''')).first;
+    return row['first'] == null ? null : dayOf(DateTime.parse(row['first'] as String));
+  }
+
   /// How often each tag is used, by tag id: activity entries plus moments.
   Future<Map<int, int>> getTagUseCounts() async {
     final db = await database;

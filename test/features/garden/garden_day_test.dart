@@ -62,6 +62,16 @@ void main() {
           reason: 'routine still decides when it\u2019s all there is');
     });
 
+    test('a day of only routine tags is chosen by its movement or its night', () {
+      const routine = {'Video Games', 'Watch Videos', 'Exercise', 'Work', 'Study'};
+      const everyday = ['Video Games', 'Watch Videos', 'Exercise', 'Work', 'Study'];
+      expect(GardenDay.speciesFor(log(tags: everyday, routine: routine, exercises: 1, steps: 13000)), PlantSpecies.sunflower);
+      expect(GardenDay.speciesFor(log(tags: everyday, routine: routine, sleep: 9)), PlantSpecies.succulent);
+      expect(GardenDay.speciesFor(log(tags: everyday, routine: routine, sleep: 7)), PlantSpecies.sprout);
+      expect(GardenDay.from(log(tags: everyday, routine: routine, sleep: 7)).title, 'A sprout: a usual day');
+      expect(GardenDay.from(log(tags: ['Work', 'Study'], sleep: 7)).title, 'A sprout: a bit of everything');
+    });
+
     test('routine tags are those on most recent days, given two weeks of history', () {
       final days = [
         for (var i = 0; i < 20; i++) ['Work', if (i < 12) 'Study', if (i == 3) 'Nap'],

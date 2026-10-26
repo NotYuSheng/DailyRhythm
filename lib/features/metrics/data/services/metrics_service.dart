@@ -145,23 +145,26 @@ class MetricsService {
 
     final totalActivities = entries.length;
 
-    // Count tag frequencies
-    final tagCounts = <int, int>{};
+    // Days per activity tag (food sources and symptoms aren't activities),
+    // as a share of the days with any tag.
+    final tagged = {for (final e in entries) dayOf(e.date)};
+    final tagDays = <int, Set<DateTime>>{};
     for (final entry in entries) {
-      tagCounts[entry.tagId] = (tagCounts[entry.tagId] ?? 0) + 1;
+      (tagDays[entry.tagId] ??= {}).add(dayOf(entry.date));
     }
 
     // Create top activities list
     final topActivities = <ActivityFrequency>[];
-    for (final tagEntry in tagCounts.entries) {
+    for (final tagEntry in tagDays.entries) {
       final tag = allTags.firstWhere((t) => t.id == tagEntry.key, orElse: () => Tag(
         name: 'Unknown',
         emoji: 'question_circle',
         category: 'General',
       ));
+      if (tag.kind != TagKind.activity) continue;
 
-      final count = tagEntry.value;
-      final percentage = totalActivities > 0 ? (count / totalActivities) * 100 : 0.0;
+      final count = tagEntry.value.length;
+      final percentage = tagged.isEmpty ? 0.0 : count / tagged.length * 100;
 
       topActivities.add(ActivityFrequency(
         tagName: tag.name,
@@ -202,14 +205,15 @@ class MetricsService {
   Future<List<MetricsInsight>> generateInsights(DateRange range) async {
     final insights = <MetricsInsight>[];
 
-    final previousRange = _calculatePreviousRange(range);
+    // All time has nothing before it to compare with.
+    final previousRange = range.isAllTime ? null : _calculatePreviousRange(range);
     // One after another: sqflite has one connection, so running these
     // together gains nothing.
     final sleepMetrics = await calculateSleepMetrics(range, previousRange: previousRange);
     final moodMetrics = await calculateMoodMetrics(range, previousRange: previousRange);
     final exerciseMetrics = await calculateExerciseMetrics(range, previousRange: previousRange);
-    final previousSleep = await _db.getSleepEntriesInRange(previousRange.start, previousRange.end);
-    final previousMoods = await _db.getMoodEntriesInRange(previousRange.start, previousRange.end);
+    final previousSleep = previousRange == null ? const [] : await _db.getSleepEntriesInRange(previousRange.start, previousRange.end);
+    final previousMoods = previousRange == null ? const [] : await _db.getMoodEntriesInRange(previousRange.start, previousRange.end);
     final previousSleepDays = previousSleep.where((e) => e.totalHours != null).length;
     // Days, not entries: a day can have more than one mood.
     final previousMoodDays = {for (final e in previousMoods) dayOf(e.date)}.length;
