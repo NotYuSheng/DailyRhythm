@@ -2,6 +2,11 @@
 
 Work agreed but not started. Newest first.
 
+Queued work is tracked as GitHub issues (#9–#17: exercise autocomplete, word-level
+aliases in the migration, Metrics on mood/energy/stress/focus, Tags screen, month and
+year recap, plant illustrations, calories, Health Connect / HealthKit sync, sleep
+picker repro). The sections below keep the design notes those issues refer to.
+
 ## Design direction: the garden (chosen 2026-10-25)
 
 Prototype: "DailyRhythm redesign" design canvas, row **B3 · Warm: garden**, plus the
@@ -31,6 +36,22 @@ Every logged day grows a plant in a pot:
 - The prototype draws plants in code. Production plants need real illustration
   (commissioned or licence-checked asset set), animated with Rive.
 - Must not reward or punish sleep length itself: size reflects the night, not a grade.
+
+**Built (3c, 2026-10-25):** the Today tab (plant, "today was mostly…", stats, check-in,
+moments) and the month garden, in `lib/features/garden/`. The plants are the
+prototype's drawings ported to SVG; they stay until real illustrations replace them.
+How the plant is picked when the user doesn't choose:
+
+- Each kind of activity counts once a day, however many of its tags were used.
+- Tags logged on 60%+ of the previous 8 weeks are routine and only decide when nothing
+  else stands out; several kinds, or none, give a sprout ("a bit of everything").
+  With the Daylio history (the same five tags almost daily) most past days are
+  sprouts that vary in size; social days, intense workouts and the like stand out.
+- A good day mood (4+) or a good moment adds the bloom. Daylio days are 85% "meh",
+  so past months have few flowers; moments logged from now on add them.
+
+Still to do: year/month recap (#13) and stickers from the warm B row, real
+illustrations with Rive animation (#14).
 
 ## Mood tracking redesign
 

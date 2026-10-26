@@ -1,3 +1,12 @@
+/// What a tag describes (stored in `tags.kind`).
+class TagKind {
+  TagKind._();
+
+  static const activity = 'activity';
+  static const symptom = 'symptom';
+  static const foodSource = 'food_source';
+}
+
 class Tag {
   final int? id;
   final String name;
@@ -5,6 +14,7 @@ class Tag {
   final String category;
   final String? color; // Store as hex string for future use
   final int? sortOrder;
+  final String kind; // one of TagKind
 
   Tag({
     this.id,
@@ -13,6 +23,7 @@ class Tag {
     required this.category,
     this.color,
     this.sortOrder,
+    this.kind = TagKind.activity,
   });
 
   // Convert to Map for database
@@ -24,6 +35,7 @@ class Tag {
       'category': category,
       'color': color,
       'sort_order': sortOrder,
+      'kind': kind,
     };
   }
 
@@ -36,6 +48,7 @@ class Tag {
       category: map['category'] as String,
       color: map['color'] as String?,
       sortOrder: map['sort_order'] as int?,
+      kind: map['kind'] as String? ?? TagKind.activity,
     );
   }
 
@@ -47,6 +60,7 @@ class Tag {
     String? category,
     String? color,
     int? sortOrder,
+    String? kind,
   }) {
     return Tag(
       id: id ?? this.id,
@@ -55,6 +69,7 @@ class Tag {
       category: category ?? this.category,
       color: color ?? this.color,
       sortOrder: sortOrder ?? this.sortOrder,
+      kind: kind ?? this.kind,
     );
   }
 

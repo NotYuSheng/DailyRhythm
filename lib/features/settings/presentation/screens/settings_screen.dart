@@ -238,21 +238,31 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Future<void> _handleImportData(BuildContext context, WidgetRef ref) async {
-    // Show loading dialog
+    // Rows applied so far and the total; null until the file is read.
+    final progress = ValueNotifier<(int, int)?>(null);
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
+      builder: (context) => Center(
         child: Card(
           child: Padding(
-            padding: EdgeInsets.all(AppTheme.spacePulse4),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: AppTheme.spacePulse3),
-                Text('Importing your data...'),
-              ],
+            padding: const EdgeInsets.all(AppTheme.spacePulse4),
+            child: SizedBox(
+              width: 240,
+              child: ValueListenableBuilder(
+                valueListenable: progress,
+                builder: (context, value, _) {
+                  final (done, total) = value ?? (0, 0);
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      LinearProgressIndicator(value: total == 0 ? null : done / total),
+                      const SizedBox(height: AppTheme.spacePulse3),
+                      Text(total == 0 ? 'Importing your data...' : 'Importing $done of $total entries'),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -262,8 +272,10 @@ class SettingsScreen extends ConsumerWidget {
     try {
       final exportService = ExportService.instance;
 
-      // Import data - this will open a directory picker
-      final result = await exportService.importData();
+      // Opens a file picker, then imports in one transaction.
+      final result = await exportService.importData(
+        onProgress: (done, total) => progress.value = (done, total),
+      );
 
       // Close loading dialog
       if (context.mounted) {

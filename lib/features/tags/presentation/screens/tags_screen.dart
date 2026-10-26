@@ -740,7 +740,6 @@ class _AddTagScreenState extends ConsumerState<AddTagScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Tag Name',
                   hintText: 'Enter tag name',
-                  border: OutlineInputBorder(),
                 ),
                 textCapitalization: TextCapitalization.words,
               ),
@@ -1021,7 +1020,6 @@ class _EditTagScreenState extends ConsumerState<EditTagScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Tag Name',
                   hintText: 'Enter tag name',
-                  border: OutlineInputBorder(),
                 ),
                 textCapitalization: TextCapitalization.words,
               ),

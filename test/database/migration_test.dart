@@ -49,6 +49,8 @@ Future<void> _createVersion10Schema(Database db) async {
   ''');
 
   await db.insert('tags', {'name': 'Push Day', 'emoji': 'dumbbell', 'category': 'Fitness', 'sort_order': 0});
+  await db.insert('tags', {'name': 'Headache', 'emoji': 'head', 'category': 'Health', 'sort_order': 1});
+  await db.insert('tags', {'name': 'Takeout', 'emoji': 'bag', 'category': 'Food', 'sort_order': 2});
   await db.insert('meal_entries', {
     'date': '2024-03-01T00:00:00.000',
     'time': '2024-03-01T12:30:00.000',
@@ -138,6 +140,22 @@ void main() {
         final entries = await service.getExerciseEntriesByDate(DateTime(2024, 3, 1));
         expect(entries.single.exerciseName, 'Situps');
         expect(entries.single.date, DateTime(2024, 3, 1));
+      });
+
+      test('sorts existing tags into activities, symptoms and food sources', () async {
+        final kinds = {for (final t in await service.getAllTags()) t.name: t.kind};
+        expect(kinds, {'Push Day': 'activity', 'Headache': 'symptom', 'Takeout': 'food_source'});
+      });
+
+      test('adds the v13 tables empty', () async {
+        final db = await service.database;
+        for (final table in [
+          'day_checkins', 'journal_entries', 'journal_entry_tags', 'food_items',
+          'exercise_items', 'health_metrics', 'health_workouts', 'daylio_raw',
+        ]) {
+          expect(await db.query(table), isEmpty, reason: table);
+        }
+        expect((await service.getAllMealEntries()).single.currency, 'SGD');
       });
 
       test('matches the schema of a fresh install', () async {

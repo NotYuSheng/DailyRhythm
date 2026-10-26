@@ -1,6 +1,6 @@
 import 'package:material_ui/material_ui.dart';
-import '../../features/journal/presentation/screens/journal_screen.dart';
-import '../../features/journal/presentation/screens/calendar_screen.dart';
+import '../../features/garden/presentation/screens/garden_month_screen.dart';
+import '../../features/garden/presentation/screens/garden_today_screen.dart';
 import '../../features/metrics/presentation/screens/metrics_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 
@@ -13,38 +13,19 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-  DateTime? _selectedDate;
 
-  List<Widget> get _screens => [
-        JournalScreen(
-          initialDate: _selectedDate,
-          onTodayPressed: () {
-            setState(() {
-              _selectedDate = null;
-            });
-          },
-          onDateChanged: (date) {
-            setState(() {
-              _selectedDate = date;
-            });
-          },
-        ),
-        CalendarScreen(
-          onDateSelected: (date) {
-            setState(() {
-              _selectedDate = date;
-              _currentIndex = 0; // Switch to Journal tab
-            });
-          },
-        ),
-        const MetricsScreen(),
-        const SettingsScreen(),
-      ];
+  static const _screens = [
+    GardenTodayScreen(),
+    GardenMonthScreen(),
+    MetricsScreen(),
+    SettingsScreen(),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_currentIndex],
+      // Keeps each tab's state (such as the day being viewed) when switching.
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
@@ -54,14 +35,14 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.book_outlined),
-            selectedIcon: Icon(Icons.book),
-            label: 'Journal',
+            icon: Icon(Icons.local_florist_outlined),
+            selectedIcon: Icon(Icons.local_florist),
+            label: 'Today',
           ),
           NavigationDestination(
-            icon: Icon(Icons.calendar_today_outlined),
-            selectedIcon: Icon(Icons.calendar_today),
-            label: 'Calendar',
+            icon: Icon(Icons.grid_view_outlined),
+            selectedIcon: Icon(Icons.grid_view),
+            label: 'Garden',
           ),
           NavigationDestination(
             icon: Icon(Icons.analytics_outlined),

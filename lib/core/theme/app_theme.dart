@@ -101,43 +101,52 @@ class AppTheme {
 
   // Brand colors for each brightness. flex_color_scheme derives the rest of
   // the Material 3 scheme (surfaces, containers, on-colors) from these.
+  // The garden palette (see GardenColors): leaf green, warm pot clay and
+  // bloom pink on a soft green ground, so every screen matches Today.
   static const FlexSchemeColor _lightColors = FlexSchemeColor(
-    primary: blue600,
-    primaryContainer: blue100,
-    secondary: green600,
-    secondaryContainer: green100,
-    tertiary: amber500,
-    tertiaryContainer: amber100,
+    primary: Color(0xFF1F6B45),
+    primaryContainer: Color(0xFFD3EDDD),
+    secondary: Color(0xFF9A4F2E),
+    secondaryContainer: Color(0xFFFBE0D3),
+    tertiary: Color(0xFFB0305C),
+    tertiaryContainer: Color(0xFFFFDDE7),
     error: red600,
     errorContainer: red100,
   );
 
   static const FlexSchemeColor _darkColors = FlexSchemeColor(
-    primary: blue400,
-    primaryContainer: blue700,
-    secondary: green400,
-    secondaryContainer: green600,
-    tertiary: amber400,
-    tertiaryContainer: amber500,
+    primary: Color(0xFF7FD1A3),
+    primaryContainer: Color(0xFF1D3328),
+    secondary: Color(0xFFF2A27E),
+    secondaryContainer: Color(0xFF4A2C1E),
+    tertiary: Color(0xFFFF9EB5),
+    tertiaryContainer: Color(0xFF4A2231),
     error: red400,
     errorContainer: red600,
   );
+
+  static const _groundLight = Color(0xFFEAF6EE);
+  static const _groundDark = Color(0xFF13201A);
 
   static const FlexSubThemesData _subThemes = FlexSubThemesData(
     interactionEffects: true,
     tintedDisabledControls: true,
     blendOnLevel: 10,
     useMaterial3Typography: true,
-    defaultRadius: radiusMedium,
-    cardRadius: radiusLarge,
+    defaultRadius: 22,
+    cardRadius: 26,
     cardElevation: 0,
-    inputDecoratorRadius: radiusSmall,
+    inputDecoratorRadius: 16,
     inputDecoratorBorderType: FlexInputBorderType.outline,
     inputDecoratorIsFilled: true,
+    // A soft leaf tint rather than grey; a border only while focused.
+    inputDecoratorSchemeColor: SchemeColor.primary,
+    inputDecoratorBackgroundAlpha: 0x14,
     inputDecoratorUnfocusedHasBorder: false,
-    chipRadius: radiusSmall,
-    dialogRadius: radiusLarge,
-    snackBarRadius: radiusSmall,
+    chipRadius: 20,
+    dialogRadius: 28,
+    bottomSheetRadius: 28,
+    snackBarRadius: 16,
     appBarCenterTitle: true,
     alignedDropdown: true,
     segmentedButtonSchemeColor: SchemeColor.primary,
@@ -150,6 +159,9 @@ class AppTheme {
         colors: _lightColors,
         surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
         blendLevel: 2,
+        scaffoldBackground: _groundLight,
+        appBarBackground: _groundLight,
+        fontFamily: 'Nunito',
         subThemesData: _subThemes,
       );
 
@@ -157,6 +169,9 @@ class AppTheme {
         colors: _darkColors,
         surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
         blendLevel: 8,
+        scaffoldBackground: _groundDark,
+        appBarBackground: _groundDark,
+        fontFamily: 'Nunito',
         subThemesData: _subThemes,
       );
 }
