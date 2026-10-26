@@ -36,6 +36,16 @@ void invalidateDayLog(WidgetRef ref, DateTime day) {
   invalidateGardenDay(ref, day);
 }
 
+/// Totals per currency ("\$12.40 + USD 20.00"): a trip abroad isn't added
+/// up as dollars. Zero amounts are left out.
+String moneyTotals(Iterable<(double, String)> amounts) {
+  final totals = <String, double>{};
+  for (final (amount, currency) in amounts) {
+    if (amount > 0) totals[currency] = (totals[currency] ?? 0) + amount;
+  }
+  return [for (final e in totals.entries) formatMoney(e.value, e.key)].join(' + ');
+}
+
 /// "$3.50" for Singapore dollars, the app's home currency; "USD 22.00"
 /// for anything else.
 String formatMoney(double amount, String currency) =>
@@ -71,12 +81,7 @@ class DayLogCard extends ConsumerWidget {
             if (night.wakeUpTime != null) 'Woke ${time.format(night.wakeUpTime!)}',
             if (night.sleepTime != null) 'bed ${time.format(night.sleepTime!)}',
           ].join(' · ');
-    // Totals per currency: a trip abroad isn't added up as dollars.
-    final spent = <String, double>{};
-    for (final m in meals) {
-      if (m.price != null && m.price! > 0) spent[m.currency] = (spent[m.currency] ?? 0) + m.price!;
-    }
-    final spentText = [for (final e in spent.entries) formatMoney(e.value, e.key)].join(' + ');
+    final spentText = moneyTotals([for (final m in meals) if (m.price != null) (m.price!, m.currency)]);
     // Calories as logged or from each food; an estimate, so "≈".
     final foodKcal = ref.watch(foodCaloriesProvider).value ?? const <int, double>{};
     final kcal = [for (final m in meals) ?m.caloriesWith(foodKcal)];
@@ -135,10 +140,7 @@ class DayLogCard extends ConsumerWidget {
             title: 'Events & gifts',
             summary: spending.isEmpty
                 ? 'Not food: a celebration, a gift'
-                : [
-                    for (final cur in {for (final e in spending) e.currency})
-                      formatMoney(spending.where((e) => e.currency == cur).fold(0.0, (sum, e) => sum + e.amount), cur),
-                  ].join(' + '),
+                : moneyTotals([for (final e in spending) (e.amount, e.currency)]),
             colors: colors,
             action: 'Add',
             onTap: () => open(AddSpendingScreen(date: day)),

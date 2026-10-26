@@ -338,6 +338,18 @@ void main() {
     expect((result.imported, result.invalid), (3, 0));
   });
 
+  test('a meal moved to events & gifts isn\'t brought back by importing again', () async {
+    await File('${dir.path}/meal_entries.csv').writeAsString(
+      'ID,Date,Time,Name,Quantity,Price\r\n1,2025-11-08T00:00:00.000,2025-11-08T12:00:00.000,A wedding,1,288',
+    );
+    await ExportService.instance.importFromDirectory(dir.path);
+    final meal = (await db.getMealEntriesByDate(DateTime(2025, 11, 8))).single;
+    await SpendingRepository(db).moveMeal(meal.id!, SpendingEntry(date: meal.date, label: meal.name, amount: 288, category: SpendingEntry.gift));
+    final again = await ExportService.instance.importFromDirectory(dir.path);
+    expect((again.imported, again.duplicates), (0, 1));
+    expect(await db.getMealEntriesByDate(DateTime(2025, 11, 8)), isEmpty);
+  });
+
   test('reports when a folder has no export files', () async {
     final result = await ExportService.instance.importFromDirectory(dir.path);
     expect(result.foundFiles, isFalse);

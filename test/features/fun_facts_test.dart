@@ -130,6 +130,7 @@ void main() {
     }
     await SpendingRepository(db).save(SpendingEntry(date: DateTime(2026, 3, 8), label: 'A wedding', amount: 200, category: SpendingEntry.gift));
     await SpendingRepository(db).save(SpendingEntry(date: DateTime(2026, 3, 9), label: 'Farewell dinner', amount: 60));
+    await SpendingRepository(db).save(SpendingEntry(date: DateTime(2026, 3, 10), label: 'Unpriced', amount: 0));
     final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
     expect(facts['Biggest treat']!.detail, endsWith('\$20.00 on food in all'));
     expect((facts['Events & gifts']!.value, facts['Events & gifts']!.detail), ('\$260.00', '2 of them. The biggest: A wedding'));

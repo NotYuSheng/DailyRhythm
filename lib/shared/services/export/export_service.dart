@@ -501,7 +501,7 @@ class _Importer {
     'task_entries': ['date', 'timestamp', 'taskType'],
     'activity_entries': ['date', 'tagId'],
     'day_checkins': ['date'],
-    'spending_entries': ['date', 'label', 'amount'],
+    'spending_entries': ['date', 'time', 'label', 'amount'],
     'health_metrics': ['date', 'metric', 'source'],
     'health_workouts': ['start', 'source'],
     'daylio_raw': ['date', 'logged_time', 'note'],
@@ -513,7 +513,16 @@ class _Importer {
   static String _journalKey(Map<String, dynamic> row, Iterable<String> tagNames) =>
       '${_key(row, const ['date', 'time', 'text', 'mood'])}\u0001${(tagNames.toList()..sort()).join(';')}';
 
+  /// Events and gifts already in the database, by day, label and amount.
+  final _movedMeals = <String>{};
+
+  static String _movedKey(DateTime? day, String? label, double? amount) =>
+      '${day == null ? '' : dayOf(day).toIso8601String()}\u0001${label?.toLowerCase()}\u0001${amount ?? 0}';
+
   Future<void> loadExisting() async {
+    for (final r in await txn.query('spending_entries', columns: ['date', 'label', 'amount'])) {
+      _movedMeals.add(_movedKey(DateTime.parse(r['date'] as String), r['label'] as String, (r['amount'] as num).toDouble()));
+    }
     for (final row in await txn.query('tag_categories', columns: ['name', 'sort_order'])) {
       _categoryNames.add(row['name'] as String);
       final order = row['sort_order'] as int?;
@@ -633,24 +642,28 @@ class _Importer {
       'nap_entries',
       NapEntry(date: _day(row, 1)!, startTime: _dateTime(row, 2)!, durationHours: _double(row, 3)!, tags: _list(row, 4)).toMap(),
     ),
-    'meal_entries.csv': (row) => _add(
-      'meal_entries',
-      MealEntry(
-        date: _day(row, 1)!,
-        time: _dateTime(row, 2)!,
-        name: _text(row, 3)!,
-        quantity: _int(row, 4) ?? 1,
-        price: _double(row, 5),
-        calories: _int(row, 6),
-        tags: _list(row, 7),
-        notes: _text(row, 8),
-        foodSource: _text(row, 9),
-        foodItemId: _foodIds[_text(row, 10)?.toLowerCase()],
-        currency: _text(row, 11) ?? 'SGD',
-        rawText: _text(row, 12),
-        timeKnown: (_int(row, 13) ?? 1) != 0,
-      ).toMap(),
-    ),
+    'meal_entries.csv': (row) async {
+      // A meal already moved to events & gifts isn't brought back.
+      if (_movedMeals.contains(_movedKey(_day(row, 1), _text(row, 3), _double(row, 5)))) return false;
+      return _add(
+        'meal_entries',
+        MealEntry(
+          date: _day(row, 1)!,
+          time: _dateTime(row, 2)!,
+          name: _text(row, 3)!,
+          quantity: _int(row, 4) ?? 1,
+          price: _double(row, 5),
+          calories: _int(row, 6),
+          tags: _list(row, 7),
+          notes: _text(row, 8),
+          foodSource: _text(row, 9),
+          foodItemId: _foodIds[_text(row, 10)?.toLowerCase()],
+          currency: _text(row, 11) ?? 'SGD',
+          rawText: _text(row, 12),
+          timeKnown: (_int(row, 13) ?? 1) != 0,
+        ).toMap(),
+      );
+    },
     'mood_entries.csv': (row) => _add(
       'mood_entries',
       MoodEntry(

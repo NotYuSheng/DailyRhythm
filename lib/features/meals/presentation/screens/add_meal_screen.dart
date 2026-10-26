@@ -392,29 +392,50 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     );
   }
 
-  /// Turns this meal into an event or gift entry and removes the meal.
+  /// Turns this meal into an event or gift entry and removes the meal,
+  /// after asking: the meal's food link, tags and calories don't carry over.
   Future<void> _moveToSpending() async {
     final meal = widget.entry!;
     final container = ProviderScope.containerOf(context, listen: false);
     final navigator = Navigator.of(context);
-    final db = container.read(databaseProvider);
-    final id = await SpendingRepository(db).save(SpendingEntry(
-      date: meal.date,
-      time: meal.time,
-      label: meal.name,
-      amount: meal.price ?? 0,
-      currency: meal.currency,
-      notes: meal.notes,
-      rawText: meal.rawText,
-    ));
-    await db.deleteMealEntry(meal.id!);
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Move to events & gifts?'),
+        content: Text('“${meal.name}” stops counting as food. Its amount moves; its food link, tags and calories don’t.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Move')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final SpendingEntry moved;
+    try {
+      moved = await SpendingRepository(container.read(databaseProvider)).moveMeal(
+        meal.id!,
+        SpendingEntry(
+          date: meal.date,
+          // Imported meals have a placeholder time; don't pass it on as real.
+          time: meal.timeKnown ? meal.time : null,
+          label: meal.name,
+          amount: meal.price ?? 0,
+          currency: meal.currency,
+          notes: meal.notes,
+          rawText: meal.rawText,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Couldn’t move it: $e')));
+      return;
+    }
     container.invalidate(mealEntriesProvider(dayOf(meal.date)));
     container.invalidate(todayMealEntriesProvider);
     container.invalidate(spendingProvider(dayOf(meal.date)));
     if (!mounted) return;
     // Straight into the new entry, to pick event or gift.
-    final entry = (await SpendingRepository(db).forDay(meal.date)).firstWhere((e) => e.id == id);
-    await navigator.pushReplacement(MaterialPageRoute<void>(builder: (_) => AddSpendingScreen(entry: entry)));
+    await navigator.pushReplacement(MaterialPageRoute<void>(builder: (_) => AddSpendingScreen(entry: moved)));
   }
 
   Future<void> _saveMeal() async {

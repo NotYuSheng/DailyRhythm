@@ -121,20 +121,22 @@ class FunFactsService {
     }
 
     // Events and gifts: kept apart from food spending.
-    final events = await db.rawQuery('''
-      SELECT label, amount, date FROM spending_entries
-      WHERE $inRange AND currency = 'SGD' ORDER BY amount DESC
-    ''', args);
-    if (events.isNotEmpty) {
-      final total = events.fold<double>(0, (sum, r) => sum + (r['amount'] as num));
-      final top = events.first;
+    final events = (await db.rawQuery('''
+      SELECT SUM(amount) AS total, COUNT(*) AS n FROM spending_entries
+      WHERE $inRange AND currency = 'SGD' AND amount > 0
+    ''', args)).first;
+    if ((events['n'] as int) > 0) {
+      final top = (await db.rawQuery('''
+        SELECT label, date FROM spending_entries
+        WHERE $inRange AND currency = 'SGD' AND amount > 0 ORDER BY amount DESC LIMIT 1
+      ''', args)).first;
       facts.add(FunFact(
         kind: FactKind.events,
         title: 'Events & gifts',
-        value: '\$${_money.format(total)}',
-        detail: events.length == 1
+        value: '\$${_money.format(events['total'])}',
+        detail: events['n'] == 1
             ? '${top['label']}, ${_day.format(DateTime.parse(top['date'] as String))}'
-            : '${events.length} of them. The biggest: ${top['label']}',
+            : '${events['n']} of them. The biggest: ${top['label']}',
       ));
     }
 

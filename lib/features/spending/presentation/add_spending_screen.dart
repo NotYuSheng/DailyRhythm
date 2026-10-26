@@ -27,6 +27,7 @@ class _AddSpendingScreenState extends ConsumerState<AddSpendingScreen> {
   late final _amount = TextEditingController(text: _format(widget.entry?.amount));
   late final _notes = TextEditingController(text: widget.entry?.notes ?? '');
   late String _category = widget.entry?.category ?? SpendingEntry.event;
+  bool _saving = false;
 
   static String _format(double? v) =>
       v == null ? '' : (v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2));
@@ -40,6 +41,7 @@ class _AddSpendingScreenState extends ConsumerState<AddSpendingScreen> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     final label = _label.text.trim();
     final amount = double.tryParse(_amount.text.trim());
     final messenger = ScaffoldMessenger.of(context);
@@ -54,10 +56,14 @@ class _AddSpendingScreenState extends ConsumerState<AddSpendingScreen> {
     final now = DateTime.now();
     final day = dayOf(widget.entry?.date ?? widget.date ?? now);
     final old = widget.entry;
-    await SpendingRepository(ref.read(databaseProvider)).save(SpendingEntry(
+    // Read before awaiting: the screen may be gone by the time it's saved.
+    final container = ProviderScope.containerOf(context, listen: false);
+    final navigator = Navigator.of(context);
+    setState(() => _saving = true);
+    await SpendingRepository(container.read(databaseProvider)).save(SpendingEntry(
       id: old?.id,
       date: day,
-      time: old?.time ?? atTimeOfDay(day, now.hour, now.minute),
+      time: old == null ? atTimeOfDay(day, now.hour, now.minute) : old.time,
       label: label,
       amount: amount,
       currency: old?.currency ?? 'SGD',
@@ -65,8 +71,8 @@ class _AddSpendingScreenState extends ConsumerState<AddSpendingScreen> {
       notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
       rawText: old?.rawText,
     ));
-    ref.invalidate(spendingProvider(day));
-    if (mounted) Navigator.pop(context);
+    container.invalidate(spendingProvider(day));
+    if (mounted) navigator.pop();
   }
 
   Future<void> _delete() async {
@@ -89,7 +95,7 @@ class _AddSpendingScreenState extends ConsumerState<AddSpendingScreen> {
         title: Text(widget.entry == null ? 'Event or gift' : 'Edit event or gift'),
         actions: [
           if (widget.entry?.id != null) IconButton(icon: const Icon(Icons.delete), tooltip: 'Delete', onPressed: _delete),
-          TextButton(onPressed: _save, child: const Text('Save')),
+          TextButton(onPressed: _saving ? null : _save, child: const Text('Save')),
         ],
       ),
       body: ListView(

@@ -194,7 +194,8 @@ void main() {
     });
 
     testWidgets('an imported meal can move to events & gifts', (tester) async {
-      await db.createMealEntry(MealEntry(date: pastDay, time: DateTime(2026, 10, 20, 19), name: 'Farewell hotpot', price: 64.5, rawText: 'farewell hotpot 64.50'));
+      await db.createMealEntry(MealEntry(
+          date: pastDay, time: DateTime(2026, 10, 20, 12), name: 'Farewell hotpot', price: 64.5, rawText: 'farewell hotpot 64.50', timeKnown: false));
       final meal = (await db.getMealEntriesByDate(pastDay)).single;
       tester.view.physicalSize = const Size(800, 1600);
       tester.view.devicePixelRatio = 1;
@@ -203,10 +204,13 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Not a meal: move to events & gifts'));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Move'));
+      await tester.pumpAndSettle();
       expect(find.text('Edit event or gift'), findsOneWidget);
       expect(await db.getMealEntriesByDate(pastDay), isEmpty);
       final moved = (await SpendingRepository(db).forDay(pastDay)).single;
-      expect((moved.label, moved.amount, moved.rawText), ('Farewell hotpot', 64.5, 'farewell hotpot 64.50'));
+      expect((moved.label, moved.amount, moved.rawText, moved.time), ('Farewell hotpot', 64.5, 'farewell hotpot 64.50', null),
+          reason: 'an imported placeholder time is not passed on');
 
       await tester.tap(find.widgetWithText(ChoiceChip, 'Gift'));
       await tester.tap(find.text('Save'));

@@ -20,6 +20,21 @@ class SpendingRepository {
     return entry.id!;
   }
 
+  /// Turns meal [mealId] into [entry] in one transaction, so it can't end
+  /// up as both. Returns the new entry with its id.
+  Future<SpendingEntry> moveMeal(int mealId, SpendingEntry entry) async {
+    final db = await _db.database;
+    final map = entry.toMap()
+      ..remove('id')
+      ..['date'] = dayOf(entry.date).toIso8601String();
+    final id = await db.transaction((txn) async {
+      final id = await txn.insert('spending_entries', map);
+      await txn.delete('meal_entries', where: 'id = ?', whereArgs: [mealId]);
+      return id;
+    });
+    return SpendingEntry.fromMap({...map, 'id': id});
+  }
+
   Future<void> delete(int id) async {
     final db = await _db.database;
     await db.delete('spending_entries', where: 'id = ?', whereArgs: [id]);
