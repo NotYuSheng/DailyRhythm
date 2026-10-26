@@ -345,33 +345,32 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
             return _buildEmptyState('No activities logged for this period');
           }
 
-          final topFive = metrics.topActivities.take(5).toList();
+          // Habits on nearly every day say little; list them once, then
+          // rank what varied.
+          final everyday = [for (final a in metrics.topActivities) if (a.everyday) a.tagName];
+          final varied = metrics.topActivities.where((a) => !a.everyday).take(5).toList();
           return Column(
-            children: topFive.map((activity) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: AppTheme.spacePulse2),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        activity.tagName,
-                        style: nunito(14, FontWeight.w700, colors.ink),
-                      ),
-                    ),
-                    Text(
-                      '${activity.count}x',
-                      style: nunito(14, FontWeight.w900, colors.ink),
-                    ),
-                    const SizedBox(width: AppTheme.spacePulse2),
-                    Text(
-                      '${activity.percentage.toStringAsFixed(0)}%',
-                      style: nunito(12, FontWeight.w700, colors.muted),
-                    ),
-                  ],
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (everyday.isNotEmpty) ...[
+                Text('Most days', style: nunito(13, FontWeight.w800, colors.leaf)),
+                Text(everyday.join(', '), style: nunito(14, FontWeight.w700, colors.ink)),
+                if (varied.isNotEmpty) const SizedBox(height: AppTheme.spacePulse3),
+              ],
+              if (varied.isNotEmpty) Text('Some days', style: nunito(13, FontWeight.w800, colors.leaf)),
+              for (final activity in varied)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppTheme.spacePulse2),
+                  child: Row(
+                    children: [
+                      Expanded(child: Text(activity.tagName, style: nunito(14, FontWeight.w700, colors.ink))),
+                      Text('${activity.count} ${activity.count == 1 ? 'day' : 'days'}', style: nunito(14, FontWeight.w900, colors.ink)),
+                      const SizedBox(width: AppTheme.spacePulse2),
+                      Text('${activity.percentage.toStringAsFixed(0)}%', style: nunito(12, FontWeight.w700, colors.muted)),
+                    ],
+                  ),
                 ),
-              );
-            }).toList(),
+            ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),

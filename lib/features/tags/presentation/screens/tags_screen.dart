@@ -30,7 +30,7 @@ void _invalidateTags(ProviderContainer container) {
 
 /// A tag's kind, with anything unrecognised (an odd value from an import)
 /// shown as an activity so it can still be edited.
-String kindOf(Tag tag) => tagKinds.any((k) => k.$1 == tag.kind) ? tag.kind : TagKind.activity;
+String kindOf(Tag tag) => tag.knownKind;
 
 /// By the user's order where set, then by name.
 int _byOrder(int? a, int? b, String nameA, String nameB) =>

@@ -34,11 +34,16 @@ class DateRange {
   /// A few characters, for the range selector on narrow phones.
   final String shortLabel;
 
+  /// Everything logged: starts at the first entry, with nothing before it
+  /// to compare against.
+  final bool isAllTime;
+
   DateRange({
     required this.start,
     required this.end,
     required this.label,
     String? shortLabel,
+    this.isAllTime = false,
   }) : shortLabel = shortLabel ?? label;
 
   factory DateRange.last7Days() {
@@ -98,6 +103,7 @@ class DateRange {
       end: today,
       label: 'All Time',
       shortLabel: 'All',
+      isAllTime: true,
     );
   }
 
@@ -155,6 +161,12 @@ class ExerciseMetrics {
 }
 
 class ActivityMetrics {
+  /// Share of tagged days from which a tag counts as an everyday habit.
+  static const everydayShare = 0.8;
+
+  /// Tagged days needed before anything counts as everyday.
+  static const everydayMinDays = 14;
+
   final int totalActivities;
   final List<ActivityFrequency> topActivities;
   final int? previousTotalActivities;
@@ -169,14 +181,22 @@ class ActivityMetrics {
 class ActivityFrequency {
   final String tagName;
   final String emoji;
+
+  /// Days the tag was used.
   final int count;
+
+  /// Share of the period's tagged days, 0–100.
   final double percentage;
+
+  /// Used on so many days that it says little about any one of them.
+  final bool everyday;
 
   ActivityFrequency({
     required this.tagName,
     required this.emoji,
     required this.count,
     required this.percentage,
+    this.everyday = false,
   });
 }
 

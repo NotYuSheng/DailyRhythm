@@ -5,6 +5,7 @@ class TagKind {
   static const activity = 'activity';
   static const symptom = 'symptom';
   static const foodSource = 'food_source';
+  static const all = [activity, symptom, foodSource];
 }
 
 class Tag {
@@ -72,6 +73,10 @@ class Tag {
       kind: kind ?? this.kind,
     );
   }
+
+  /// The kind, with anything unrecognised (an odd value from an import)
+  /// treated as an activity.
+  String get knownKind => TagKind.all.contains(kind) ? kind : TagKind.activity;
 
   // Display label with emoji
   String get displayLabel => '$emoji $name';

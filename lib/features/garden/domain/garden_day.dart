@@ -60,7 +60,14 @@ class DayLog {
 
 /// One day in the garden: its plant and why it looks that way.
 class GardenDay {
-  GardenDay({required this.date, required this.plant, required this.chosen, this.sleepHours, this.moveCount = 0});
+  GardenDay({
+    required this.date,
+    required this.plant,
+    required this.chosen,
+    this.sleepHours,
+    this.moveCount = 0,
+    this.usual = false,
+  });
 
   final DateTime date;
   final PlantSpec plant;
@@ -69,6 +76,9 @@ class GardenDay {
   final bool chosen;
   final double? sleepHours;
   final int moveCount;
+
+  /// Only routine tags were logged: an ordinary day rather than a mix.
+  final bool usual;
 
   /// Activity tags for each plant. Food sources and symptoms don't pick a
   /// plant: they say nothing about what the day was about.
@@ -98,22 +108,39 @@ class GardenDay {
   /// day; otherwise the one kind of activity that stands out. Routine tags
   /// only decide when nothing else does, and each kind counts once however
   /// many of its tags were used, so a kind with more tags can't always win.
-  /// More than one kind, or none, is a sprout: a bit of everything.
+  /// When every tag is routine, a day with lots of movement is a sunflower
+  /// and one after a long night a succulent. Otherwise more than one kind,
+  /// or none, is a sprout: a bit of everything.
   static PlantSpecies speciesFor(DayLog log) {
     if (log.tagNames.any(_bigDay.hasMatch)) return PlantSpecies.tree;
-    Set<PlantSpecies> kinds(bool Function(String) include) => {
-          for (final name in log.tagNames)
-            if (include(name) && tagSpecies[name] != null) tagSpecies[name]!,
-        };
-    final distinctive = kinds((n) => !log.routineTags.contains(n));
-    final all = kinds((_) => true);
-    if (log.exerciseKinds > 0 || log.workouts > 0) {
-      if (!log.routineTags.contains('Exercise')) distinctive.add(PlantSpecies.sunflower);
-      all.add(PlantSpecies.sunflower);
+    final distinctive = _kinds(log, routine: false);
+    final all = _kinds(log, routine: true);
+    if (distinctive.length == 1) return distinctive.single;
+    if (distinctive.isEmpty && all.length > 1) {
+      // Only routine tags, which every day has: let the day itself decide.
+      if (moveCountFor(log) >= 3) return PlantSpecies.sunflower;
+      if ((log.sleepHours ?? 0) >= longNight) return PlantSpecies.succulent;
     }
     final pick = distinctive.isNotEmpty ? distinctive : all;
     return pick.length == 1 ? pick.single : PlantSpecies.sprout;
   }
+
+  /// The plant kinds a day's tags (and exercise) point to; with [routine]
+  /// false, leaving out tags the user logs on most days.
+  static Set<PlantSpecies> _kinds(DayLog log, {required bool routine}) {
+    bool keep(String name) => routine || !log.routineTags.contains(name);
+    return {
+      for (final name in log.tagNames)
+        if (keep(name) && tagSpecies[name] != null) tagSpecies[name]!,
+      if ((log.exerciseKinds > 0 || log.workouts > 0) && keep('Exercise')) PlantSpecies.sunflower,
+    };
+  }
+
+  /// Whether only routine tags said anything about the day.
+  static bool isUsual(DayLog log) => _kinds(log, routine: false).isEmpty && _kinds(log, routine: true).isNotEmpty;
+
+  /// Hours of sleep that make a routine day a rest day.
+  static const longNight = 8.5;
 
   /// 0–4 from the night's length; unknown counts as a medium night.
   static int sleepLevel(double? hours) {
@@ -153,6 +180,7 @@ class GardenDay {
     return GardenDay(
       date: log.date,
       chosen: log.plantOverride != null,
+      usual: isUsual(log),
       sleepHours: log.sleepHours,
       moveCount: move,
       plant: PlantSpec(
@@ -168,9 +196,11 @@ class GardenDay {
   static const _nightWords = ['a very short night', 'a short night', 'a medium night', 'a full night', 'a long night'];
 
   /// "A sunflower: an exercise day"
-  String get title => plant.logged
-      ? 'A ${plant.species.plantName}: ${plant.species.dayWord}'
-      : 'A quiet day';
+  String get title => !plant.logged
+      ? 'A quiet day'
+      : plant.species == PlantSpecies.sprout && usual && !chosen
+          ? 'A sprout: a usual day'
+          : 'A ${plant.species.plantName}: ${plant.species.dayWord}';
 
   /// "Grew from a full night, 2 movement sessions, and bloomed for a good moment."
   String get detail {

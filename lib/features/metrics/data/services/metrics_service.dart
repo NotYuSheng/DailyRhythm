@@ -1,7 +1,9 @@
 import 'dart:math';
 import '../models/metric_data.dart';
 import '../../../exercise/data/models/exercise_entry.dart';
+import '../../../sleep/data/models/sleep_entry.dart';
 import '../../../tags/data/models/tag.dart';
+import '../../../../shared/models/mood_entry.dart';
 import '../../../../shared/services/database/database_service.dart';
 import '../../../../shared/utils/date_utils.dart';
 
@@ -143,31 +145,27 @@ class MetricsService {
     final entries = await _db.getActivityEntriesInRange(range.start, range.end);
     final allTags = await _db.getAllTags();
 
-    final totalActivities = entries.length;
-
-    // Count tag frequencies
-    final tagCounts = <int, int>{};
+    // Days per activity tag (food sources and symptoms aren't activities),
+    // as a share of the days with any activity.
+    final kinds = {for (final t in allTags) t.id: t};
+    final tagDays = <int, Set<DateTime>>{};
     for (final entry in entries) {
-      tagCounts[entry.tagId] = (tagCounts[entry.tagId] ?? 0) + 1;
+      if (kinds[entry.tagId]?.knownKind != TagKind.activity) continue;
+      (tagDays[entry.tagId] ??= {}).add(dayOf(entry.date));
     }
+    final tagged = {for (final days in tagDays.values) ...days};
+    final totalActivities = tagDays.values.fold(0, (sum, days) => sum + days.length);
 
-    // Create top activities list
     final topActivities = <ActivityFrequency>[];
-    for (final tagEntry in tagCounts.entries) {
-      final tag = allTags.firstWhere((t) => t.id == tagEntry.key, orElse: () => Tag(
-        name: 'Unknown',
-        emoji: 'question_circle',
-        category: 'General',
-      ));
-
-      final count = tagEntry.value;
-      final percentage = totalActivities > 0 ? (count / totalActivities) * 100 : 0.0;
-
+    for (final MapEntry(key: id, value: days) in tagDays.entries) {
+      final tag = kinds[id]!;
+      final share = days.length / tagged.length;
       topActivities.add(ActivityFrequency(
         tagName: tag.name,
         emoji: tag.emoji,
-        count: count,
-        percentage: percentage,
+        count: days.length,
+        percentage: share * 100,
+        everyday: tagged.length >= ActivityMetrics.everydayMinDays && share >= ActivityMetrics.everydayShare,
       ));
     }
 
@@ -202,14 +200,19 @@ class MetricsService {
   Future<List<MetricsInsight>> generateInsights(DateRange range) async {
     final insights = <MetricsInsight>[];
 
-    final previousRange = _calculatePreviousRange(range);
+    // All time has nothing before it to compare with.
+    final previousRange = range.isAllTime ? null : _calculatePreviousRange(range);
     // One after another: sqflite has one connection, so running these
     // together gains nothing.
     final sleepMetrics = await calculateSleepMetrics(range, previousRange: previousRange);
     final moodMetrics = await calculateMoodMetrics(range, previousRange: previousRange);
     final exerciseMetrics = await calculateExerciseMetrics(range, previousRange: previousRange);
-    final previousSleep = await _db.getSleepEntriesInRange(previousRange.start, previousRange.end);
-    final previousMoods = await _db.getMoodEntriesInRange(previousRange.start, previousRange.end);
+    var previousSleep = const <SleepEntry>[];
+    var previousMoods = const <MoodEntry>[];
+    if (previousRange != null) {
+      previousSleep = await _db.getSleepEntriesInRange(previousRange.start, previousRange.end);
+      previousMoods = await _db.getMoodEntriesInRange(previousRange.start, previousRange.end);
+    }
     final previousSleepDays = previousSleep.where((e) => e.totalHours != null).length;
     // Days, not entries: a day can have more than one mood.
     final previousMoodDays = {for (final e in previousMoods) dayOf(e.date)}.length;
