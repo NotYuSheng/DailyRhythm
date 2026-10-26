@@ -853,6 +853,39 @@ class DatabaseService {
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
+  /// How often each tag is used, by tag id: activity entries plus moments.
+  Future<Map<int, int>> getTagUseCounts() async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT tag_id, COUNT(*) AS n FROM (
+        SELECT tagId AS tag_id FROM activity_entries
+        UNION ALL SELECT tag_id FROM journal_entry_tags
+      ) GROUP BY tag_id
+    ''');
+    return {for (final r in rows) r['tag_id'] as int: r['n'] as int};
+  }
+
+  /// Merges tag [fromId] into [intoId]: its activity entries and moment
+  /// links move over (a day or moment that already has both keeps one),
+  /// then [fromId] is deleted.
+  Future<void> mergeTags(int fromId, int intoId) async {
+    if (fromId == intoId) return;
+    final db = await database;
+    await db.transaction((txn) async {
+      await txn.rawDelete(
+        'DELETE FROM activity_entries WHERE tagId = ? AND date IN (SELECT date FROM activity_entries WHERE tagId = ?)',
+        [fromId, intoId],
+      );
+      await txn.update('activity_entries', {'tagId': intoId}, where: 'tagId = ?', whereArgs: [fromId]);
+      await txn.rawInsert(
+        'INSERT OR IGNORE INTO journal_entry_tags (entry_id, tag_id) SELECT entry_id, ? FROM journal_entry_tags WHERE tag_id = ?',
+        [intoId, fromId],
+      );
+      await txn.delete('journal_entry_tags', where: 'tag_id = ?', whereArgs: [fromId]);
+      await txn.delete('tags', where: 'id = ?', whereArgs: [fromId]);
+    });
+  }
+
   /// Deletes a tag with its activity entries and its links to moments
   /// (foreign keys aren't enforced, so nothing cascades on its own).
   Future<int> deleteTag(int id) async {
