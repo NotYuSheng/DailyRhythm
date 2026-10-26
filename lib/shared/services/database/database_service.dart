@@ -863,9 +863,11 @@ class DatabaseService {
     final db = await database;
     final row = (await db.rawQuery('''
       SELECT MIN(d) AS first FROM (
-        SELECT MIN(date) AS d FROM sleep_entries UNION ALL SELECT MIN(date) FROM meal_entries
-        UNION ALL SELECT MIN(date) FROM mood_entries UNION ALL SELECT MIN(date) FROM exercise_entries
+        SELECT MIN(date) AS d FROM sleep_entries UNION ALL SELECT MIN(date) FROM nap_entries
+        UNION ALL SELECT MIN(date) FROM meal_entries UNION ALL SELECT MIN(date) FROM mood_entries
+        UNION ALL SELECT MIN(date) FROM exercise_entries UNION ALL SELECT MIN(date) FROM task_entries
         UNION ALL SELECT MIN(date) FROM activity_entries UNION ALL SELECT MIN(date) FROM journal_entries
+        UNION ALL SELECT MIN(date) FROM health_metrics UNION ALL SELECT MIN(start) FROM health_workouts
       )
     ''')).first;
     return row['first'] == null ? null : dayOf(DateTime.parse(row['first'] as String));

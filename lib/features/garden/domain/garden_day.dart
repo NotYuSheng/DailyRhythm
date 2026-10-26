@@ -113,16 +113,8 @@ class GardenDay {
   /// or none, is a sprout: a bit of everything.
   static PlantSpecies speciesFor(DayLog log) {
     if (log.tagNames.any(_bigDay.hasMatch)) return PlantSpecies.tree;
-    Set<PlantSpecies> kinds(bool Function(String) include) => {
-          for (final name in log.tagNames)
-            if (include(name) && tagSpecies[name] != null) tagSpecies[name]!,
-        };
-    final distinctive = kinds((n) => !log.routineTags.contains(n));
-    final all = kinds((_) => true);
-    if (log.exerciseKinds > 0 || log.workouts > 0) {
-      if (!log.routineTags.contains('Exercise')) distinctive.add(PlantSpecies.sunflower);
-      all.add(PlantSpecies.sunflower);
-    }
+    final distinctive = _kinds(log, routine: false);
+    final all = _kinds(log, routine: true);
     if (distinctive.length == 1) return distinctive.single;
     if (distinctive.isEmpty && all.length > 1) {
       // Only routine tags, which every day has: let the day itself decide.
@@ -132,6 +124,20 @@ class GardenDay {
     final pick = distinctive.isNotEmpty ? distinctive : all;
     return pick.length == 1 ? pick.single : PlantSpecies.sprout;
   }
+
+  /// The plant kinds a day's tags (and exercise) point to; with [routine]
+  /// false, leaving out tags the user logs on most days.
+  static Set<PlantSpecies> _kinds(DayLog log, {required bool routine}) {
+    bool keep(String name) => routine || !log.routineTags.contains(name);
+    return {
+      for (final name in log.tagNames)
+        if (keep(name) && tagSpecies[name] != null) tagSpecies[name]!,
+      if ((log.exerciseKinds > 0 || log.workouts > 0) && keep('Exercise')) PlantSpecies.sunflower,
+    };
+  }
+
+  /// Whether only routine tags said anything about the day.
+  static bool isUsual(DayLog log) => _kinds(log, routine: false).isEmpty && _kinds(log, routine: true).isNotEmpty;
 
   /// Hours of sleep that make a routine day a rest day.
   static const longNight = 8.5;
@@ -174,7 +180,7 @@ class GardenDay {
     return GardenDay(
       date: log.date,
       chosen: log.plantOverride != null,
-      usual: log.tagNames.isNotEmpty && log.tagNames.every(log.routineTags.contains),
+      usual: isUsual(log),
       sleepHours: log.sleepHours,
       moveCount: move,
       plant: PlantSpec(

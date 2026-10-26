@@ -63,7 +63,7 @@ class FunFactsService {
     final db = await _db.database;
     // All time starts at the first entry, not an arbitrary early date.
     final first = range.isAllTime ? await _db.firstLoggedDay() : null;
-    final from = dayOf(first != null && first.isAfter(range.start) ? first : range.start);
+    final from = dayOf(first ?? range.start);
     final last = dayOf(range.end);
     final to = DateTime(last.year, last.month, last.day + 1);
     final args = [from.toIso8601String(), to.toIso8601String()];
@@ -261,7 +261,7 @@ class FunFactsService {
 
     // On this day in earlier years.
     // A memory fits a short look back, not a year or all time.
-    if (daysBetween(from, last) <= 31) {
+    if (!range.isAllTime && range.daysCount <= 31) {
       final memory = await _onThisDay(db, dayOf(today ?? DateTime.now()));
       if (memory != null) facts.add(memory);
     }

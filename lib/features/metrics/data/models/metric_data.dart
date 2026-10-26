@@ -164,6 +164,9 @@ class ActivityMetrics {
   /// Share of tagged days from which a tag counts as an everyday habit.
   static const everydayShare = 0.8;
 
+  /// Tagged days needed before anything counts as everyday.
+  static const everydayMinDays = 14;
+
   final int totalActivities;
   final List<ActivityFrequency> topActivities;
   final int? previousTotalActivities;
@@ -186,13 +189,14 @@ class ActivityFrequency {
   final double percentage;
 
   /// Used on so many days that it says little about any one of them.
-  bool get everyday => percentage >= ActivityMetrics.everydayShare * 100;
+  final bool everyday;
 
   ActivityFrequency({
     required this.tagName,
     required this.emoji,
     required this.count,
     required this.percentage,
+    this.everyday = false,
   });
 }
 

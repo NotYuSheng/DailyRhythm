@@ -70,6 +70,8 @@ void main() {
       expect(GardenDay.speciesFor(log(tags: everyday, routine: routine, sleep: 7)), PlantSpecies.sprout);
       expect(GardenDay.from(log(tags: everyday, routine: routine, sleep: 7)).title, 'A sprout: a usual day');
       expect(GardenDay.from(log(tags: ['Work', 'Study'], sleep: 7)).title, 'A sprout: a bit of everything');
+      expect(GardenDay.from(log(tags: [...everyday, 'Hawker'], routine: routine, sleep: 7)).title, 'A sprout: a usual day',
+          reason: 'a tag that picks no plant doesn\u2019t make the day a mix');
     });
 
     test('routine tags are those on most recent days, given two weeks of history', () {
