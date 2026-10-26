@@ -19,6 +19,7 @@ from __future__ import annotations
 import re
 
 from .model import ExerciseSet, Flag, Meal, ParsedNote, Supplement
+from .spending import spending_kind
 
 BEFORE_SLEEP = "before"  # meal zone
 AFTER_SLEEP = "after"  # exercise / free-text zone
@@ -46,6 +47,14 @@ PRICE_END = re.compile(
 )
 # "... USD 11.60"
 CURRENCY_FIRST_END = re.compile(r"\s(?P<cur>usd|us\$|rm|myr|sgd)\s*\$?(?P<price>\d+(?:\.\d{1,2})?)\s*$", re.IGNORECASE)
+# Not a size or weight: "Pizza 12.00 inch".
+PRICE_INSIDE = re.compile(r"\s(?P<price>\d+\.\d{2})\s(?!(?:inch|in|cm|mm|kg|g|ml|l|km|pcs?|pieces?)\b)", re.IGNORECASE)
+# Not part of a name: "Set 2", "Meal no 3", "Level 1".
+TRAILING_COUNT = re.compile(
+    r"^(?P<rest>.*[A-Za-z].*?)(?<!\bset)(?<!\bno)(?<!\bnumber)(?<!\bmeal)(?<!\bcombo)(?<!\blevel)(?<!#)"
+    r"\s+(?P<count>[1-9]|1\d|20)$",
+    re.IGNORECASE,
+)
 QUANTITY_PREFIX = re.compile(r"^[xX]\s?(?P<qty>\d+(?:\.\d+)?)\s*(?P<rest>.+)$")
 COUNT_PREFIX = re.compile(r"^(?P<count>\d+)\s+(?P<rest>[^\d\s].*)$")
 # Names that start with a number but aren't a count.
@@ -79,6 +88,7 @@ FEELING_WORDS = re.compile(
     r"lonely|productive|unproductive|rested|energetic|lethargic|overwhelmed|frustrated|annoyed|angry|"
     r"motivated|unmotivated|depressed|calm|content|grateful|regret|worried|nervous|mood|decisions?|"
     r"pain|aches?|sick|diarrh\w*|fever|vomit\w*|headache|nause\w*|hell|travell?ing|"
+    r"bites?|rash(es)?|itch\w*|swollen|cough(ing)?|sore throat|injur\w*|sprain\w*|cramps?|bruis\w*|allerg\w*|"
     r"results?|planning|resolved|quiz|exam|meeting|roadshow)\b",
     re.IGNORECASE,
 )
@@ -142,6 +152,12 @@ def parse_meal(line: str, flags: list[Flag]) -> Meal:
                 currency = CURRENCY_WORDS[match["cur"].lower()]
             body = rest
 
+    # A price written inside the name: "Yishun market place 5.60 rice with wings"
+    if price is None and (inner := PRICE_INSIDE.search(body)) and not re.search(r"(usd|us\$|rm|myr|sgd)\s*$", body[: inner.start()], re.IGNORECASE):
+        price = float(inner["price"])
+        body = (body[: inner.start()] + " " + body[inner.end():]).strip()
+        flags.append(Flag("price_in_name", f"{price:.2f} taken from inside the name", text))
+
     quantity = None
     if COMPOUND.match(body) and not NUMBERED_NAMES.match(body):
         # One order of several kinds: total count, parts kept as a comment.
@@ -157,6 +173,10 @@ def parse_meal(line: str, flags: list[Flag]) -> Meal:
         if c and int(c["count"]) <= 20:
             quantity = float(c["count"])
             body = c["rest"]
+    if quantity is None and (trailing := TRAILING_COUNT.match(body)) and not NUMBERED_NAMES.match(body):
+        # "Burger king 6": a count at the end (the price covers all of them).
+        quantity = float(trailing["count"])
+        body = trailing["rest"]
 
     meal = Meal(
         text=text,
@@ -169,7 +189,10 @@ def parse_meal(line: str, flags: list[Flag]) -> Meal:
     )
     if currency != "SGD":
         flags.append(Flag("foreign_currency", f"Price in {currency}", text))
-    if price is not None and price > 30 and currency == "SGD":
+    meal.spending = spending_kind(meal.name, price)
+    if meal.spending:
+        flags.append(Flag("spending", f"Counted as {meal.spending}, not food", text))
+    elif price is not None and price > 30 and currency == "SGD":
         flags.append(Flag("price_high", f"${price:.2f} for one item", text))
     return meal
 

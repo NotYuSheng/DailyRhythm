@@ -73,9 +73,22 @@ cd tools/daylio_migration
 ../../.venv/bin/python -m daylio_migration.app_export   # reads days.json and garmin_daily.json
 ```
 
-Writes `data/migration/dailyrhythm_import.zip`, an app export in the v13 schema; import
+Writes `data/migration/dailyrhythm_import.zip`, an app export in the v14 schema; import
 it with Settings → Import Data. Meals and exercises link to their canonical name, keep
 the original line as raw text, and are marked as having no time of day. Each Daylio
 entry becomes a journal moment with its own mood and tags, and the original entries
 are kept verbatim in `daylio_raw`. Food sources stay day-level tags, since Daylio
 doesn't say which meal they were for. Importing the same zip twice adds nothing.
+
+Clean-up applied on the way:
+
+- A meal with sides ("Vegetarian maggie with long beans and curry veg") keeps its full
+  name but links to its base dish ("Vegetarian maggie"), so sides don't make every
+  plate a new food.
+- Priced group events and gifts (farewells, KTV, weddings, ang bao) go to
+  `spending_entries.csv`, not meals, so food spending means food.
+- Bedtimes written in 12-hour form ("1115 Sleep") are read as evening when morning
+  would make a 20-hour night (flag `bed_pm`).
+- A count at the end of a name is the quantity ("Burger king 6"); a price inside a
+  name is taken out (flag `price_in_name`); symptom notes stay out of meals.
+

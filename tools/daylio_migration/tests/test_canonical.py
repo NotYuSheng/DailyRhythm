@@ -157,3 +157,42 @@ def test_load_synonyms_from_approved_synonym_rows(tmp_path):
         "meals,Wanton noodles,wanton mee,3,exact,yes\n"
     )
     assert load_synonyms(path)["meals"].replacements == {"maggie": "Maggi", "maggie mee": "Maggi mee"}
+
+
+def test_base_dish_drops_the_sides():
+    from daylio_migration.canonical import base_dish
+
+    assert base_dish("Vegetarian maggie with long beans and curry veg") == "Vegetarian maggie"
+    assert base_dish("Fillet o fish w 4 pc nugget") == "Fillet o fish"
+    assert base_dish("Rice w/egg") == "Rice"
+    assert base_dish("Kopi, teh") == "Kopi, teh", "a list, not a dish with sides"
+    assert base_dish("Fish and chips") == "Fish and chips"
+
+
+def test_acronyms_keep_their_capitals():
+    assert display_name("kfc zinger") == "KFC zinger"
+    assert display_name("ktv sushi") == "KTV sushi"
+
+
+def test_meals_link_to_their_base_dish():
+    from daylio_migration.model import Meal
+
+    d = Day(date="2024-01-01", mood=3, entries=[], exercises=[])
+    d.meals = [Meal(text="vegetarian maggie with long beans", name="vegetarian maggie with long beans")]
+    apply_aliases([d], {}, {})
+    assert (d.meals[0].canonical, d.meals[0].food) == ("Vegetarian maggie with long beans", "Vegetarian maggie")
+
+
+def test_the_full_name_follows_the_main_dishs_agreed_spelling():
+    from daylio_migration.canonical import WordSynonyms
+    from daylio_migration.model import Meal
+
+    d = Day(date="2024-01-01", mood=3, entries=[], exercises=[])
+    d.meals = [Meal(text="x", name="vegetarian maggie w long beans")]
+    apply_aliases([d], {("meals", "vegetarian maggie"): "Vegetarian Maggie"}, {"meals": WordSynonyms([("maggie", "Maggi")])})
+    assert (d.meals[0].food, d.meals[0].canonical) == ("Vegetarian Maggi", "Vegetarian Maggi w long beans")
+
+
+def test_acronyms_survive_punctuation():
+    assert display_name("kfc, fries") == "KFC, fries"
+    assert display_name("ktv's snacks") == "KTV's snacks"

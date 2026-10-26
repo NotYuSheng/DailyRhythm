@@ -95,3 +95,40 @@ def test_food_lines_before_sleep_are_not_exercises():
         classify_item(line, BEFORE_SLEEP, note)
     assert [m.name for m in note.meals] == ["Chips and dips", "French press coffee"]
     assert [x.name for x in note.exercises] == ["pushups"]
+
+
+def test_a_trailing_count_is_the_quantity():
+    meal = parse_meal("Burger king 6 50", [])
+    assert (meal.name, meal.quantity, meal.price) == ("Burger king", 6, 50)
+    assert parse_meal("7 up 1.20", []).quantity is None
+    assert parse_meal("Mcspicy 4 nuggets 6.90", []).name == "Mcspicy 4 nuggets"
+    assert (parse_meal("Set 2 7.50", []).name, parse_meal("Set 2 7.50", []).quantity) == ("Set 2", None)
+    assert parse_meal("Chicken burger meal no 3 8.50", []).name == "Chicken burger meal no 3"
+    x2 = parse_meal("x2 Burger 3 10", [])
+    assert (x2.name, x2.quantity) == ("Burger 3", 2), "a prefix count wins"
+
+
+def test_a_price_inside_the_name_is_taken_out_and_flagged():
+    flags = []
+    meal = parse_meal("Yishun market place 5.60 rice with wings", flags)
+    assert (meal.name, meal.price) == ("Yishun market place rice with wings", 5.6)
+    assert [f.code for f in flags] == ["price_in_name"]
+    assert parse_meal("Pizza 12.00 inch", []).price is None
+    assert parse_meal("RM 5.60 nasi lemak", []).price is None
+
+
+def test_events_and_gifts_are_marked_and_not_flagged_as_pricey():
+    flags = []
+    meal = parse_meal("Zhi's wedding 288", flags)
+    assert meal.spending == "gift"
+    assert [f.code for f in flags] == ["spending"]
+    assert parse_meal("KTV sushi 12", []).spending is None
+
+
+def test_symptom_notes_are_not_meals():
+    from daylio_migration.lines import BEFORE_SLEEP, classify_item
+    from daylio_migration.model import ParsedNote
+
+    note = ParsedNote(method="lines")
+    classify_item("Tons of mosquito bites / rashes on both legs", BEFORE_SLEEP, note)
+    assert (note.meals, note.journal) == ([], ["Tons of mosquito bites / rashes on both legs"])
