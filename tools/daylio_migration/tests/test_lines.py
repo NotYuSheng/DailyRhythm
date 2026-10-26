@@ -132,3 +132,8 @@ def test_symptom_notes_are_not_meals():
     note = ParsedNote(method="lines")
     classify_item("Tons of mosquito bites / rashes on both legs", BEFORE_SLEEP, note)
     assert (note.meals, note.journal) == ([], ["Tons of mosquito bites / rashes on both legs"])
+
+
+def test_a_leftover_joining_word_is_dropped():
+    assert parse_meal("and roti prata 1.50", []).name == "roti prata"
+    assert parse_meal("Andes mint 2", []).name == "Andes mint"
