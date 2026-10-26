@@ -81,16 +81,33 @@ def display_name(name: str) -> str:
     return " ".join(out)
 
 
-Synonyms = dict[str, list[tuple[str, str]]]  # kind -> [(word, replacement)]
+class WordSynonyms:
+    """Synonyms applied to whole words inside longer names, ignoring case,
+    in one pass with the longest first: Maggie -> Maggi turns "Maggie
+    goreng" into "Maggi goreng" but leaves "Maggies" alone, and a rule for
+    "maggie mee" wins over one for "mee".
+
+    Only synonyms that keep the word count apply inside names: a respelling
+    or a like-for-like rename ("Cai peng" -> "Mixed rice"). One that adds
+    words ("chicken" -> "Chicken rice") renames the whole name only, or
+    "Chicken burger" would become "Chicken rice burger"."""
+
+    def __init__(self, pairs: list[tuple[str, str]]) -> None:
+        self.replacements = {}
+        for word, replacement in pairs:
+            word = word.strip()
+            if word and len(word.split()) == len(replacement.split()):
+                self.replacements.setdefault(word.lower(), replacement.strip())
+        words = sorted(self.replacements, key=len, reverse=True)
+        self.pattern = re.compile(r"(?<!\w)(?:" + "|".join(map(re.escape, words)) + r")(?!\w)", re.IGNORECASE) if words else None
+
+    def apply(self, name: str) -> str:
+        if self.pattern is None:
+            return name
+        return self.pattern.sub(lambda m: self.replacements[m.group(0).lower()], name)
 
 
-def replace_words(name: str, synonyms: list[tuple[str, str]]) -> str:
-    """Applies synonyms to whole words inside a longer name, ignoring case:
-    Maggie -> Maggi turns "Maggie goreng" into "Maggi goreng" but leaves
-    "Maggies" alone."""
-    for word, replacement in synonyms:
-        name = re.sub(rf"(?<!\w){re.escape(word)}(?!\w)", lambda _: replacement, name, flags=re.IGNORECASE)
-    return name
+Synonyms = dict[str, WordSynonyms]  # by kind
 
 
 def propose(days: list[dict], synonyms: Synonyms | None = None) -> list[dict]:
@@ -99,7 +116,7 @@ def propose(days: list[dict], synonyms: Synonyms | None = None) -> list[dict]:
     rows = []
     for kind in KINDS:
         counts = Counter(item["name"] for day in days for item in day[kind] if item["name"])
-        rewrite = lambda name, words=(synonyms or {}).get(kind, []): replace_words(name, words)  # noqa: E731
+        rewrite = (synonyms or {}).get(kind, WordSynonyms([])).apply
 
         # 1. exact groups
         groups: dict[str, Counter] = defaultdict(Counter)
@@ -129,7 +146,8 @@ def propose(days: list[dict], synonyms: Synonyms | None = None) -> list[dict]:
             while root in canon_of:
                 root = canon_of[root]
             # Spellings within a group always fold into its own top name.
-            own = display_name(rewrite(group.most_common(1)[0][0]))
+            # Rewritten after display_name, so a replacement keeps its case.
+            own = rewrite(display_name(group.most_common(1)[0][0]))
             for variant, count in group.items():
                 if variant != own:
                     rows.append({"kind": kind, "canonical": own, "variant": variant,
@@ -137,24 +155,37 @@ def propose(days: list[dict], synonyms: Synonyms | None = None) -> list[dict]:
             # A group merged into another is one row, so rejecting the merge
             # keeps the spellings above (aliases chain: variant -> own -> root).
             if root != i:
-                top = rewrite(group_list[root].most_common(1)[0][0])
+                top = rewrite(display_name(group_list[root].most_common(1)[0][0]))
                 how, approve = ("likely typo", "yes") if is_likely_same(own, top) else ("check", "")
-                rows.append({"kind": kind, "canonical": display_name(top), "variant": own,
+                rows.append({"kind": kind, "canonical": top, "variant": own,
                              "count": sum(group.values()), "how": how, "approve": approve})
     order = {"check": 0, "likely typo": 1, "exact": 2}
     rows.sort(key=lambda r: (r["kind"], order[r["how"]], r["canonical"].lower(), -r["count"]))
     return rows
 
 
+def _approved_rows(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    with open(path, newline="", encoding="utf-8") as f:
+        return [r for r in csv.DictReader(f) if r.get("approve", "").strip().lower() in ("yes", "y")]
+
+
 def load_aliases(path: Path) -> dict[tuple[str, str], str]:
     """(kind, variant) -> canonical for every approved row."""
-    if not path.exists():
-        return {}
-    with open(path, newline="", encoding="utf-8") as f:
-        approved = [r for r in csv.DictReader(f) if r.get("approve", "").strip().lower() in ("yes", "y")]
+    approved = _approved_rows(path)
     # Synonyms are added by hand, so they win over generated rows.
     approved.sort(key=lambda r: r["how"] == "synonym")
     return {(r["kind"], r["variant"]): r["canonical"] for r in approved}
+
+
+def load_synonyms(path: Path) -> Synonyms:
+    """Approved hand-added synonyms by kind, for use inside longer names."""
+    pairs: dict[str, list[tuple[str, str]]] = defaultdict(list)
+    for r in _approved_rows(path):
+        if r["how"] == "synonym":
+            pairs[r["kind"]].append((r["variant"], r["canonical"]))
+    return {kind: WordSynonyms(p) for kind, p in pairs.items()}
 
 
 def resolve(aliases: dict[tuple[str, str], str], kind: str, name: str) -> str:
@@ -167,37 +198,27 @@ def resolve(aliases: dict[tuple[str, str], str], kind: str, name: str) -> str:
     return name
 
 
-def load_synonyms(path: Path) -> Synonyms:
-    """Approved hand-added synonyms by kind, longest first so "maggie mee"
-    is replaced before "maggie"."""
-    if not path.exists():
-        return {}
-    synonyms: Synonyms = defaultdict(list)
-    with open(path, newline="", encoding="utf-8") as f:
-        for r in csv.DictReader(f):
-            if r["how"] == "synonym" and r.get("approve", "").strip().lower() in ("yes", "y"):
-                synonyms[r["kind"]].append((r["variant"], r["canonical"]))
-    return {kind: sorted(pairs, key=lambda p: -len(p[0])) for kind, pairs in synonyms.items()}
-
-
 def apply_aliases(days, aliases: dict[tuple[str, str], str], synonyms: Synonyms | None = None) -> int:
     """Sets ``canonical`` on every item; the original ``name`` is kept.
     Whole-name aliases apply first, then synonyms inside longer names.
-    Returns how many names the word-level synonyms changed."""
-    changed = 0
+    Returns how many distinct names the word-level synonyms changed."""
+    changed: set[tuple[str, str]] = set()
     for day in days:
         for kind in KINDS:
+            words = (synonyms or {}).get(kind)
             for item in getattr(day, kind):
                 if not item.name:
                     item.canonical = None
                     continue
                 canonical = resolve(aliases, kind, item.name)
-                rewritten = replace_words(canonical, (synonyms or {}).get(kind, []))
+                rewritten = words.apply(canonical) if words else canonical
                 if rewritten != canonical:
-                    changed += 1
+                    # A whole name that is a synonym is a rename, not a change inside it.
+                    if canonical.lower() not in words.replacements:
+                        changed.add((kind, item.name))
                     canonical = resolve(aliases, kind, rewritten)
                 item.canonical = canonical
-    return changed
+    return len(changed)
 
 
 def merge_previous(rows: list[dict], previous: list[dict]) -> list[dict]:
