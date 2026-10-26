@@ -2,10 +2,14 @@
 
 Work agreed but not started. Newest first.
 
-Queued work is tracked as GitHub issues (#9–#17: exercise autocomplete, word-level
-aliases in the migration, Metrics on mood/energy/stress/focus, Tags screen, month and
-year recap, plant illustrations, calories, Health Connect / HealthKit sync, sleep
-picker repro). The sections below keep the design notes those issues refer to.
+Queued work is tracked as GitHub issues. Built and merged into `dev` (the issues close
+when `dev` reaches `main`): exercise autocomplete (#9), word-level aliases in the
+migration (#10), Metrics on mood/energy/stress/focus and fun facts (#11), the Tags
+screen (#12), month and year recap (#13), calories per food (#15), Health Connect /
+HealthKit sync and Garmin import (#16). Still open: plant illustrations and Rive (#14,
+prototypes on the design canvas's "Plant art & motion" page), offline calorie datasets
+(#31) and the sleep picker repro (#17). The sections below keep the design notes those
+issues refer to.
 
 ## Design direction: the garden (chosen 2026-10-25)
 
