@@ -29,7 +29,6 @@ class NumberFieldCard extends StatelessWidget {
           decoration: InputDecoration(
             labelText: labelText,
             hintText: hintText,
-            border: const OutlineInputBorder(),
             suffixText: suffixText,
           ),
           keyboardType: TextInputType.numberWithOptions(decimal: allowDecimals),

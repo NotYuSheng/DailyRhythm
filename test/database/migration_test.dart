@@ -49,6 +49,8 @@ Future<void> _createVersion10Schema(Database db) async {
   ''');
 
   await db.insert('tags', {'name': 'Push Day', 'emoji': 'dumbbell', 'category': 'Fitness', 'sort_order': 0});
+  await db.insert('tags', {'name': 'Headache', 'emoji': 'head', 'category': 'Health', 'sort_order': 1});
+  await db.insert('tags', {'name': 'Takeout', 'emoji': 'bag', 'category': 'Food', 'sort_order': 2});
   await db.insert('meal_entries', {
     'date': '2024-03-01T00:00:00.000',
     'time': '2024-03-01T12:30:00.000',
@@ -88,6 +90,35 @@ Future<Map<String, List<String>>> _columns(Database db) async {
         for (final c in await db.rawQuery("PRAGMA table_info('${t['name']}')")) '${c['name']}:${c['notnull']}',
       ]..sort(),
   };
+}
+
+/// A version 11 database that did get its tables (a fresh v11 install):
+/// one default category deleted on purpose, and a day with two sleep rows
+/// from before dates were normalized.
+Future<String> _prepareWorkingVersion11(Directory dir) async {
+  final path = '${dir.path}/v11_working.db';
+  sqfliteFfiInit();
+  final db = await databaseFactoryFfiNoIsolate.openDatabase(
+    path,
+    options: OpenDatabaseOptions(
+      version: 11,
+      onCreate: (db, _) async {
+        await _createVersion10Schema(db);
+        await db.execute('CREATE TABLE tag_categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, color TEXT, sort_order INTEGER)');
+        for (final name in ['General', 'Health', 'Hobby', 'Activity', 'Fitness', 'Food']) {
+          await db.insert('tag_categories', {'name': name});
+        }
+        await db.insert('sleep_entries', {'date': '2024-03-04T00:00:00.000', 'sleepTime': '2024-03-04T23:00:00.000'});
+        await db.insert('sleep_entries', {'date': '2024-03-05T00:00:00.000', 'wakeUpTime': '2024-03-05T07:00:00.000', 'tags': 'sick', 'totalHours': 3});
+        await db.insert('sleep_entries', {'date': '2024-03-05T22:10:00.000', 'sleepTime': '2024-03-05T22:10:00.000'});
+        await db.insert('sleep_entries', {'date': '2024-03-06T00:00:00.000', 'wakeUpTime': '2024-03-06T06:10:00.000'});
+        await db.insert('mood_entries', {'date': '2024-03-05T00:00:00.000', 'timestamp': '2024-03-05T09:00:00.000', 'moodLevel': 2, 'emoji': 'x', 'notes': 'Rough morning'});
+        await db.insert('mood_entries', {'date': '2024-03-05T21:00:00.000', 'timestamp': '2024-03-05T21:00:00.000', 'moodLevel': 4, 'emoji': 'x'});
+      },
+    ),
+  );
+  await db.close();
+  return path;
 }
 
 void main() {
@@ -140,6 +171,22 @@ void main() {
         expect(entries.single.date, DateTime(2024, 3, 1));
       });
 
+      test('sorts existing tags into activities, symptoms and food sources', () async {
+        final kinds = {for (final t in await service.getAllTags()) t.name: t.kind};
+        expect(kinds, {'Push Day': 'activity', 'Headache': 'symptom', 'Takeout': 'food_source'});
+      });
+
+      test('adds the v13 tables empty', () async {
+        final db = await service.database;
+        for (final table in [
+          'day_checkins', 'journal_entries', 'journal_entry_tags', 'food_items',
+          'exercise_items', 'health_metrics', 'health_workouts', 'daylio_raw',
+        ]) {
+          expect(await db.query(table), isEmpty, reason: table);
+        }
+        expect((await service.getAllMealEntries()).single.currency, 'SGD');
+      });
+
       test('matches the schema of a fresh install', () async {
         final upgraded = await _columns(await service.database);
         await closeTestDatabase();
@@ -148,4 +195,29 @@ void main() {
       });
     });
   }
+
+  group('upgrade from a working version 11', () {
+    late DatabaseService service;
+
+    setUp(() async => service = await openTestDatabase(path: await _prepareWorkingVersion11(dir)));
+
+    test('doesn\'t bring back default categories that were deleted', () async {
+      final categories = (await service.getAllTagCategories()).map((c) => c.name);
+      expect(categories, isNot(contains('Work')));
+      expect(categories, contains('Hobby'));
+    });
+
+    test('merges days that had two sleep or mood rows', () async {
+      final sleep = await service.getSleepEntryByDate(DateTime(2024, 3, 5));
+      expect(sleep!.wakeUpTime, DateTime(2024, 3, 5, 7));
+      expect(sleep.sleepTime, DateTime(2024, 3, 5, 22, 10));
+      expect(sleep.tags, ['sick']);
+      expect(sleep.totalHours, 8, reason: '23:00 the night before to 07:00');
+      expect((await service.getSleepEntryByDate(DateTime(2024, 3, 6)))!.totalHours, 8, reason: '22:10 to 06:10');
+      final db = await service.database;
+      expect(await db.query('sleep_entries', where: 'date LIKE ?', whereArgs: ['2024-03-05%']), hasLength(1));
+      final moods = await db.query('mood_entries');
+      expect([for (final m in moods) (m['moodLevel'], m['notes'])], [(4, 'Rough morning')]);
+    });
+  });
 }

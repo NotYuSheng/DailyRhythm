@@ -8,6 +8,31 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/date_utils.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 
+/// Up to three of the most frequent times, rounded to 15 minutes, in clock order.
+List<TimeOfDay> usualTimes(Iterable<DateTime?> times) {
+  final counts = <int, int>{};
+  for (final t in times.whereType<DateTime>()) {
+    final minutes = ((t.hour * 60 + t.minute) / 15).round() * 15 % 1440;
+    counts[minutes] = (counts[minutes] ?? 0) + 1;
+  }
+  final top = (counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).take(3).map((e) => e.key).toList();
+  // Bedtimes after midnight sort after the evening ones.
+  top.sort((a, b) => ((a + 720) % 1440).compareTo((b + 720) % 1440));
+  return [for (final m in top) TimeOfDay(hour: m ~/ 60, minute: m % 60)];
+}
+
+/// Rounded times just after [now] for a bedtime about to happen: the next
+/// 5-minute mark, then the quarter hours after it, [count] in all.
+List<TimeOfDay> laterTimes(DateTime now, {int count = 4}) {
+  final minutes = now.hour * 60 + now.minute;
+  final first = (minutes ~/ 5 + 1) * 5;
+  final times = [first];
+  while (times.length < count) {
+    times.add((times.last ~/ 15 + 1) * 15);
+  }
+  return [for (final m in times) TimeOfDay(hour: m ~/ 60 % 24, minute: m % 60)];
+}
+
 class AddSleepScreen extends ConsumerStatefulWidget {
   final SleepEntry? entry; // For editing existing entries
   final DateTime? date; // For specifying the date when creating new entries
@@ -24,22 +49,40 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
   DateTime? _wakeUpTime;
   final TextEditingController _napHoursController = TextEditingController();
   DateTime? _previousDaySleepTime;
+  List<TimeOfDay> _usualWake = const [];
+  List<TimeOfDay> _usualBed = const [];
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _date = widget.entry?.date ?? widget.date ?? DateTime(now.year, now.month, now.day);
+    _date = dayOf(widget.entry?.date ?? widget.date ?? DateTime.now());
     _sleepTime = widget.entry?.sleepTime;
     _wakeUpTime = widget.entry?.wakeUpTime;
     _napHoursController.text = widget.entry?.napHours?.toString() ?? '';
     _loadPreviousDaySleepTime();
+    _loadUsualTimes();
+  }
+
+  // Calendar days, not 24 hours, so DST changes don't land on the wrong day.
+  DateTime get _previousDay => DateTime(_date.year, _date.month, _date.day - 1);
+
+  /// Your most common wake and bed times over the last month, rounded to
+  /// 15 minutes, offered as one-tap choices.
+  Future<void> _loadUsualTimes() async {
+    final entries = await ref
+        .read(databaseProvider)
+        .getSleepEntriesInRange(DateTime(_date.year, _date.month, _date.day - 30), _previousDay);
+    if (mounted) {
+      setState(() {
+        _usualWake = usualTimes(entries.map((e) => e.wakeUpTime));
+        _usualBed = usualTimes(entries.map((e) => e.sleepTime));
+      });
+    }
   }
 
   Future<void> _loadPreviousDaySleepTime() async {
     final db = ref.read(databaseProvider);
-    final previousDate = _date.subtract(const Duration(days: 1));
-    final previousEntry = await db.getSleepEntryByDate(previousDate);
+    final previousEntry = await db.getSleepEntryByDate(_previousDay);
     if (mounted) {
       setState(() {
         _previousDaySleepTime = previousEntry?.sleepTime;
@@ -57,7 +100,7 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.entry == null ? 'Add Sleep' : 'Edit Sleep'),
+        title: Text(widget.entry == null ? 'Sleep' : 'Edit sleep'),
         actions: [
           if (widget.entry != null)
             IconButton(
@@ -75,16 +118,21 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
         children: [
           // Wake Up Time
           _buildTimePicker(
-            label: 'Wake Up Time',
+            label: 'Woke up',
             time: _wakeUpTime,
+            usual: _usualWake,
+            fallback: const TimeOfDay(hour: 8, minute: 0),
             onSelect: (time) => setState(() => _wakeUpTime = time),
           ),
           const SizedBox(height: AppTheme.spacePulse3),
 
           // Sleep Time
           _buildTimePicker(
-            label: 'Sleep Time',
+            label: 'Went to bed',
             time: _sleepTime,
+            usual: _usualBed,
+            soon: true,
+            fallback: const TimeOfDay(hour: 23, minute: 0),
             onSelect: (time) => setState(() => _sleepTime = time),
           ),
           const SizedBox(height: AppTheme.spacePulse3),
@@ -98,7 +146,6 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Nap Hours',
                   hintText: 'Enter hours (e.g., 1.5)',
-                  border: OutlineInputBorder(),
                   suffixText: 'hours',
                 ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -160,29 +207,74 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
   Widget _buildTimePicker({
     required String label,
     required DateTime? time,
-    required Function(DateTime) onSelect,
+    required List<TimeOfDay> usual,
+    required TimeOfDay fallback,
+    required ValueChanged<DateTime?> onSelect,
+    bool soon = false,
   }) {
-    return Card(
-      child: ListTile(
-        title: Text(label),
-        trailing: Text(
-          time != null ? DateFormat('h:mm a').format(time) : 'Not set',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        onTap: () async {
-          // Default to 8:30 AM for wake up time if not set, otherwise use current time
-          final defaultTime = label == 'Wake Up Time' && time == null
-              ? TimeOfDay(hour: 8, minute: 30)
-              : TimeOfDay.fromDateTime(time ?? DateTime.now());
+    final format = DateFormat('HH:mm');
+    final now = DateTime.now();
+    final isToday = dayOf(now) == dayOf(_date);
+    final selected = time == null ? null : TimeOfDay.fromDateTime(time);
+    // Today: Now first; for bedtime also the next few rounded times, since
+    // it is often logged just before going to bed. Then the usual times.
+    final choices = <TimeOfDay>[];
+    for (final t in [
+      if (isToday) TimeOfDay.fromDateTime(now),
+      if (isToday && soon) ...laterTimes(now),
+      ...usual,
+    ]) {
+      if (!choices.contains(t)) choices.add(t);
+    }
 
-          final pickedTime = await showTimePicker(
-            context: context,
-            initialTime: defaultTime,
-          );
-          if (pickedTime != null) {
-            onSelect(atTimeOfDay(_date, pickedTime.hour, pickedTime.minute));
-          }
-        },
+    Future<void> pickOther() async {
+      final picked = await showTimePicker(
+        context: context,
+        initialTime: selected ?? (usual.isNotEmpty ? usual.first : fallback),
+        // Typing is quicker than the dial, especially on desktop.
+        initialEntryMode: TimePickerEntryMode.input,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        ),
+      );
+      if (picked != null) onSelect(atTimeOfDay(_date, picked.hour, picked.minute));
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacePulse3),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(child: Text(label, style: Theme.of(context).textTheme.titleMedium)),
+                Text(time == null ? 'Not set' : format.format(time), style: Theme.of(context).textTheme.titleLarge),
+                if (time != null)
+                  IconButton(
+                    tooltip: 'Clear',
+                    icon: const Icon(Icons.close),
+                    onPressed: () => onSelect(null),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppTheme.spacePulse2),
+            Wrap(
+              spacing: AppTheme.spacePulse2,
+              runSpacing: AppTheme.spacePulse2,
+              children: [
+                for (final (i, t) in choices.indexed)
+                  ChoiceChip(
+                    label: Text(isToday && i == 0 ? 'Now' : t.format24()),
+                    selected: !(isToday && i == 0) && selected == t,
+                    onSelected: (_) => onSelect(atTimeOfDay(_date, t.hour, t.minute)),
+                  ),
+                ActionChip(label: const Text('Other\u2026'), onPressed: pickOther),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -203,9 +295,10 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
   }
 
   Future<void> _saveSleep() async {
-    if (_sleepTime == null || _wakeUpTime == null) {
+    // Either time is enough: in the morning you only know when you woke up.
+    if (_sleepTime == null && _wakeUpTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please set both sleep and wake times')),
+        const SnackBar(content: Text('Set when you woke up or went to bed')),
       );
       return;
     }
@@ -259,6 +352,8 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
   }
 
   Future<void> _confirmDelete() async {
+    // Read before awaiting: ref can't be used once the screen is gone.
+    final container = ProviderScope.containerOf(context, listen: false);
     final confirmed = await showDeleteConfirmationDialog(
       context: context,
       title: 'Delete Sleep Entry',
@@ -266,8 +361,11 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
     );
     if (!confirmed || widget.entry?.id == null) return;
 
-    await ref.read(databaseProvider).deleteSleepEntry(widget.entry!.id!);
-    ref.invalidate(sleepEntriesProvider(widget.entry!.date));
+    await container.read(databaseProvider).deleteSleepEntry(widget.entry!.id!);
+    // The next day's total depended on this night's bedtime.
+    container.invalidate(sleepEntriesProvider(_date));
+    container.invalidate(sleepEntriesProvider(DateTime(_date.year, _date.month, _date.day + 1)));
+    container.invalidate(todaySleepEntriesProvider);
     if (!mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);
@@ -276,4 +374,8 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
       const SnackBar(content: Text('Sleep entry deleted'), duration: Duration(seconds: 2)),
     );
   }
+}
+
+extension on TimeOfDay {
+  String format24() => '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
 }

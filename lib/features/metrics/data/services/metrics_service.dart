@@ -3,6 +3,7 @@ import '../models/metric_data.dart';
 import '../../../exercise/data/models/exercise_entry.dart';
 import '../../../tags/data/models/tag.dart';
 import '../../../../shared/services/database/database_service.dart';
+import '../../../../shared/utils/date_utils.dart';
 
 /// Service for calculating metrics and statistics
 class MetricsService {
@@ -202,13 +203,16 @@ class MetricsService {
     final insights = <MetricsInsight>[];
 
     final previousRange = _calculatePreviousRange(range);
+    // One after another: sqflite has one connection, so running these
+    // together gains nothing.
     final sleepMetrics = await calculateSleepMetrics(range, previousRange: previousRange);
     final moodMetrics = await calculateMoodMetrics(range, previousRange: previousRange);
     final exerciseMetrics = await calculateExerciseMetrics(range, previousRange: previousRange);
-    final previousSleepDays = (await _db.getSleepEntriesInRange(previousRange.start, previousRange.end))
-        .where((e) => e.totalHours != null)
-        .length;
-    final previousMoodDays = (await _db.getMoodEntriesInRange(previousRange.start, previousRange.end)).length;
+    final previousSleep = await _db.getSleepEntriesInRange(previousRange.start, previousRange.end);
+    final previousMoods = await _db.getMoodEntriesInRange(previousRange.start, previousRange.end);
+    final previousSleepDays = previousSleep.where((e) => e.totalHours != null).length;
+    // Days, not entries: a day can have more than one mood.
+    final previousMoodDays = {for (final e in previousMoods) dayOf(e.date)}.length;
 
     // Sleep
     final sleepDays = sleepMetrics.dailyData.length;
@@ -236,7 +240,7 @@ class MetricsService {
     }
 
     // Mood
-    final moodDays = moodMetrics.dailyData.length;
+    final moodDays = {for (final d in moodMetrics.dailyData) dayOf(d.date)}.length;
     final previousMood = moodMetrics.previousAverageMood;
     if (moodDays >= minDaysForInsight && previousMood != null && previousMoodDays >= minDaysForInsight) {
       final diff = moodMetrics.averageMood - previousMood;

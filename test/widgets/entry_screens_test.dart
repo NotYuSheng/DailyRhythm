@@ -1,7 +1,11 @@
 import 'package:daily_rhythm/features/exercise/data/models/exercise_entry.dart';
 import 'package:daily_rhythm/features/exercise/presentation/screens/add_exercise_screen.dart';
+import 'package:daily_rhythm/features/meals/data/models/food_item.dart';
 import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
+import 'package:daily_rhythm/shared/services/database/repositories/catalog_repository.dart';
 import 'package:daily_rhythm/features/meals/presentation/screens/add_meal_screen.dart';
+import 'package:daily_rhythm/features/sleep/data/models/sleep_entry.dart';
+import 'package:daily_rhythm/features/sleep/presentation/screens/add_sleep_screen.dart';
 import 'package:daily_rhythm/shared/services/database/database_service.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,7 +24,113 @@ void main() {
   setUp(() async => db = await openTestDatabase());
   tearDown(closeTestDatabase);
 
+  group('AddSleepScreen', () {
+    testWidgets('saves a wake time on its own, picked from usual times', (tester) async {
+      for (final d in [17, 18, 19]) {
+        await db.saveSleepEntry(SleepEntry(date: DateTime(2026, 10, d), wakeUpTime: DateTime(2026, 10, d, 7, 32)));
+      }
+      await db.saveSleepEntry(SleepEntry(date: DateTime(2026, 10, 19), sleepTime: DateTime(2026, 10, 19, 23, 50)));
+      await tester.pumpWidget(_app(AddSleepScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('07:30'));
+      await tester.pump();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      final entry = (await db.getSleepEntryByDate(pastDay))!;
+      expect(entry.wakeUpTime, DateTime(2026, 10, 20, 7, 30));
+      expect(entry.sleepTime, isNull);
+      expect(entry.totalHours, closeTo(7.67, 0.01), reason: 'from the previous night\u2019s bedtime');
+    });
+
+    testWidgets('asks for at least one time', (tester) async {
+      await tester.pumpWidget(_app(AddSleepScreen(date: pastDay)));
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      expect(find.text('Set when you woke up or went to bed'), findsOneWidget);
+    });
+
+    test('bedtime offers rounded times just after now', () {
+      String fmt(TimeOfDay t) => '${t.hour}:${t.minute.toString().padLeft(2, '0')}';
+      expect(laterTimes(DateTime(2026, 1, 1, 23, 7)).map(fmt), ['23:10', '23:15', '23:30', '23:45']);
+      expect(laterTimes(DateTime(2026, 1, 1, 23, 10)).map(fmt), ['23:15', '23:30', '23:45', '0:00'],
+          reason: 'strictly after now, wrapping past midnight');
+      expect(laterTimes(DateTime(2026, 1, 1, 22, 58)).map(fmt), ['23:00', '23:15', '23:30', '23:45']);
+    });
+
+    test('usual times are the most frequent, rounded, evening before night', () {
+      final times = [
+        for (final (h, m) in [(23, 50), (0, 5), (23, 55), (1, 10), (0, 2), (23, 46)]) DateTime(2026, 1, 1, h, m),
+      ];
+      expect(usualTimes(times).map((t) => (t.hour, t.minute)), [(23, 45), (0, 0), (1, 15)]);
+    });
+  });
+
   group('AddMealScreen', () {
+    Future<void> seedFoods(DatabaseService db) async {
+      final catalog = CatalogRepository(db);
+      final maggi = await catalog.saveFood(FoodItem(name: 'Maggi', aliases: ['Maggie'], lastPrice: 1.2));
+      final rice = await catalog.saveFood(FoodItem(name: 'Mixed rice', aliases: ['Cai peng'], lastPrice: 4.5));
+      for (final (d, id, name) in [(18, rice, 'Mixed rice'), (19, rice, 'Mixed rice'), (19, maggi, 'Maggi')]) {
+        await db.createMealEntry(MealEntry(date: DateTime(2026, 10, d), time: DateTime(2026, 10, d, 12), name: name, foodItemId: id));
+      }
+    }
+
+    testWidgets('offers usual foods and fills the last price', (tester) async {
+      await seedFoods(db);
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      expect(find.text('Your usual'), findsOneWidget);
+      expect(find.widgetWithText(ActionChip, 'Mixed rice'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(ActionChip, 'Mixed rice'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(_field('Meal Name')).controller!.text, 'Mixed rice');
+      expect(tester.widget<TextField>(_field('Price (optional)')).controller!.text, '4.50');
+    });
+
+    testWidgets('suggests foods while typing and offers the agreed spelling', (tester) async {
+      await seedFoods(db);
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(_field('Meal Name'), 'cai');
+      await tester.pump();
+      expect(find.widgetWithText(ListTile, 'Mixed rice'), findsOneWidget);
+
+      await tester.enterText(_field('Meal Name'), 'maggie');
+      await tester.pump();
+      expect(find.text('Did you mean Maggi?', findRichText: true), findsOneWidget);
+      await tester.tap(find.text('Use it'));
+      await tester.pump();
+      expect(tester.widget<TextField>(_field('Meal Name')).controller!.text, 'Maggi');
+    });
+
+    testWidgets('saves a typed alias under the agreed name, linked to the food', (tester) async {
+      await seedFoods(db);
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Meal Name'), 'cai peng');
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Food court'));
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      final meal = (await db.getMealEntriesByDate(pastDay)).single;
+      final rice = await CatalogRepository(db).findFood('Mixed rice');
+      expect((meal.name, meal.foodItemId, meal.foodSource), ('Mixed rice', rice!.id, FoodSource.foodCourt));
+    });
+
+    testWidgets('a new food joins the catalog with its price', (tester) async {
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.enterText(_field('Meal Name'), 'Laksa');
+      await tester.enterText(_field('Price (optional)'), '6');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final laksa = await CatalogRepository(db).findFood('laksa');
+      expect((laksa?.name, laksa?.lastPrice), ('Laksa', 6.0));
+    });
+
     testWidgets('logs a meal without a price on the day it was opened for', (tester) async {
       await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
       await tester.enterText(_field('Meal Name'), 'Apple');

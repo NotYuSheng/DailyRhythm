@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/services/database/database_provider.dart';
+import '../services/fun_facts_service.dart';
 import '../services/metrics_service.dart';
 import '../models/metric_data.dart';
 
@@ -38,3 +39,23 @@ final metricsInsightsProvider = FutureProvider.autoDispose.family<List<MetricsIn
   final service = ref.watch(metricsServiceProvider);
   return service.generateInsights(range);
 });
+
+/// Fun facts provider
+final funFactsProvider = FutureProvider.autoDispose.family<List<FunFact>, DateRange>((ref, range) async {
+  return FunFactsService(ref.watch(databaseProvider)).factsFor(range);
+});
+
+/// Recomputes every metric, for when entries may have changed since the
+/// Metrics tab was last built (it stays alive when switching tabs).
+void invalidateMetrics(WidgetRef ref) {
+  for (final provider in [
+    sleepMetricsProvider,
+    moodMetricsProvider,
+    exerciseMetricsProvider,
+    activityMetricsProvider,
+    metricsInsightsProvider,
+    funFactsProvider,
+  ]) {
+    ref.invalidate(provider);
+  }
+}

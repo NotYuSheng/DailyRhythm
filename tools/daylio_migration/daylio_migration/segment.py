@@ -139,7 +139,7 @@ def _split_piece(piece: str, zone: str, lexicon: Lexicon, splitter: Splitter | N
     # A supplement opening the piece ("X2 protein Bar chor mee") is its own
     # item; otherwise "protein Bar" reads like a protein bar.
     if (m := LEADING_SUPPLEMENT.match(body)) and m.end() < len(body):
-        rest = _split_piece(body[m.end():].strip(), zone, lexicon, splitter, note)
+        rest = _split_piece(body[m.end():].strip() + tail, zone, lexicon, splitter, note)
         return [head + m.group(1)] + rest
 
     parts = lexicon.split(zone, body)
@@ -179,7 +179,7 @@ def parse_run_together(text: str, lexicon: Lexicon, splitter: Splitter | None = 
 
     sections: list[tuple[str, str]] = []
     position = 0
-    zone = UNKNOWN if not anchors else (BEFORE_SLEEP if has_bed else UNKNOWN)
+    zone = BEFORE_SLEEP if has_bed else UNKNOWN
     for anchor in anchors:
         if anchor.start() > position:
             sections.append((zone, text[position:anchor.start()]))

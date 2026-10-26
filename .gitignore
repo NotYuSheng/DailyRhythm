@@ -136,7 +136,7 @@ __pycache__/
 docs/_build/
 
 # Personal data exports (Daylio CSV, migration outputs)
-data/
+/data/
 
 # Local secrets (LLM API key for the Daylio migration)
 .env

@@ -86,4 +86,74 @@ void main() {
     expect(await (await db.database).getVersion(), DatabaseService.schemaVersion);
     expect(await db.getAllNapEntries(), isEmpty);
   });
+
+  test('accepts a version 1 backup, which had no mood table yet', () async {
+    final path = '${dir.path}/v1.db';
+    final raw = await databaseFactoryFfiNoIsolate.openDatabase(path);
+    for (final table in ['sleep_entries', 'meal_entries', 'tags']) {
+      await raw.execute('CREATE TABLE $table (id INTEGER PRIMARY KEY)');
+    }
+    await raw.setVersion(1);
+    await raw.close();
+
+    expect(await DatabaseService.checkRestorable(path), isNull);
+  });
+
+  test('a backup that fails to open, with no data to go back to, leaves an empty working database', () async {
+    final path = '${dir.path}/broken.db';
+    final raw = await databaseFactoryFfiNoIsolate.openDatabase(path);
+    // Passes the check, but the v12 upgrade can't rebuild this meal table.
+    await raw.execute('CREATE TABLE sleep_entries (id INTEGER PRIMARY KEY, date TEXT)');
+    await raw.execute('CREATE TABLE meal_entries (id INTEGER PRIMARY KEY)');
+    await raw.execute('CREATE TABLE tags (id INTEGER PRIMARY KEY, name TEXT, category TEXT)');
+    await raw.setVersion(11);
+    await raw.close();
+    await closeTestDatabase();
+    await File(livePath).delete();
+    db = await openTestDatabase(path: livePath);
+    await db.close();
+    await File(livePath).delete();
+
+    final result = await BackupService.instance.restoreFromFile(File(path));
+
+    expect(result.success, isFalse);
+    expect(await mealNames(), isEmpty);
+  });
+
+  test('a snapshot copies the data without closing the database', () async {
+    final copy = '${dir.path}/snapshot.db';
+    await db.snapshotTo(copy);
+    await addMeal('After');
+
+    final snapshot = await databaseFactoryFfiNoIsolate.openDatabase(copy);
+    expect([for (final r in await snapshot.query('meal_entries')) r['name']], ['Current']);
+    await snapshot.close();
+    expect(await mealNames(), unorderedEquals(['Current', 'After']));
+  });
+
+  test('the fallback snapshot for older SQLite copies tables, indexes and version', () async {
+    final copy = '${dir.path}/fallback.db';
+    await DatabaseService.snapshotByCopying(await db.database, copy);
+    await addMeal('After');
+
+    final snapshot = await databaseFactoryFfiNoIsolate.openDatabase(copy);
+    expect([for (final r in await snapshot.query('meal_entries')) r['name']], ['Current']);
+    expect(await snapshot.getVersion(), DatabaseService.schemaVersion);
+    final indexes = await snapshot.rawQuery("SELECT name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%'");
+    expect(indexes, isNotEmpty);
+    await snapshot.close();
+    expect(await DatabaseService.checkRestorable(copy), isNull);
+  });
+
+  test('rejects a later-version file without the mood table', () async {
+    final path = '${dir.path}/no_moods.db';
+    final raw = await databaseFactoryFfiNoIsolate.openDatabase(path);
+    for (final table in ['sleep_entries', 'meal_entries', 'tags']) {
+      await raw.execute('CREATE TABLE $table (id INTEGER PRIMARY KEY)');
+    }
+    await raw.setVersion(5);
+    await raw.close();
+
+    expect(await DatabaseService.checkRestorable(path), isNotNull);
+  });
 }

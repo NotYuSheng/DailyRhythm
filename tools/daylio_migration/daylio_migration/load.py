@@ -35,10 +35,13 @@ def read_entries(path: Path) -> list[DaylioEntry]:
     with open(path, encoding="utf-8-sig", newline="") as f:
         for row in csv.DictReader(f):
             logged = datetime.strptime(row["time"].strip(), "%I:%M %p").strftime("%H:%M")
+            mood_name = row["mood"].strip().lower()
+            mood = taxonomy.MOODS.get(mood_name)
             entries.append(DaylioEntry(
                 date=row["full_date"],
                 time=logged,
-                mood=taxonomy.MOODS.get(row["mood"].strip().lower()),
+                mood=mood,
+                unknown_mood=mood_name if mood is None and mood_name else None,
                 activities=[a.strip() for a in row["activities"].split("|") if a.strip()],
                 note=html.unescape(row["note"]).strip(),
             ))
@@ -116,6 +119,8 @@ def _merge_day(day_date: str, items: list[tuple[DaylioEntry, ParsedNote, bool]])
     for entry, parsed, shifted in items:
         if shifted:
             day.flags.append(Flag("logical_day_shift", f"Logged {entry.date} {entry.time}; moved to the previous day"))
+        if entry.unknown_mood:
+            day.flags.append(Flag("unknown_mood", f"Custom mood '{entry.unknown_mood}'; add it to taxonomy.MOODS"))
         for tag in entry.activities:
             category = taxonomy.categorize(tag)
             if category is None:
@@ -152,5 +157,6 @@ def _merge_day(day_date: str, items: list[tuple[DaylioEntry, ParsedNote, bool]])
                 mood=None if (is_summary and len(items) == 1) else entry.mood,
                 time=entry.time,
                 tags=tags,
+                next_day=shifted,
             ))
     return day

@@ -9,6 +9,9 @@ import '../../../sleep/data/providers/sleep_providers.dart';
 import '../../../meals/data/providers/meal_providers.dart';
 import '../../../exercise/data/providers/exercise_providers.dart';
 import '../../../tags/data/providers/tag_providers.dart';
+import '../../../tags/presentation/screens/tags_screen.dart';
+import '../../../garden/data/garden_providers.dart';
+import '../../../metrics/data/providers/metrics_providers.dart';
 import 'backup_settings_screen.dart';
 import 'debug_database_screen.dart';
 
@@ -27,6 +30,16 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppTheme.spacePulse3),
         children: [
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.label_outline),
+              title: const Text('Tags'),
+              subtitle: const Text('Activities, symptoms and food sources'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const TagsScreen())),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacePulse3),
           Card(
             child: Column(
               children: [
@@ -238,21 +251,31 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Future<void> _handleImportData(BuildContext context, WidgetRef ref) async {
-    // Show loading dialog
+    // Rows applied so far and the total; null until the file is read.
+    final progress = ValueNotifier<(int, int)?>(null);
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
+      builder: (context) => Center(
         child: Card(
           child: Padding(
-            padding: EdgeInsets.all(AppTheme.spacePulse4),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: AppTheme.spacePulse3),
-                Text('Importing your data...'),
-              ],
+            padding: const EdgeInsets.all(AppTheme.spacePulse4),
+            child: SizedBox(
+              width: 240,
+              child: ValueListenableBuilder(
+                valueListenable: progress,
+                builder: (context, value, _) {
+                  final (done, total) = value ?? (0, 0);
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      LinearProgressIndicator(value: total == 0 ? null : done / total),
+                      const SizedBox(height: AppTheme.spacePulse3),
+                      Text(total == 0 ? 'Importing your data...' : 'Importing $done of $total entries'),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -262,8 +285,10 @@ class SettingsScreen extends ConsumerWidget {
     try {
       final exportService = ExportService.instance;
 
-      // Import data - this will open a directory picker
-      final result = await exportService.importData();
+      // Opens a file picker, then imports in one transaction.
+      final result = await exportService.importData(
+        onProgress: (done, total) => progress.value = (done, total),
+      );
 
       // Close loading dialog
       if (context.mounted) {
@@ -271,18 +296,29 @@ class SettingsScreen extends ConsumerWidget {
       }
 
       // Refresh every screen that shows imported data
-      for (final provider in [
-        sleepEntriesProvider,
-        mealEntriesProvider,
-        moodEntryProvider,
-        exerciseEntriesProvider,
-        taskEntriesProvider,
-        activityEntriesProvider,
-      ]) {
-        ref.invalidate(provider);
+      if (result != null) {
+        for (final provider in [
+          sleepEntriesProvider,
+          mealEntriesProvider,
+          moodEntryProvider,
+          exerciseEntriesProvider,
+          taskEntriesProvider,
+          activityEntriesProvider,
+          tagsByCategoryProvider,
+          gardenDayProvider,
+          gardenMonthProvider,
+          checkinProvider,
+          momentsProvider,
+          todaySleepEntriesProvider,
+          todayMealEntriesProvider,
+          todayMoodEntryProvider,
+          allTagsProvider,
+          allTagCategoriesProvider,
+        ]) {
+          ref.invalidate(provider);
+        }
+        invalidateMetrics(ref);
       }
-      ref.invalidate(allTagsProvider);
-      ref.invalidate(allTagCategoriesProvider);
 
       final String message;
       if (result == null) {

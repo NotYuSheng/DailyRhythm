@@ -23,6 +23,7 @@ cd tools/daylio_migration
 (any OpenAI-compatible server). Only pieces of run-together notes the dictionary
 can't split are sent, and an answer is used only if its items are exact substrings
 that rebuild the piece. Answers are cached in `data/migration/llm_cache.json`.
+Later runs without `--llm` reuse those answers; pass `--no-cache` for rules only.
 
 Output in `data/migration/`:
 
@@ -64,3 +65,17 @@ HRV with its baseline range, and workouts. Only wellness and activity files are 
 profile, email and consent files are ignored. Units are converted: activity distance
 is in centimetres, duration in milliseconds and calories in kilojoules in the export.
 Sleep belongs to the date it ended on, as in the app.
+
+## Import into the app
+
+```bash
+cd tools/daylio_migration
+../../.venv/bin/python -m daylio_migration.app_export   # reads days.json and garmin_daily.json
+```
+
+Writes `data/migration/dailyrhythm_import.zip`, an app export in the v13 schema; import
+it with Settings → Import Data. Meals and exercises link to their canonical name, keep
+the original line as raw text, and are marked as having no time of day. Each Daylio
+entry becomes a journal moment with its own mood and tags, and the original entries
+are kept verbatim in `daylio_raw`. Food sources stay day-level tags, since Daylio
+doesn't say which meal they were for. Importing the same zip twice adds nothing.

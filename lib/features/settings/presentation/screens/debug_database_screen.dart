@@ -74,7 +74,6 @@ class _DebugDatabaseScreenState extends ConsumerState<DebugDatabaseScreen> {
               initialValue: _selectedTable,
               decoration: const InputDecoration(
                 labelText: 'Select Table',
-                border: OutlineInputBorder(),
               ),
               items: _tables.map((table) {
                 return DropdownMenuItem(

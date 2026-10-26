@@ -24,6 +24,8 @@ class ExerciseEntry {
   final int? sets;
 
   final String? notes;
+  final int? exerciseItemId; // canonical exercise in exercise_items
+  final String? rawText; // original Daylio line, when imported
 
   ExerciseEntry({
     this.id,
@@ -44,7 +46,26 @@ class ExerciseEntry {
     this.weight,
     this.sets,
     this.notes,
+    this.exerciseItemId,
+    this.rawText,
   });
+
+  /// Short description of the amount: "5.0 km", "3×12 @ 20 kg", "40 reps".
+  /// Null when nothing beyond the name was recorded.
+  String? get amount {
+    if (type == ExerciseType.run) {
+      final parts = [
+        if (runType == RunType.interval && intervalCount != null) '$intervalCount×',
+        if (distance != null) '$distance km',
+      ];
+      return parts.isEmpty ? null : parts.join();
+    }
+    final parts = [
+      if (sets != null && reps != null) '$sets×$reps' else if (reps != null) '$reps reps',
+      if (weight != null && weight! > 0) '$weight kg',
+    ];
+    return parts.isEmpty ? null : parts.join(' @ ');
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -66,6 +87,8 @@ class ExerciseEntry {
       'weight': weight,
       'sets': sets,
       'notes': notes,
+      'exercise_item_id': exerciseItemId,
+      'raw_text': rawText,
     };
   }
 
@@ -110,6 +133,8 @@ class ExerciseEntry {
       weight: map['weight'] as double?,
       sets: map['sets'] as int?,
       notes: map['notes'] as String?,
+      exerciseItemId: map['exercise_item_id'] as int?,
+      rawText: map['raw_text'] as String?,
     );
   }
 
@@ -132,6 +157,8 @@ class ExerciseEntry {
     double? weight,
     int? sets,
     String? notes,
+    int? exerciseItemId,
+    String? rawText,
   }) {
     return ExerciseEntry(
       id: id ?? this.id,
@@ -152,6 +179,8 @@ class ExerciseEntry {
       weight: weight ?? this.weight,
       sets: sets ?? this.sets,
       notes: notes ?? this.notes,
+      exerciseItemId: exerciseItemId ?? this.exerciseItemId,
+      rawText: rawText ?? this.rawText,
     );
   }
 }

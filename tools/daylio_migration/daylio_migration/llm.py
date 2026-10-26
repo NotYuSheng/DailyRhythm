@@ -30,8 +30,11 @@ def load_env(path: Path) -> None:
     for line in path.read_text().splitlines():
         line = line.strip()
         if line and not line.startswith("#") and "=" in line:
-            key, value = line.split("=", 1)
-            os.environ.setdefault(key.strip(), value.strip())
+            key, value = line.removeprefix("export ").split("=", 1)
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                value = value[1:-1]
+            os.environ.setdefault(key.strip(), value)
 
 
 def _squash(text: str) -> str:
@@ -102,6 +105,11 @@ class LlmSplitter:
         if missing:
             raise SystemExit(f"Set {', '.join(missing)} in .env to use the LLM splitter")
         return cls(cache_path, os.environ["LLM_BASE_URL"], os.environ["LLM_API_KEY"], os.environ["LLM_MODEL"])
+
+    @classmethod
+    def cache_only(cls, cache_path: Path) -> "LlmSplitter":
+        """Answers only from the cache; unknown pieces stay unsplit."""
+        return cls(cache_path, base_url="", api_key="", model="")
 
     @staticmethod
     def _key(piece: str, zone: str) -> str:

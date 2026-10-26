@@ -20,3 +20,8 @@ double sleepDurationHours(DateTime bedTime, DateTime wakeTime) {
   final minutes = (wakeMinutes - bedMinutes) % (24 * 60);
   return minutes / 60.0;
 }
+
+/// Calendar days from [from] to [to], unaffected by daylight-saving changes
+/// (which make a local day 23 or 25 hours long).
+int daysBetween(DateTime from, DateTime to) =>
+    DateTime.utc(to.year, to.month, to.day).difference(DateTime.utc(from.year, from.month, from.day)).inDays;

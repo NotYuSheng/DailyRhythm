@@ -77,3 +77,13 @@ def test_leading_supplement_is_split_before_the_llm():
     note = parse_run_together("0700 Reveille X2 protein Bar chor mee 2300 Sleep", Lexicon(), splitter)
     assert [(s.name, s.quantity) for s in note.supplements] == [("protein", 2)]
     assert asked == ["Bar chor mee"]
+
+
+def test_leading_supplement_keeps_the_price():
+    note = parse_run_together("0700 Reveille protein chicken rice 3.50 0040 Sleep", lexicon(["chicken rice"]))
+    assert [(m.name, m.price) for m in note.meals] == [("chicken rice", 3.5)]
+
+
+def test_woke_up_is_a_wake_time_in_run_together_notes():
+    note = parse_run_together("0700 Woke up Nasi lemak 3.50 0040 Sleep", lexicon(["Nasi lemak"]))
+    assert (note.wake, note.bed, [m.name for m in note.meals]) == ("07:00", "00:40", ["Nasi lemak"])

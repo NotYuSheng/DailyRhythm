@@ -79,3 +79,19 @@ def test_note_without_sleep_line_uses_content():
     assert [e.name for e in note.exercises] == ["decline sit ups"]
     assert [m.name for m in note.meals] == ["Mixed rice"]
     assert {f.code for f in note.flags} == {"guessed_meal"}
+
+
+def test_lowercase_words_are_not_timezones():
+    assert parse_time_line("0130 went sleep")[:3] == ("bed", "01:30", None)
+    assert parse_time_line("0130 went to sleep")[:3] == ("bed", "01:30", None)
+
+
+def test_food_lines_before_sleep_are_not_exercises():
+    from daylio_migration.lines import BEFORE_SLEEP, classify_item
+    from daylio_migration.model import ParsedNote
+
+    note = ParsedNote(method="lines")
+    for line in ["Chips and dips", "French press coffee", "30 pushups"]:
+        classify_item(line, BEFORE_SLEEP, note)
+    assert [m.name for m in note.meals] == ["Chips and dips", "French press coffee"]
+    assert [x.name for x in note.exercises] == ["pushups"]

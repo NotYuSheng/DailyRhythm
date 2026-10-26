@@ -44,3 +44,13 @@ def test_single_entry_journal_has_no_separate_mood():
     day = build_days([entry("2024-01-01", "23:59", 2, "0700 Reveille<br>0100 Sleep<br>Tired after the exam")])[0]
     assert day.mood == 2
     assert [(j.text, j.mood) for j in day.journal] == [("Tired after the exam", None)]
+
+
+def test_custom_moods_are_flagged():
+    e = DaylioEntry(date="2024-01-01", time="23:59", mood=None, activities=[], note="", unknown_mood="super")
+    assert "unknown_mood" in [f.code for f in build_days([e])[0].flags]
+
+
+def test_moments_moved_to_the_previous_day_are_marked():
+    days = build_days([entry("2026-10-25", "03:04", 3, "0800 Reveille<br>Udon<br>0310 Sleep<br>Wistful, unsettled and tired")])
+    assert [(j.text, j.next_day) for j in days[0].journal] == [("Wistful, unsettled and tired", True)]

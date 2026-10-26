@@ -13,6 +13,7 @@ from dataclasses import asdict, dataclass, field
 class Meal:
     text: str
     name: str
+    canonical: str | None = None  # agreed spelling, from aliases.csv
     quantity: float | None = None
     price: float | None = None
     currency: str = "SGD"  # USD/MYR when the note says so
@@ -24,6 +25,7 @@ class Meal:
 class ExerciseSet:
     text: str
     name: str
+    canonical: str | None = None
     reps: int | None = None
     sets: int | None = None
     weight_kg: float | None = None
@@ -36,6 +38,7 @@ class ExerciseSet:
 class Supplement:
     text: str
     name: str
+    canonical: str | None = None
     quantity: float | None = None
 
 
@@ -47,6 +50,7 @@ class JournalEntry:
     mood: int | None = None
     time: str | None = None  # HH:MM the Daylio entry was logged
     tags: list[str] = field(default_factory=list)
+    next_day: bool = False  # logged after midnight, on the next calendar day
 
 
 @dataclass
@@ -67,6 +71,7 @@ class DaylioEntry:
     mood: int | None
     activities: list[str]
     note: str  # raw note, HTML entities decoded
+    unknown_mood: str | None = None  # a custom mood name taxonomy.MOODS lacks
 
 
 @dataclass
