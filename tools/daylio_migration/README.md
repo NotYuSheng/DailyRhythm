@@ -23,6 +23,7 @@ cd tools/daylio_migration
 (any OpenAI-compatible server). Only pieces of run-together notes the dictionary
 can't split are sent, and an answer is used only if its items are exact substrings
 that rebuild the piece. Answers are cached in `data/migration/llm_cache.json`.
+Later runs without `--llm` reuse those answers; pass `--no-cache` for rules only.
 
 Output in `data/migration/`:
 

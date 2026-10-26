@@ -29,6 +29,7 @@ def main() -> None:
     parser.add_argument("export", type=Path)
     parser.add_argument("--out", type=Path, default=REPO_ROOT / "data" / "migration")
     parser.add_argument("--llm", action="store_true", help="ask the LLM in .env about pieces not in the cache yet")
+    parser.add_argument("--no-cache", action="store_true", help="ignore earlier LLM answers: rules only")
     args = parser.parse_args()
 
     entries = read_entries(args.export)
@@ -41,8 +42,9 @@ def main() -> None:
         if splitter.pending:
             print(f"Asking the LLM about {len(splitter.pending)} pieces...")
             splitter.run_pending()
-    elif cache.exists():
+    elif cache.exists() and not args.no_cache:
         splitter = LlmSplitter.cache_only(cache)  # reuse earlier answers, ask nothing
+        print(f"Using earlier LLM answers from {cache} (--no-cache for rules only)")
 
     days = build_days(entries, splitter)
     apply_aliases(days, load_aliases(args.out / "aliases.csv"))

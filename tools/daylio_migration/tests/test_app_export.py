@@ -107,3 +107,37 @@ def test_garmin_metrics_and_workouts():
     workout = rows(files, "health_workouts.csv")[0]
     assert (workout["Start"], workout["Max HR"], workout["Source"]) == ("2024-03-02T20:31:00.000", "", "garmin_export")
     assert "health_metrics.csv" not in build(DAYS), "no empty files without Garmin data"
+
+
+def _day(**overrides):
+    day = {"date": "2024-03-05", "mood": 3, "wake": None, "bed": None, "journal": [], "activities": [],
+           "food_sources": [], "symptoms": [], "meals": [], "exercises": [], "supplements": [], "entries": []}
+    return {**day, **overrides}
+
+
+def _exercise(**overrides):
+    x = {"text": "", "name": "", "reps": None, "sets": None, "weight_kg": None, "duration_min": None,
+         "distance_km": None, "steps": None}
+    return {**x, **overrides}
+
+
+def test_exercises_with_only_a_distance_or_time_are_kept():
+    files = build([_day(exercises=[_exercise(text="5km", distance_km=5.0), _exercise(text="30 mins", duration_min=30)])])
+    ex = rows(files, "exercise_entries.csv")
+    assert [(x["Exercise Name"], x["Type"]) for x in ex] == [("Run", "run"), ("Workout", "weightLifting")]
+    assert ex[1]["Notes"] == "duration_min 30"
+
+
+def test_exercise_notes_hold_only_what_the_columns_dont():
+    files = build([_day(exercises=[
+        _exercise(name="walk", distance_km=3.0, steps=4000),
+        _exercise(name="curl", weight_kg=10, reps=12),
+    ])])
+    walk, curl = rows(files, "exercise_entries.csv")
+    assert walk["Notes"] == "steps 4000"
+    assert (curl["Weight"], curl["Notes"]) == ("10", "")
+
+
+def test_moments_after_midnight_sort_last():
+    files = build([_day(journal=[{"text": "Late", "mood": 3, "time": "01:10", "tags": [], "next_day": True}])])
+    assert rows(files, "journal_entries.csv")[0]["Time"] == "2024-03-06T01:10:00.000"

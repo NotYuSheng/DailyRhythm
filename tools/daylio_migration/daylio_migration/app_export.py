@@ -28,6 +28,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from . import taxonomy
+from .validate import sleep_hours
 
 # Icon names the app can draw (see journal_screen.dart).
 ICONS = {
@@ -46,8 +47,7 @@ def _iso(day: str, hhmm: str | None = None, plus_minutes: int = 0) -> str:
 
 
 def _sleep_hours(bed: str, wake: str) -> float:
-    to_min = lambda t: int(t[:2]) * 60 + int(t[3:])
-    return round(((to_min(wake) - to_min(bed)) % 1440) / 60, 2)
+    return round(sleep_hours(bed, wake), 2)
 
 
 def _csv(rows: list[list]) -> str:
@@ -131,19 +131,22 @@ def build(days: list[dict], garmin: list[dict] | None = None) -> dict[str, str]:
         for j in d["journal"]:
             for tag in j["tags"]:
                 used_tags.setdefault(tag, CATEGORIES[KIND_BY_NAME.get(tag, taxonomy.ACTIVITY)])
-            at = _iso(day, j["time"]) if j["time"] else ""
+            # After midnight it was the next calendar day, so it sorts last.
+            at = _iso(day, j["time"], 24 * 60 if j.get("next_day") else 0) if j["time"] else ""
             journal.append(["", midnight, at, j["text"], "" if j["mood"] is None else j["mood"], "daylio",
                             at or midnight, ";".join(j["tags"])])
 
         for i, x in enumerate(d["exercises"]):
-            if not x["name"]:
-                continue
-            name = x.get("canonical") or x["name"]
-            exercise_names.append((name, x["name"]))
+            # A line that was only a distance or a duration ("5km", "30 mins").
+            name = x.get("canonical") or x["name"] or ("Run" if x["distance_km"] is not None else "Workout")
+            exercise_names.append((name, x["name"] or name))
             is_cardio = x["distance_km"] is not None
             if is_cardio:
                 cardio.add(name)
-            notes = "; ".join(f"{k} {x[k]:g}" for k in ("duration_min", "steps", "weight_kg") if x[k] is not None and not is_cardio)
+            # What the columns don't hold: cardio has a duration column, and
+            # weight always has its own.
+            extra = ("steps",) if is_cardio else ("duration_min", "steps")
+            notes = "; ".join(f"{k} {x[k]:g}" for k in extra if x[k] is not None)
             exercises.append([
                 "", midnight, _iso(day, "20:00", i),
                 "run" if is_cardio else "weightLifting", "flat" if is_cardio else "",

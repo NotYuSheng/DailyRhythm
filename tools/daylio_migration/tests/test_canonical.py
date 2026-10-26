@@ -52,3 +52,45 @@ def test_synonyms_chain_through_spelling_variants():
                ("meals", "Cai Peng"): "Cai peng", ("meals", "Cai peng"): "Mixed rice"}
     apply_aliases([d], aliases)
     assert [m.canonical for m in d.meals] == ["Maggi", "Mixed rice"]
+
+
+def test_names_in_other_scripts_are_not_all_the_same():
+    assert compact_key("炒饭") != compact_key("鸡饭")
+    assert compact_key("🍜") != compact_key("🍣")
+    rows = propose([day(meals=["炒饭", "鸡饭", "鸡饭"])])
+    assert rows == []
+
+
+def test_one_letter_word_changes_need_a_check():
+    assert not is_likely_same("Dried bee hoon", "Fried bee hoon")
+
+
+def test_a_rejected_merge_keeps_its_own_spellings():
+    rows = propose([day(meals=["Wanton noodles soup"] * 5 + ["Wanting noodles soup"] * 3 + ["wanting noodles soup"])])
+    by_variant = {r["variant"]: r for r in rows}
+    assert (by_variant["wanting noodles soup"]["canonical"], by_variant["wanting noodles soup"]["how"]) == ("Wanting noodles soup", "exact")
+    assert by_variant["Wanting noodles soup"]["canonical"] == "Wanton noodles soup"
+
+
+def test_earlier_decisions_apply_only_to_the_same_proposal():
+    from daylio_migration.canonical import merge_previous
+
+    rows = [{"kind": "meals", "canonical": "B", "variant": "a", "count": 1, "how": "check", "approve": ""}]
+    previous = [
+        {"kind": "meals", "canonical": "A", "variant": "a", "count": 1, "how": "check", "approve": "yes"},
+        {"kind": "meals", "canonical": "Maggi", "variant": "Maggie", "count": 0, "how": "synonym", "approve": "yes"},
+    ]
+    merged = merge_previous(rows, previous)
+    assert [(r["variant"], r["canonical"], r["approve"]) for r in merged] == [("Maggie", "Maggi", "yes"), ("a", "B", "")]
+
+
+def test_synonyms_win_over_generated_rows(tmp_path):
+    from daylio_migration.canonical import load_aliases
+
+    path = tmp_path / "aliases.csv"
+    path.write_text(
+        "kind,canonical,variant,count,how,approve\n"
+        "meals,Maggi,maggie,0,synonym,yes\n"
+        "meals,Maggie,maggie,4,exact,yes\n"
+    )
+    assert load_aliases(path)[("meals", "maggie")] == "Maggi"

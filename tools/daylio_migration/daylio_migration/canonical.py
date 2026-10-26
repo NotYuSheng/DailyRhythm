@@ -1,6 +1,6 @@
 """Groups spelling variants of food, exercise and supplement names.
 
-    python -m daylio_migration.canonical          # write proposals
+    python -m daylio_migration.canonical [--out DIR]   # write proposals
     (review data/migration/aliases.csv, set approve to yes/no; add rows with
      how=synonym to rename one agreed name to another, e.g. Maggie -> Maggi)
     python -m daylio_migration ...                # parse again; approved aliases apply
@@ -28,7 +28,10 @@ FIELDS = ["kind", "canonical", "variant", "count", "how", "approve"]
 
 def spaced_key(name: str) -> str:
     text = name.lower().replace("&", " and ")
-    text = re.sub(r"[^a-z0-9 ]", " ", text)
+    # Letters in any script count ("炒饭", "phở"); only punctuation goes.
+    text = re.sub(r"[\W_]", " ", text)
+    if not text.strip():
+        return name.strip().lower()  # emoji only: keep it, or all would match
     words = []
     for word in text.split():
         if len(word) > 4 and word.endswith(("ches", "shes", "xes")):
@@ -61,7 +64,8 @@ def is_likely_same(a: str, b: str) -> bool:
         return True  # only spacing differs
     if len(ta) != len(tb):
         return False
-    return all(x == y or (len(x) > 3 and fuzz.ratio(x, y) >= 80) for x, y in zip(ta, tb))
+    # A different first letter is usually a different word (fried / dried).
+    return all(x == y or (len(x) > 3 and x[0] == y[0] and fuzz.ratio(x, y) >= 80) for x, y in zip(ta, tb))
 
 
 def display_name(name: str) -> str:
@@ -90,14 +94,14 @@ def propose(days: list[dict]) -> list[dict]:
 
         # 2. fuzzy-merge whole groups into bigger ones
         canon_of: dict[int, int] = {}
-        for i, group in enumerate(group_list):
-            key_i = spaced_key(group.most_common(1)[0][0])
+        keys = [spaced_key(g.most_common(1)[0][0]) for g in group_list]
+        for i, key_i in enumerate(keys):
             if len(key_i) < 5:
                 continue
             for j in range(i):
                 if j in canon_of:
                     continue
-                key_j = spaced_key(group_list[j].most_common(1)[0][0])
+                key_j = keys[j]
                 if _numbers(key_i) != _numbers(key_j):
                     continue
                 score = fuzz.ratio(key_i, key_j)
@@ -109,19 +113,19 @@ def propose(days: list[dict]) -> list[dict]:
             root = i
             while root in canon_of:
                 root = canon_of[root]
-            top = group_list[root].most_common(1)[0][0]
-            canonical = display_name(top)
+            # Spellings within a group always fold into its own top name.
+            own = display_name(group.most_common(1)[0][0])
             for variant, count in group.items():
-                if variant == canonical:
-                    continue
-                if root == i:
-                    how, approve = "exact", "yes"
-                elif is_likely_same(variant, top):
-                    how, approve = "likely typo", "yes"
-                else:
-                    how, approve = "check", ""
-                rows.append({"kind": kind, "canonical": canonical, "variant": variant,
-                             "count": count, "how": how, "approve": approve})
+                if variant != own:
+                    rows.append({"kind": kind, "canonical": own, "variant": variant,
+                                 "count": count, "how": "exact", "approve": "yes"})
+            # A group merged into another is one row, so rejecting the merge
+            # keeps the spellings above (aliases chain: variant -> own -> root).
+            if root != i:
+                top = group_list[root].most_common(1)[0][0]
+                how, approve = ("likely typo", "yes") if is_likely_same(own, top) else ("check", "")
+                rows.append({"kind": kind, "canonical": display_name(top), "variant": own,
+                             "count": sum(group.values()), "how": how, "approve": approve})
     order = {"check": 0, "likely typo": 1, "exact": 2}
     rows.sort(key=lambda r: (r["kind"], order[r["how"]], r["canonical"].lower(), -r["count"]))
     return rows
@@ -131,12 +135,11 @@ def load_aliases(path: Path) -> dict[tuple[str, str], str]:
     """(kind, variant) -> canonical for every approved row."""
     if not path.exists():
         return {}
-    aliases = {}
     with open(path, newline="", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            if row.get("approve", "").strip().lower() in ("yes", "y"):
-                aliases[(row["kind"], row["variant"])] = row["canonical"]
-    return aliases
+        approved = [r for r in csv.DictReader(f) if r.get("approve", "").strip().lower() in ("yes", "y")]
+    # Synonyms are added by hand, so they win over generated rows.
+    approved.sort(key=lambda r: r["how"] == "synonym")
+    return {(r["kind"], r["variant"]): r["canonical"] for r in approved}
 
 
 def resolve(aliases: dict[tuple[str, str], str], kind: str, name: str) -> str:
@@ -157,22 +160,30 @@ def apply_aliases(days, aliases: dict[tuple[str, str], str]) -> None:
                 item.canonical = resolve(aliases, kind, item.name) if item.name else None
 
 
-def main() -> None:
-    root = Path(__file__).resolve().parents[3] / "data" / "migration"
-    days = json.loads((root / "days.json").read_text())
-    rows = propose(days)
-    out = root / "aliases.csv"
-    previous = {}
-    if out.exists():  # keep earlier decisions
-        with open(out, newline="", encoding="utf-8") as f:
-            previous = {(r["kind"], r["variant"]): r["approve"] for r in csv.DictReader(f)}
-    manual = []
-    if out.exists():  # synonyms are added by hand; keep them
-        with open(out, newline="", encoding="utf-8") as f:
-            manual = [r for r in csv.DictReader(f) if r["how"] == "synonym"]
+def merge_previous(rows: list[dict], previous: list[dict]) -> list[dict]:
+    """Keeps decisions from an earlier aliases.csv. A decision applies only
+    to the same proposal: if a variant now points at a different canonical,
+    it needs a fresh look. Synonyms are added by hand, so they are kept."""
+    decided = {(r["kind"], r["variant"], r["canonical"]): r["approve"] for r in previous}
     for row in rows:
-        row["approve"] = previous.get((row["kind"], row["variant"]), row["approve"])
-    rows = manual + rows
+        row["approve"] = decided.get((row["kind"], row["variant"], row["canonical"]), row["approve"])
+    return [r for r in previous if r["how"] == "synonym"] + rows
+
+
+def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--out", type=Path, default=Path(__file__).resolve().parents[3] / "data" / "migration",
+                        help="the --out folder of the parse, holding days.json")
+    root = parser.parse_args().out
+    days = json.loads((root / "days.json").read_text())
+    out = root / "aliases.csv"
+    previous = []
+    if out.exists():
+        with open(out, newline="", encoding="utf-8") as f:
+            previous = list(csv.DictReader(f))
+    rows = merge_previous(propose(days), previous)
     with open(out, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDS)
         writer.writeheader()

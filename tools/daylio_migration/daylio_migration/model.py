@@ -50,6 +50,7 @@ class JournalEntry:
     mood: int | None = None
     time: str | None = None  # HH:MM the Daylio entry was logged
     tags: list[str] = field(default_factory=list)
+    next_day: bool = False  # logged after midnight, on the next calendar day
 
 
 @dataclass
@@ -70,6 +71,7 @@ class DaylioEntry:
     mood: int | None
     activities: list[str]
     note: str  # raw note, HTML entities decoded
+    unknown_mood: str | None = None  # a custom mood name taxonomy.MOODS lacks
 
 
 @dataclass

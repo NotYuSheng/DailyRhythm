@@ -24,21 +24,18 @@ BEFORE_SLEEP = "before"  # meal zone
 AFTER_SLEEP = "after"  # exercise / free-text zone
 UNKNOWN = "unknown"  # note has no Sleep line
 
-# Accepts the typos seen in the export ("Reveill", "eveille", "Revellie").
-TIME_LINE = re.compile(
-    r"^(?P<time>\d{3,6})\s*(?:(?P<tz>[A-Z]{3,4})\s+)?(?P<kind>r?evei?ll?(?:ie|e)?|revellie|woke(?: up)?|wake(?: up)?|sleep)\b"
-    r"[.:]?\s*(?P<rest>.*)$",
-    re.IGNORECASE,
-)
-# Tokens matched anywhere, for notes written as one run-together string.
-TIME_ANCHOR = re.compile(
-    r"\b(?P<time>\d{3,6})\s*(?:(?P<tz>[A-Z]{3,4})\s+)?(?P<kind>r?evei?ll?(?:ie|e)?|revellie|sleep)\b",
-    re.IGNORECASE,
-)
 TIMEZONES = {
     "SGT", "PDT", "PST", "EDT", "EST", "CDT", "CST", "MDT", "MST", "JST", "KST",
     "HKT", "MYT", "ICT", "WIB", "CET", "CEST", "BST", "GMT", "UTC", "AEST", "AEDT",
 }
+# Upper case only, so "0130 went sleep" isn't read as timezone "went";
+# unknown zones ("UST") are still caught and flagged.
+_TZ = r"(?:(?P<tz>(?-i:[A-Z]{3,4}))\s+)?"
+_KIND = r"(?:went\s+(?:to\s+)?)?(?P<kind>r?evei?ll?(?:ie|e)?|revellie|woke(?: up)?|wake(?: up)?|sleep)\b"
+# Accepts the typos seen in the export ("Reveill", "eveille", "Revellie").
+TIME_LINE = re.compile(r"^(?P<time>\d{3,6})\s*" + _TZ + _KIND + r"[.:]?\s*(?P<rest>.*)$", re.IGNORECASE)
+# Tokens matched anywhere, for notes written as one run-together string.
+TIME_ANCHOR = re.compile(r"\b(?P<time>\d{3,6})\s*" + _TZ + _KIND, re.IGNORECASE)
 
 PAREN = re.compile(r"\s*[\(\[](?P<comment>[^\)\]]*)[\)\]]\s*")
 CURRENCY_WORDS = {"usd": "USD", "us$": "USD", "ringgit": "MYR", "myr": "MYR", "rm": "MYR", "sgd": "SGD"}
@@ -264,7 +261,9 @@ def classify_item(line: str, zone: str, note: ParsedNote) -> None:
 
     priced = bool(re.search(r"\d+\.\d{2}\s*(usd|ringgit|myr|rm)?\s*(\(.*\))?\s*$", line, re.IGNORECASE))
     if zone == BEFORE_SLEEP:
-        if not priced and is_exercise(line):  # a few workouts are logged before Sleep
+        # A few workouts are logged before Sleep; food words win there, as
+        # "dips" or "press" also name food ("Chips and dips").
+        if not priced and is_exercise(line) and not FOOD_WORDS.search(line):
             note.exercises.append(parse_exercise(line))
         elif not priced and is_feeling(line):
             note.journal.append(line)
