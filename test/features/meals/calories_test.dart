@@ -28,6 +28,18 @@ void main() {
     ]);
   });
 
+  test('odd values are skipped, not fatal', () async {
+    final client = MockClient((_) async => http.Response(jsonEncode({
+          'products': [
+            'not a product',
+            {'product_name': 42, 'nutriments': {'energy-kcal_100g': 100}},
+            {'product_name': 'Zero', 'brands': '', 'nutriments': {'energy-kcal_serving': '0', 'energy-kcal_100g': '120'}},
+          ],
+        }), 200));
+    final matches = await OpenFoodFactsLookup(client).search('x');
+    expect([for (final m in matches) (m.name, m.brand, m.kcal, m.basis)], [('Zero', null, 120.0, '100 g')]);
+  });
+
   test('a failed lookup is an error, and an empty name asks nothing', () async {
     var calls = 0;
     final client = MockClient((_) async {

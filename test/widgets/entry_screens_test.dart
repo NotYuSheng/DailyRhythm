@@ -160,10 +160,35 @@ void main() {
       await tester.tap(find.text('Fried noodles'));
       await tester.pumpAndSettle();
       expect(tester.widget<TextField>(_field('Calories (optional)')).controller!.text, '510');
+      await tester.enterText(_field('Qty'), '2');
+      await tester.pump();
+      expect(tester.widget<TextField>(_field('Calories (optional)')).controller!.text, '1020');
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       final food = (await CatalogRepository(db).findFood('Mee goreng'))!;
       expect((food.kcal, food.kcalSource), (510.0, 'off'));
+    });
+
+    testWidgets('editing an old meal doesn\'t change its food\'s calories', (tester) async {
+      final maggi = await CatalogRepository(db).saveFood(FoodItem(name: 'Maggi', kcal: 380, kcalSource: 'off'));
+      await db.createMealEntry(MealEntry(date: pastDay, time: DateTime(2026, 10, 20, 12), name: 'Maggi', calories: 500, foodItemId: maggi));
+      final meal = (await db.getMealEntriesByDate(pastDay)).single;
+      await tester.pumpWidget(_app(AddMealScreen(entry: meal)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final food = (await CatalogRepository(db).findFood('Maggi'))!;
+      expect((food.kcal, food.kcalSource), (380.0, 'off'));
+    });
+
+    testWidgets('a quantity of 0 isn\'t saved', (tester) async {
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.enterText(_field('Meal Name'), 'Laksa');
+      await tester.enterText(_field('Qty'), '0');
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      expect(find.text('Quantity must be at least 1'), findsOneWidget);
+      expect(await db.getMealEntriesByDate(pastDay), isEmpty);
     });
 
     testWidgets('a new food joins the catalog with its price', (tester) async {

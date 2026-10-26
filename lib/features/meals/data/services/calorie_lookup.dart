@@ -15,7 +15,7 @@ class CalorieMatch {
   /// "serving" when the source gives a serving size, otherwise "100 g".
   final String basis;
 
-  /// Where the value came from (see `docs/CALORIES.md`): usda, sgfoodid,
+  /// Where the value came from (see `docs/calories.rst`): usda, sgfoodid,
   /// off, estimate or user.
   final String source;
 }
@@ -52,17 +52,21 @@ class OpenFoodFactsLookup implements CalorieLookup {
     if (response.statusCode != 200) {
       throw Exception('Open Food Facts answered ${response.statusCode}');
     }
-    final products = (jsonDecode(response.body) as Map<String, dynamic>)['products'] as List? ?? const [];
+    final body = jsonDecode(response.body);
+    final products = body is Map && body['products'] is List ? body['products'] as List : const [];
     final matches = <CalorieMatch>[];
-    for (final p in products.cast<Map<String, dynamic>>()) {
-      final name = (p['product_name'] as String?)?.trim();
-      final nutriments = p['nutriments'] as Map<String, dynamic>? ?? const {};
+    // Fields are user-contributed, so anything can be missing or odd: skip
+    // what doesn't fit rather than fail the whole search.
+    for (final p in products.whereType<Map>()) {
+      final name = p['product_name'] is String ? (p['product_name'] as String).trim() : '';
+      final nutriments = p['nutriments'] is Map ? p['nutriments'] as Map : const {};
       final perServing = _number(nutriments['energy-kcal_serving']);
       final per100 = _number(nutriments['energy-kcal_100g']);
-      if (name == null || name.isEmpty || (perServing == null && per100 == null)) continue;
+      if (name.isEmpty || (perServing == null && per100 == null)) continue;
+      final brand = p['brands'] is String ? (p['brands'] as String).split(',').first.trim() : '';
       matches.add(CalorieMatch(
         name: name,
-        brand: (p['brands'] as String?)?.split(',').first.trim(),
+        brand: brand.isEmpty ? null : brand,
         kcal: perServing ?? per100!,
         basis: perServing != null ? 'serving' : '100 g',
         source: source,
@@ -71,9 +75,8 @@ class OpenFoodFactsLookup implements CalorieLookup {
     return matches;
   }
 
-  static double? _number(Object? value) => switch (value) {
-        num n when n > 0 => n.toDouble(),
-        String s => double.tryParse(s),
+  static double? _number(Object? value) => switch (value is String ? double.tryParse(value) : value) {
+        num n when n > 0 && n.isFinite => n.toDouble(),
         _ => null,
       };
 }

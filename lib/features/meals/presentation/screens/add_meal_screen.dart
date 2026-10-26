@@ -35,6 +35,13 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   /// Where typed calories came from: 'off' after a lookup, else the user.
   String? _kcalSource;
 
+  /// A looked-up value per serving, so the calories follow the quantity.
+  double? _lookedUpPerServing;
+
+  /// Whether the calories were typed or looked up on this screen; only
+  /// then do they become the food's (editing an old meal shouldn't).
+  bool _caloriesChanged = false;
+
   /// The user's foods, for suggestions; empty until loaded.
   FoodMatcher _matcher = FoodMatcher(const []);
   List<FoodChoice> _usual = const [];
@@ -50,7 +57,9 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     _notesController.text = widget.entry?.notes ?? '';
     _foodSource = widget.entry?.foodSource;
     _nameController.addListener(() => setState(() {}));
-    _quantityController.addListener(() => setState(() {}));
+    _quantityController.addListener(() => setState(() {
+          if (_lookedUpPerServing case final kcal?) _caloriesController.text = '${(kcal * _quantity).round()}';
+        }));
     _loadFoods();
   }
 
@@ -89,7 +98,10 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     });
   }
 
-  int get _quantity => int.tryParse(_quantityController.text.trim()) ?? 1;
+  int get _quantity => switch (int.tryParse(_quantityController.text.trim())) {
+        final n? when n > 0 => n,
+        _ => 1,
+      };
 
   /// The known food's calories for this quantity, when it has them.
   double? get _inheritedCalories => switch (_matcher.exact(_nameController.text)?.item.kcal) {
@@ -101,14 +113,15 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   /// fills the calories from the match the user picks.
   Future<void> _lookUpCalories() async {
     final name = _nameController.text.trim();
-    final lookup = ref.read(calorieLookupProvider);
+    // Asked once; the sheet may rebuild while it waits.
+    final results = ref.read(calorieLookupProvider).search(name);
     final picked = await showModalBottomSheet<CalorieMatch>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (context) => SafeArea(
         child: FutureBuilder<List<CalorieMatch>>(
-          future: lookup.search(name),
+          future: results,
           builder: (context, snapshot) {
             final theme = Theme.of(context);
             return ConstrainedBox(
@@ -158,12 +171,26 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       ),
     );
     if (picked == null || !mounted) return;
+    final perServing = picked.basis == 'serving';
     setState(() {
-      // Per serving scales with the quantity; per 100 g is a starting point.
-      final kcal = picked.basis == 'serving' ? picked.kcal * _quantity : picked.kcal;
-      _caloriesController.text = '${kcal.round()}';
-      _kcalSource = picked.source;
+      _caloriesChanged = true;
+      if (perServing) {
+        _lookedUpPerServing = picked.kcal;
+        _caloriesController.text = '${(picked.kcal * _quantity).round()}';
+        _kcalSource = picked.source;
+      } else {
+        // Per 100 g isn't a serving: a starting point for the user to adjust,
+        // so it's saved as theirs.
+        _lookedUpPerServing = null;
+        _caloriesController.text = '${picked.kcal.round()}';
+        _kcalSource = null;
+      }
     });
+    if (!perServing) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('That’s per 100 g. Adjust it to what you had.')),
+      );
+    }
   }
 
   static String _formatPrice(double price) =>
@@ -313,7 +340,11 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                     suffixText: 'kcal',
                   ),
                   keyboardType: TextInputType.number,
-                  onChanged: (_) => _kcalSource = null,
+                  onChanged: (_) {
+                    _kcalSource = null;
+                    _lookedUpPerServing = null;
+                    _caloriesChanged = true;
+                  },
                 ),
                 Align(
                   alignment: Alignment.centerLeft,
@@ -369,17 +400,23 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     final now = DateTime.now();
     final time = widget.entry?.time ?? atTimeOfDay(_date, now.hour, now.minute);
 
-    // Parse quantity (default to 1)
-    int quantity = 1;
-    if (_quantityController.text.trim().isNotEmpty) {
-      quantity = int.tryParse(_quantityController.text.trim()) ?? 1;
+    final quantityText = _quantityController.text.trim();
+    final quantity = quantityText.isEmpty ? 1 : int.tryParse(quantityText) ?? 0;
+    if (quantity < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Quantity must be at least 1')));
+      return;
     }
 
     // Parse calories (optional)
     int? calories;
     if (_caloriesController.text.trim().isNotEmpty) {
       calories = int.tryParse(_caloriesController.text.trim());
+      if (calories == null || calories < 0) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid calories')));
+        return;
+      }
     }
+    final teach = calories != null && _caloriesChanged;
 
     try {
       final db = ref.read(databaseProvider);
@@ -393,8 +430,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         FoodItem(
           name: known?.name ?? name,
           lastPrice: price,
-          kcal: calories == null ? null : calories / quantity,
-          kcalSource: calories == null ? null : _kcalSource ?? 'user',
+          kcal: teach ? calories / quantity : null,
+          kcalSource: teach ? _kcalSource ?? 'user' : null,
         ),
       );
 

@@ -1,11 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/services/database/repositories/catalog_repository.dart';
 import '../models/meal_entry.dart';
 import '../services/calorie_lookup.dart';
 
 /// Where calorie lookups go; replaced in tests.
-final calorieLookupProvider = Provider<CalorieLookup>((ref) => OpenFoodFactsLookup());
+final calorieLookupProvider = Provider<CalorieLookup>((ref) {
+  final client = http.Client();
+  ref.onDispose(client.close);
+  return OpenFoodFactsLookup(client);
+});
 
 /// Calories per serving of each food that has them, by food id.
 final foodCaloriesProvider = FutureProvider<Map<int, double>>((ref) {
