@@ -56,32 +56,17 @@ class CatalogRepository {
   }
 
   /// Every food with how often it has been logged, most logged first.
-  Future<List<FoodChoice>> foodsWithUses() async {
-    final db = await _db.database;
-    final rows = await db.rawQuery('''
-      SELECT f.*, (SELECT COUNT(*) FROM meal_entries m WHERE m.food_item_id = f.id) AS uses
-      FROM food_items f ORDER BY uses DESC, f.name
-    ''');
-    return [for (final r in rows) FoodChoice(FoodItem.fromMap(r), r['uses'] as int)];
-  }
+  Future<List<FoodChoice>> foodsWithUses() async => [
+        for (final r in await _withUses('food_items', 'meal_entries', 'food_item_id'))
+          FoodChoice(FoodItem.fromMap(r), r['uses'] as int),
+      ];
 
   /// Foods logged most over the [days] before [day], most recent breaking
   /// ties, leaving out ones already logged on [day]: likely next meals.
-  Future<List<FoodChoice>> usualFoods(DateTime day, {int days = 30, int limit = 8}) async {
-    final db = await _db.database;
-    final start = DateTime(day.year, day.month, day.day - days).toIso8601String();
-    final today = DateTime(day.year, day.month, day.day).toIso8601String();
-    final rows = await db.rawQuery('''
-      SELECT f.*, COUNT(*) AS uses, MAX(m.date) AS last
-      FROM meal_entries m JOIN food_items f ON f.id = m.food_item_id
-      WHERE m.date >= ? AND m.date < ?
-        AND f.id NOT IN (SELECT food_item_id FROM meal_entries WHERE date = ? AND food_item_id IS NOT NULL)
-      GROUP BY f.id
-      ORDER BY uses DESC, last DESC
-      LIMIT ?
-    ''', [start, today, today, limit]);
-    return [for (final r in rows) FoodChoice(FoodItem.fromMap(r), r['uses'] as int)];
-  }
+  Future<List<FoodChoice>> usualFoods(DateTime day, {int days = 30, int limit = 8}) async => [
+        for (final r in await _usual('food_items', 'meal_entries', 'food_item_id', day, days, limit))
+          FoodChoice(FoodItem.fromMap(r), r['uses'] as int),
+      ];
 
   // ==================== Exercises ====================
 
@@ -107,32 +92,17 @@ class CatalogRepository {
   }
 
   /// Every exercise with how often it has been logged, most logged first.
-  Future<List<ExerciseChoice>> exercisesWithUses() async {
-    final db = await _db.database;
-    final rows = await db.rawQuery('''
-      SELECT x.*, (SELECT COUNT(*) FROM exercise_entries e WHERE e.exercise_item_id = x.id) AS uses
-      FROM exercise_items x ORDER BY uses DESC, x.name
-    ''');
-    return [for (final r in rows) ExerciseChoice(ExerciseItem.fromMap(r), r['uses'] as int)];
-  }
+  Future<List<ExerciseChoice>> exercisesWithUses() async => [
+        for (final r in await _withUses('exercise_items', 'exercise_entries', 'exercise_item_id'))
+          ExerciseChoice(ExerciseItem.fromMap(r), r['uses'] as int),
+      ];
 
   /// Exercises logged most over the [days] before [day], leaving out ones
   /// already logged on [day]: likely next exercises.
-  Future<List<ExerciseChoice>> usualExercises(DateTime day, {int days = 30, int limit = 8}) async {
-    final db = await _db.database;
-    final start = DateTime(day.year, day.month, day.day - days).toIso8601String();
-    final today = DateTime(day.year, day.month, day.day).toIso8601String();
-    final rows = await db.rawQuery('''
-      SELECT x.*, COUNT(*) AS uses, MAX(e.date) AS last
-      FROM exercise_entries e JOIN exercise_items x ON x.id = e.exercise_item_id
-      WHERE e.date >= ? AND e.date < ?
-        AND x.id NOT IN (SELECT exercise_item_id FROM exercise_entries WHERE date = ? AND exercise_item_id IS NOT NULL)
-      GROUP BY x.id
-      ORDER BY uses DESC, last DESC
-      LIMIT ?
-    ''', [start, today, today, limit]);
-    return [for (final r in rows) ExerciseChoice(ExerciseItem.fromMap(r), r['uses'] as int)];
-  }
+  Future<List<ExerciseChoice>> usualExercises(DateTime day, {int days = 30, int limit = 8}) async => [
+        for (final r in await _usual('exercise_items', 'exercise_entries', 'exercise_item_id', day, days, limit))
+          ExerciseChoice(ExerciseItem.fromMap(r), r['uses'] as int),
+      ];
 
   /// The latest entry for the exercise [itemId], to prefill the next one.
   Future<ExerciseEntry?> lastExercise(int itemId) async {
@@ -158,6 +128,32 @@ class CatalogRepository {
   }
 
   // ==================== Shared ====================
+
+  /// Every row of [table] with how many [entries] link to it.
+  Future<List<Map<String, Object?>>> _withUses(String table, String entries, String link) async {
+    final db = await _db.database;
+    return db.rawQuery('''
+      SELECT t.*, (SELECT COUNT(*) FROM $entries e WHERE e.$link = t.id) AS uses
+      FROM $table t ORDER BY uses DESC, t.name
+    ''');
+  }
+
+  /// Rows of [table] most linked from [entries] over the [days] before
+  /// [day], most recent breaking ties, leaving out ones linked on [day].
+  Future<List<Map<String, Object?>>> _usual(String table, String entries, String link, DateTime day, int days, int limit) async {
+    final db = await _db.database;
+    final start = DateTime(day.year, day.month, day.day - days).toIso8601String();
+    final today = DateTime(day.year, day.month, day.day).toIso8601String();
+    return db.rawQuery('''
+      SELECT t.*, COUNT(*) AS uses, MAX(e.date) AS last
+      FROM $entries e JOIN $table t ON t.id = e.$link
+      WHERE e.date >= ? AND e.date < ?
+        AND t.id NOT IN (SELECT $link FROM $entries WHERE date = ? AND $link IS NOT NULL)
+      GROUP BY t.id
+      ORDER BY uses DESC, last DESC
+      LIMIT ?
+    ''', [start, today, today, limit]);
+  }
 
   Future<Map<String, Object?>?> _find(String table, String name) async {
     final db = await _db.database;

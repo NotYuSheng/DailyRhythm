@@ -63,21 +63,38 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
       _notesController.text = entry.notes ?? '';
     }
     _exerciseNameController.addListener(() => setState(() {}));
-    _loadExercises();
+    _loaded = _loadExercises();
   }
 
+  /// Completes once suggestions are loaded; saving waits for it, so a
+  /// typed alias is still saved under its exercise's name.
+  late final Future<void> _loaded;
+
+  /// Counts picks, so a slow lookup for an earlier pick can't fill the
+  /// form after a later one.
+  int _pick = 0;
+
   Future<void> _loadExercises() async {
-    final catalog = CatalogRepository(ref.read(databaseProvider));
-    final exercises = await catalog.exercisesWithUses();
-    final day = dayOf(widget.date ?? DateTime.now());
-    final usual = widget.entry == null ? await catalog.usualExercises(day) : const <ExerciseChoice>[];
-    if (mounted) {
-      setState(() {
-        _matcher = ExerciseMatcher(exercises);
-        _usual = usual;
-      });
+    try {
+      final catalog = CatalogRepository(ref.read(databaseProvider));
+      final exercises = await catalog.exercisesWithUses();
+      final day = dayOf(widget.date ?? DateTime.now());
+      final usual = widget.entry == null ? await catalog.usualExercises(day) : const <ExerciseChoice>[];
+      if (mounted) {
+        setState(() {
+          _matcher = ExerciseMatcher(exercises);
+          _usual = usual;
+        });
+      }
+    } catch (e) {
+      debugPrint('Loading exercises for suggestions failed: $e');
     }
   }
+
+  bool get _amountsEmpty => [
+        _distanceController, _durationMinutesController, _durationSecondsController, _intervalCountController,
+        _repsController, _weightController, _setsController,
+      ].every((c) => c.text.trim().isEmpty);
 
   /// Sets the type and amounts from [e] (not its name or notes).
   void _fill(ExerciseEntry e) {
@@ -104,16 +121,26 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
 
   /// Picks a known exercise: its name, and the type and amounts from the
   /// last time it was logged, so a repeat needs only Save.
+  /// Picks a known exercise: its name and, for a new entry with nothing
+  /// typed yet, the type and amounts from the last time it was logged, so
+  /// a repeat needs only Save. Pace isn't copied: it's hidden under More
+  /// and wouldn't match a different run.
   Future<void> _choose(ExerciseItem item) async {
     _nameFocus.unfocus();
+    final pick = ++_pick;
     setState(() {
       _exerciseNameController.text = item.name;
       _exerciseNameController.selection = TextSelection.collapsed(offset: item.name.length);
       if (item.category == ExerciseItem.cardio) _selectedType = ExerciseType.run;
     });
-    if (item.id == null) return;
+    if (item.id == null || widget.entry != null || !_amountsEmpty) return;
     final last = await CatalogRepository(ref.read(databaseProvider)).lastExercise(item.id!);
-    if (last != null && mounted) setState(() => _fill(last));
+    if (last == null || !mounted || pick != _pick || !_amountsEmpty) return;
+    setState(() {
+      _fill(last);
+      _paceMinutesController.clear();
+      _paceSecondsController.clear();
+    });
   }
 
   @override
@@ -218,6 +245,12 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                     onSelectionChanged: (Set<ExerciseType> newSelection) {
                       setState(() {
                         _selectedType = newSelection.first;
+                        // A known exercise of the other kind ("Bench Press"
+                        // when switching to Run) no longer names this one.
+                        final known = _matcher.exact(_exerciseNameController.text)?.item;
+                        if (known != null && (known.category == ExerciseItem.cardio) != (_selectedType == ExerciseType.run)) {
+                          _exerciseNameController.clear();
+                        }
                       });
                     },
                   ),
@@ -628,6 +661,7 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
   }
 
   Future<void> _saveExercise() async {
+    await _loaded;
     try {
       // Editing keeps the entry on its original day and time.
       final now = DateTime.now();
@@ -742,15 +776,23 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
       }
 
       // Link to the catalog (adding new exercises to it); a run with no
-      // name is just "Run". Editing keeps the imported line.
+      // name is just "Run". An edit that keeps the name and type keeps its
+      // link (imports can link a name to a differently named item), and
+      // keeps the imported line.
       final db = ref.read(databaseProvider);
+      final old = widget.entry;
+      final unchanged = old != null &&
+          old.type == entry.type &&
+          (old.exerciseName ?? '').toLowerCase() == (entry.exerciseName ?? '').toLowerCase();
       final itemName = entry.exerciseName ?? (entry.type == ExerciseType.run ? 'Run' : null);
-      final itemId = itemName == null
-          ? null
-          : await CatalogRepository(db).saveExercise(ExerciseItem(
-              name: itemName,
-              category: entry.type == ExerciseType.run ? ExerciseItem.cardio : ExerciseItem.strength,
-            ));
+      final itemId = unchanged && old.exerciseItemId != null
+          ? old.exerciseItemId
+          : itemName == null
+              ? null
+              : await CatalogRepository(db).saveExercise(ExerciseItem(
+                  name: itemName,
+                  category: entry.type == ExerciseType.run ? ExerciseItem.cardio : ExerciseItem.strength,
+                ));
       entry = entry.copyWith(exerciseItemId: itemId, rawText: widget.entry?.rawText);
 
       if (widget.entry == null) {

@@ -57,6 +57,16 @@ abstract class NameMatcher<T> {
   /// is, or a close spelling of a logged item. Null when [text] already is
   /// an item's name, or nothing is close.
   Choice<T>? didYouMean(String text) {
+    // Screens rebuild often for other reasons; work out each text once.
+    if (text == _lastQuery) return _lastAnswer;
+    _lastQuery = text;
+    return _lastAnswer = _didYouMean(text);
+  }
+
+  String? _lastQuery;
+  Choice<T>? _lastAnswer;
+
+  Choice<T>? _didYouMean(String text) {
     final q = _key(text);
     if (q.length < 3) return null;
     final match = exact(text);

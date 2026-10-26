@@ -302,6 +302,41 @@ void main() {
       expect((await db.getExerciseEntriesByDate(pastDay)).map((e) => e.exerciseItemId), contains(burpees!.id));
     });
 
+    testWidgets('picking an exercise keeps amounts already typed', (tester) async {
+      await seedExercises(db);
+      await openWeights(tester, AddExerciseScreen(date: pastDay));
+      await tester.enterText(_field('Reps'), '15');
+      await tester.tap(find.widgetWithText(ActionChip, 'Push ups'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(_field('Reps')).controller!.text, '15');
+      expect(tester.widget<TextField>(_field('Sets')).controller!.text, '');
+    });
+
+    testWidgets('switching to Run drops a weights exercise name', (tester) async {
+      await seedExercises(db);
+      await openWeights(tester, AddExerciseScreen(date: pastDay));
+      await tester.enterText(_field('Exercise Name'), 'Push ups');
+      await tester.tap(find.descendant(of: find.byType(SegmentedButton<ExerciseType>), matching: find.text('Run')));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(_field('Exercise Name')).controller!.text, '');
+    });
+
+    testWidgets('editing keeps an imported entry\'s catalog link', (tester) async {
+      final bench = await CatalogRepository(db).saveExercise(ExerciseItem(name: 'Bench press'));
+      await db.createExerciseEntry(ExerciseEntry(
+        date: pastDay, timestamp: DateTime(2026, 10, 20, 19), type: ExerciseType.weightLifting,
+        exerciseName: 'chest day', equipmentType: EquipmentType.barbell, reps: 8, weight: 60, sets: 3,
+        exerciseItemId: bench, rawText: 'chest day 3x8 60kg',
+      ));
+      final entry = (await db.getAllExerciseEntries()).single;
+      await tester.pumpWidget(_app(AddExerciseScreen(entry: entry)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final saved = (await db.getAllExerciseEntries()).single;
+      expect((saved.exerciseItemId, saved.rawText), (bench, 'chest day 3x8 60kg'));
+    });
+
     testWidgets('editing a past entry does not move it to today', (tester) async {
       await db.createExerciseEntry(ExerciseEntry(
         date: pastDay,
