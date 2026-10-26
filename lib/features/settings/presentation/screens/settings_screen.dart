@@ -10,6 +10,7 @@ import '../../../meals/data/providers/meal_providers.dart';
 import '../../../exercise/data/providers/exercise_providers.dart';
 import '../../../tags/data/providers/tag_providers.dart';
 import '../../../tags/presentation/screens/tags_screen.dart';
+import '../../../health/presentation/health_settings_card.dart';
 import '../../../garden/data/garden_providers.dart';
 import '../../../metrics/data/providers/metrics_providers.dart';
 import 'backup_settings_screen.dart';
@@ -39,6 +40,8 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const TagsScreen())),
             ),
           ),
+          const SizedBox(height: AppTheme.spacePulse3),
+          const HealthSettingsCard(),
           const SizedBox(height: AppTheme.spacePulse3),
           Card(
             child: Column(
