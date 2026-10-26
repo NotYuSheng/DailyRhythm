@@ -46,6 +46,8 @@ PRICE_END = re.compile(
 )
 # "... USD 11.60"
 CURRENCY_FIRST_END = re.compile(r"\s(?P<cur>usd|us\$|rm|myr|sgd)\s*\$?(?P<price>\d+(?:\.\d{1,2})?)\s*$", re.IGNORECASE)
+PRICE_INSIDE = re.compile(r"\s(?P<price>\d+\.\d{2})\s")
+TRAILING_COUNT = re.compile(r"^(?P<rest>.*[A-Za-z].*?)\s+(?P<count>[1-9]|1\d|20)$")
 QUANTITY_PREFIX = re.compile(r"^[xX]\s?(?P<qty>\d+(?:\.\d+)?)\s*(?P<rest>.+)$")
 COUNT_PREFIX = re.compile(r"^(?P<count>\d+)\s+(?P<rest>[^\d\s].*)$")
 # Names that start with a number but aren't a count.
@@ -79,6 +81,7 @@ FEELING_WORDS = re.compile(
     r"lonely|productive|unproductive|rested|energetic|lethargic|overwhelmed|frustrated|annoyed|angry|"
     r"motivated|unmotivated|depressed|calm|content|grateful|regret|worried|nervous|mood|decisions?|"
     r"pain|aches?|sick|diarrh\w*|fever|vomit\w*|headache|nause\w*|hell|travell?ing|"
+    r"bites?|rash(es)?|itch\w*|swollen|cough(ing)?|sore throat|injur\w*|sprain\w*|cramps?|bruis\w*|allerg\w*|"
     r"results?|planning|resolved|quiz|exam|meeting|roadshow)\b",
     re.IGNORECASE,
 )
@@ -142,8 +145,18 @@ def parse_meal(line: str, flags: list[Flag]) -> Meal:
                 currency = CURRENCY_WORDS[match["cur"].lower()]
             body = rest
 
+    # A price written inside the name: "Yishun market place 5.60 rice with wings"
+    if price is None and (inner := PRICE_INSIDE.search(body)):
+        price = float(inner["price"])
+        body = (body[: inner.start()] + " " + body[inner.end():]).strip()
+        flags.append(Flag("price_in_name", f"{price:.2f} taken from inside the name", text))
+
     quantity = None
-    if COMPOUND.match(body) and not NUMBERED_NAMES.match(body):
+    if (trailing := TRAILING_COUNT.match(body)) and not NUMBERED_NAMES.match(body) and not COMPOUND.match(body):
+        # "Burger king 6": a count at the end (the price covers all of them).
+        quantity = float(trailing["count"])
+        body = trailing["rest"]
+    elif COMPOUND.match(body) and not NUMBERED_NAMES.match(body):
         # One order of several kinds: total count, parts kept as a comment.
         parts = [(float(m["qty"]), _clean(m["name"])) for m in COMPOUND_PART.finditer(body)]
         quantity = sum(q for q, _ in parts)

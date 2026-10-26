@@ -68,11 +68,29 @@ def is_likely_same(a: str, b: str) -> bool:
     return all(x == y or (len(x) > 3 and x[0] == y[0] and fuzz.ratio(x, y) >= 80) for x, y in zip(ta, tb))
 
 
+# Names written in lower case that are really acronyms.
+ACRONYMS = {"kfc": "KFC", "ktv": "KTV", "bbq": "BBQ", "kbbq": "KBBQ", "mos": "MOS", "a&w": "A&W", "ytf": "YTF"}
+
+# "Fried rice with chicken cutlet and curry veg" is fried rice with sides.
+_SIDES = re.compile(r"\s+(?:with|w/|w)\s+|\s*,\s*|\s+\+\s+", re.IGNORECASE)
+
+
+def base_dish(name: str) -> str:
+    """The main dish of a combination: the part before "with", "w/", a
+    comma or "+". The full name is kept on the meal; the food it links to
+    is the base, so sides don't make every plate a new food."""
+    base = _SIDES.split(name.strip(), maxsplit=1)[0].strip()
+    return base if len(base) >= 2 else name.strip()
+
+
 def display_name(name: str) -> str:
     """Sentence case, keeping acronyms and mixed-case brands (KFC, McChicken)."""
     words = name.strip().split()
     out = []
     for i, w in enumerate(words):
+        if w.lower() in ACRONYMS:
+            out.append(ACRONYMS[w.lower()])
+            continue
         keep = w.isupper() and len(w) > 1 or any(c.isupper() for c in w[1:])
         if keep:
             out.append(w[0].upper() + w[1:] if i == 0 else w)
@@ -115,7 +133,9 @@ def propose(days: list[dict], synonyms: Synonyms | None = None) -> list[dict]:
     "Maggie goreng" joins "Maggi goreng"."""
     rows = []
     for kind in KINDS:
-        counts = Counter(item["name"] for day in days for item in day[kind] if item["name"])
+        # Meals are grouped by their base dish (sides don't make a new food).
+        key = base_dish if kind == "meals" else (lambda n: n)
+        counts = Counter(key(item["name"]) for day in days for item in day[kind] if item["name"])
         rewrite = (synonyms or {}).get(kind, WordSynonyms([])).apply
 
         # 1. exact groups
@@ -210,14 +230,19 @@ def apply_aliases(days, aliases: dict[tuple[str, str], str], synonyms: Synonyms 
                 if not item.name:
                     item.canonical = None
                     continue
-                canonical = resolve(aliases, kind, item.name)
-                rewritten = words.apply(canonical) if words else canonical
-                if rewritten != canonical:
-                    # A whole name that is a synonym is a rename, not a change inside it.
-                    if canonical.lower() not in words.replacements:
-                        changed.add((kind, item.name))
-                    canonical = resolve(aliases, kind, rewritten)
-                item.canonical = canonical
+                def canonical_of(name: str) -> str:
+                    canonical = resolve(aliases, kind, name)
+                    rewritten = words.apply(canonical) if words else canonical
+                    if rewritten != canonical:
+                        # A whole name that is a synonym is a rename, not a change inside it.
+                        if canonical.lower() not in words.replacements:
+                            changed.add((kind, item.name))
+                        canonical = resolve(aliases, kind, rewritten)
+                    return canonical
+
+                item.canonical = canonical_of(item.name)
+                if kind == "meals":
+                    item.food = display_name(canonical_of(base_dish(item.name)))
     return len(changed)
 
 

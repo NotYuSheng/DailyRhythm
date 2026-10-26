@@ -21,7 +21,32 @@ def sleep_hours(bed: str, wake: str) -> float:
     return ((_minutes(wake) - _minutes(bed)) % (24 * 60)) / 60
 
 
+def _hhmm(minutes: int) -> str:
+    return f"{minutes // 60 % 24:02d}:{minutes % 60:02d}"
+
+
+def fix_evening_bedtimes(days: list[Day]) -> None:
+    """Some notes (mostly 2022) give bedtimes in 12-hour form: "1115 Sleep"
+    meaning 23:15. Read as morning, the next night looks 20+ hours long.
+    A bedtime from 08:00 to 12:59 becomes evening when that is the only
+    reading that gives a believable night before the next day's wake."""
+    by_date = {d.date: d for d in days}
+    for day in days:
+        if day.bed is None or not 8 * 60 <= _minutes(day.bed) < 13 * 60:
+            continue
+        following = by_date.get((date.fromisoformat(day.date) + timedelta(days=1)).isoformat())
+        if not following or not following.wake:
+            continue
+        evening = _hhmm(_minutes(day.bed) + 12 * 60)
+        as_written = sleep_hours(day.bed, following.wake)
+        as_evening = sleep_hours(evening, following.wake)
+        if as_written > MAX_SLEEP_HOURS and MIN_SLEEP_HOURS <= as_evening <= MAX_SLEEP_HOURS:
+            day.flags.append(Flag("bed_pm", f"Bedtime {day.bed} read as {evening}"))
+            day.bed = evening
+
+
 def validate(days: list[Day]) -> None:
+    fix_evening_bedtimes(days)
     by_date = {d.date: d for d in days}
     for day in days:
         has_note = any(e.note for e in day.entries)

@@ -141,3 +141,32 @@ def test_exercise_notes_hold_only_what_the_columns_dont():
 def test_moments_after_midnight_sort_last():
     files = build([_day(journal=[{"text": "Late", "mood": 3, "time": "01:10", "tags": [], "next_day": True}])])
     assert rows(files, "journal_entries.csv")[0]["Time"] == "2024-03-06T01:10:00.000"
+
+
+def _meal(text, name, price, food=None):
+    return {"text": text, "name": name, "canonical": None, "food": food, "quantity": None, "price": price,
+            "currency": "SGD", "comment": None, "price_approx": False}
+
+
+def test_events_and_gifts_go_to_spending_not_meals():
+    files = build([_day(meals=[
+        _meal("Zhi's wedding 288", "Zhi's wedding", 288),
+        _meal("Paradise hotpot team farewell 187", "Paradise hotpot team farewell", 187),
+        _meal("Farewell lunch", "Farewell lunch", None),
+        _meal("Chicken rice 4", "Chicken rice", 4),
+    ])])
+    spending = rows(files, "spending_entries.csv")
+    assert [(s["Label"], s["Amount"], s["Category"]) for s in spending] == [
+        ("Zhi's wedding", "288", "gift"), ("Paradise hotpot team farewell", "187", "event"),
+    ]
+    assert [m["Name"] for m in rows(files, "meal_entries.csv")] == ["Farewell lunch", "Chicken rice"], \
+        "unpriced is still a meal"
+
+
+def test_a_plate_links_to_its_base_dish_and_keeps_its_full_name():
+    files = build([_day(meals=[_meal("Vegetarian maggie with long beans 5", "Vegetarian maggie with long beans", 5,
+                                     food="Vegetarian maggie")])])
+    meal = rows(files, "meal_entries.csv")[0]
+    assert (meal["Name"], meal["Food Item"]) == ("Vegetarian maggie with long beans", "Vegetarian maggie")
+    foods = {f["Name"]: f for f in rows(files, "food_items.csv")}
+    assert foods["Vegetarian maggie"]["Last Price"] == "", "the plate's price isn't the dish's"

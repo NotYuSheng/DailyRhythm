@@ -23,11 +23,13 @@ import argparse
 import csv
 import io
 import json
+import re
 import zipfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from . import taxonomy
+from .canonical import base_dish
 from .validate import sleep_hours
 
 # Icon names the app can draw (see journal_screen.dart).
@@ -70,6 +72,23 @@ def _catalog(names: list[tuple[str, str]]) -> dict[str, list[str]]:
     return {name: sorted(spellings.values(), key=str.lower) for name, spellings in items.items()}
 
 
+GIFT_WORDS = re.compile(r"\b(wedding|ang ?bao|hong ?bao|gifts?|present for|presents?)\b", re.IGNORECASE)
+EVENT_WORDS = re.compile(
+    r"\b(farewell|welcom\w*|celebrat\w*|party|ktv|karaoke|rally|d&d|dinner and dance|reunion|hackathon|"
+    r"gathering|outing|send ?off)\b",
+    re.IGNORECASE,
+)
+
+
+def spending_kind(text: str) -> str | None:
+    """'gift' or 'event' for a line that is really a gift or a group event."""
+    if GIFT_WORDS.search(text):
+        return "gift"
+    if EVENT_WORDS.search(text):
+        return "event"
+    return None
+
+
 def build(days: list[dict], garmin: list[dict] | None = None) -> dict[str, str]:
     by_date = {d["date"]: d for d in days}
     sleep = [["ID", "Date", "Wake Up Time", "Sleep Time", "Total Hours", "Nap Hours", "Tags"]]
@@ -84,6 +103,7 @@ def build(days: list[dict], garmin: list[dict] | None = None) -> dict[str, str]:
     activities = [["ID", "Date", "Timestamp", "Tag ID", "Notes", "Tag Name", "Severity"]]
     journal = [["ID", "Date", "Time", "Text", "Mood", "Source", "Created At", "Tag Names"]]
     raw = [["Date", "Logged Time", "Mood", "Activities", "Note"]]
+    spending = [["ID", "Date", "Time", "Label", "Amount", "Currency", "Category", "Notes", "Raw Text"]]
     used_tags: dict[str, str] = {}  # name -> category
     food_names: list[tuple[str, str]] = []
     exercise_names: list[tuple[str, str]] = []
@@ -109,7 +129,13 @@ def build(days: list[dict], garmin: list[dict] | None = None) -> dict[str, str]:
             if not m["name"]:
                 continue
             name = m.get("canonical") or m["name"]
-            food_names.append((name, m["name"]))
+            # Paid-for group events and gifts aren't meals: their own file.
+            if m["price"] is not None and (kind := spending_kind(m.get("text") or m["name"])):
+                spending.append(["", midnight, _iso(day, "19:00", i), name, m["price"], m["currency"], kind,
+                                 m.get("comment") or "", m.get("text") or ""])
+                continue
+            food = m.get("food") or name
+            food_names.append((food, base_dish(m["name"])))
             notes = []
             quantity = m["quantity"] or 1
             if quantity != int(quantity):  # the app stores whole quantities
@@ -119,11 +145,12 @@ def build(days: list[dict], garmin: list[dict] | None = None) -> dict[str, str]:
             if m.get("price_approx"):
                 notes.append("approximate price")
             price = m["price"]
-            if price is not None and m["currency"] == "SGD":
-                last_price[name] = price
+            # A plate with sides costs more than the dish alone.
+            if price is not None and m["currency"] == "SGD" and food.lower() == name.lower():
+                last_price[food] = price / max(1, round(quantity))
             meals.append(["", midnight, _iso(day, "12:00", i), name, max(1, round(quantity)),
                           "" if price is None else price, "", ";".join(tags), "; ".join(notes),
-                          "", name, m["currency"], m.get("text") or "", 0])
+                          "", food, m["currency"], m.get("text") or "", 0])
 
         if d["mood"] is not None:
             moods.append(["", midnight, _iso(day, "23:59"), d["mood"], "", ""])
@@ -198,7 +225,7 @@ def build(days: list[dict], garmin: list[dict] | None = None) -> dict[str, str]:
         "sleep_entries.csv": sleep, "meal_entries.csv": meals, "mood_entries.csv": moods,
         "exercise_entries.csv": exercises, "activity_entries.csv": activities, "tags.csv": tags,
         "tag_categories.csv": categories, "food_items.csv": foods, "exercise_items.csv": exercise_items,
-        "journal_entries.csv": journal, "daylio_raw.csv": raw,
+        "journal_entries.csv": journal, "daylio_raw.csv": raw, "spending_entries.csv": spending,
         "health_metrics.csv": metrics, "health_workouts.csv": workouts,
     }
     return {name: _csv(rows) for name, rows in files.items() if len(rows) > 1}

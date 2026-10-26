@@ -14,6 +14,7 @@ class Meal:
     text: str
     name: str
     canonical: str | None = None  # agreed spelling, from aliases.csv
+    food: str | None = None  # the base dish it links to, sides left off
     quantity: float | None = None
     price: float | None = None
     currency: str = "SGD"  # USD/MYR when the note says so
