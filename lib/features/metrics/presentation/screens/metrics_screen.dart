@@ -2,10 +2,11 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import 'package:unicons/unicons.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/metric_data.dart';
 import '../../data/providers/metrics_providers.dart';
+import '../../../garden/presentation/garden_style.dart';
+import '../widgets/day_ratings_section.dart';
 import '../widgets/fun_facts_section.dart';
 import '../widgets/quick_stat_card.dart';
 
@@ -31,20 +32,14 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = GardenColors.of(context);
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: colors.ground,
       appBar: AppBar(
-        backgroundColor: theme.appBarTheme.backgroundColor,
+        backgroundColor: colors.ground,
         elevation: 0,
-        title: const Text(
-          'Metrics',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        title: Text('Metrics', style: nunito(20, FontWeight.w900, colors.ink)),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
@@ -67,8 +62,8 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
             _buildSleepChart(),
             const SizedBox(height: AppTheme.spacePulse3),
 
-            // Mood Chart
-            _buildMoodChart(),
+            // Mood, energy, stress and focus; tag comparisons; watch
+            DayRatingsSection(range: _selectedRange),
             const SizedBox(height: AppTheme.spacePulse3),
 
             // Activity Breakdown
@@ -129,7 +124,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                 data: (metrics) => QuickStatCard(
                   icon: Icons.bedtime_outlined,
                   label: 'Avg Sleep',
-                  value: '${metrics.averageHours.toStringAsFixed(1)}h',
+                  value: metrics.dailyData.isEmpty ? '–' : '${metrics.averageHours.toStringAsFixed(1)}h',
                   trend: _calculateTrend(metrics.averageHours, metrics.previousAverageHours),
                   trendPercentage: _calculateTrendPercentage(metrics.averageHours, metrics.previousAverageHours),
                 ),
@@ -204,32 +199,24 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
   Widget _buildSleepChart() {
     final sleepAsync = ref.watch(sleepMetricsProvider(_selectedRange));
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacePulse3),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildCardHeader(Icons.bedtime_outlined, 'Sleep Pattern'),
-            const SizedBox(height: AppTheme.spacePulse3),
-            sleepAsync.when(
-              data: (metrics) {
-                if (metrics.dailyData.isEmpty) {
-                  return _buildEmptyState('No sleep data for this period');
-                }
-                return SizedBox(
-                  height: 200,
-                  child: _buildSleepLineChart(metrics),
-                );
-              },
-              loading: () => const SizedBox(
-                height: 200,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (_, _) => _buildEmptyState('Error loading sleep data'),
-            ),
-          ],
+    return GardenSection(
+      title: 'Sleep',
+      colors: GardenColors.of(context),
+      child: sleepAsync.when(
+        data: (metrics) {
+          if (metrics.dailyData.isEmpty) {
+            return _buildEmptyState('No sleep data for this period');
+          }
+          return SizedBox(
+            height: 200,
+            child: _buildSleepLineChart(metrics),
+          );
+        },
+        loading: () => const SizedBox(
+          height: 200,
+          child: Center(child: CircularProgressIndicator()),
         ),
+        error: (_, _) => _buildEmptyState('Error loading sleep data'),
       ),
     );
   }
@@ -340,177 +327,52 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
     );
   }
 
-  Widget _buildMoodChart() {
-    final moodAsync = ref.watch(moodMetricsProvider(_selectedRange));
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacePulse3),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildCardHeader(Icons.sentiment_satisfied_alt_outlined, 'Mood Distribution'),
-            const SizedBox(height: AppTheme.spacePulse3),
-            moodAsync.when(
-              data: (metrics) {
-                if (metrics.dailyData.isEmpty) {
-                  return _buildEmptyState('No mood data for this period');
-                }
-
-                final total = metrics.distribution.values.fold<int>(0, (sum, count) => sum + count);
-                if (total == 0) {
-                  return _buildEmptyState('No mood data for this period');
-                }
-
-                return Column(
-                  children: [
-                    _buildMoodBar(context, 'Great (5)', UniconsLine.grin, metrics.distribution[5] ?? 0, total, isDark),
-                    const SizedBox(height: AppTheme.spacePulse2),
-                    _buildMoodBar(context, 'Good (4)', UniconsLine.smile, metrics.distribution[4] ?? 0, total, isDark),
-                    const SizedBox(height: AppTheme.spacePulse2),
-                    _buildMoodBar(context, 'Okay (3)', UniconsLine.meh, metrics.distribution[3] ?? 0, total, isDark),
-                    const SizedBox(height: AppTheme.spacePulse2),
-                    _buildMoodBar(context, 'Bad (2)', UniconsLine.frown, metrics.distribution[2] ?? 0, total, isDark),
-                    const SizedBox(height: AppTheme.spacePulse2),
-                    _buildMoodBar(context, 'Very Bad (1)', UniconsLine.sad_squint, metrics.distribution[1] ?? 0, total, isDark),
-                  ],
-                );
-              },
-              loading: () => const SizedBox(
-                height: 150,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (_, _) => _buildEmptyState('Error loading mood data'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMoodBar(BuildContext context, String label, IconData icon, int count, int total, bool isDark) {
-    final theme = Theme.of(context);
-    final percentage = total > 0 ? (count / total) * 100 : 0.0;
-
-    return Row(
-      children: [
-        SizedBox(
-          width: 110,
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 16,
-                color: AppTheme.getSubtleTextColor(context),
-              ),
-              const SizedBox(width: AppTheme.spacePulse1),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.getSubtleTextColor(context),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: AppTheme.spacePulse2),
-        Expanded(
-          child: Stack(
-            children: [
-              Container(
-                height: 24,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                ),
-              ),
-              FractionallySizedBox(
-                widthFactor: percentage / 100,
-                child: Container(
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: AppTheme.spacePulse2),
-        SizedBox(
-          width: 45,
-          child: Text(
-            '${percentage.toStringAsFixed(0)}%',
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.onSurface,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildActivityBreakdown() {
     final activityAsync = ref.watch(activityMetricsProvider(_selectedRange));
     final theme = Theme.of(context);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacePulse3),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildCardHeader(Icons.local_activity_outlined, 'Top Activities'),
-            const SizedBox(height: AppTheme.spacePulse3),
-            activityAsync.when(
-              data: (metrics) {
-                if (metrics.topActivities.isEmpty) {
-                  return _buildEmptyState('No activities logged for this period');
-                }
+    return GardenSection(
+      title: 'Top activities',
+      colors: GardenColors.of(context),
+      child: activityAsync.when(
+        data: (metrics) {
+          if (metrics.topActivities.isEmpty) {
+            return _buildEmptyState('No activities logged for this period');
+          }
 
-                final topFive = metrics.topActivities.take(5).toList();
-                return Column(
-                  children: topFive.map((activity) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: AppTheme.spacePulse2),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              activity.tagName,
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                          ),
-                          Text(
-                            '${activity.count}x',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: AppTheme.spacePulse2),
-                          Text(
-                            '${activity.percentage.toStringAsFixed(0)}%',
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ],
+          final topFive = metrics.topActivities.take(5).toList();
+          return Column(
+            children: topFive.map((activity) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppTheme.spacePulse2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        activity.tagName,
+                        style: theme.textTheme.bodyMedium,
                       ),
-                    );
-                  }).toList(),
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, _) => _buildEmptyState('Error loading activity data'),
-            ),
-          ],
-        ),
+                    ),
+                    Text(
+                      '${activity.count}x',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: AppTheme.spacePulse2),
+                    Text(
+                      '${activity.percentage.toStringAsFixed(0)}%',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, _) => _buildEmptyState('Error loading activity data'),
       ),
     );
   }
@@ -519,51 +381,43 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
     final insightsAsync = ref.watch(metricsInsightsProvider(_selectedRange));
     final theme = Theme.of(context);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacePulse3),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildCardHeader(Icons.lightbulb_outlined, 'Insights'),
-            const SizedBox(height: AppTheme.spacePulse3),
-            insightsAsync.when(
-              data: (insights) {
-                if (insights.isEmpty) {
-                  return _buildEmptyState('Not enough data to generate insights yet');
-                }
+    return GardenSection(
+      title: 'Compared with before',
+      colors: GardenColors.of(context),
+      child: insightsAsync.when(
+        data: (insights) {
+          if (insights.isEmpty) {
+            return _buildEmptyState('Not enough data to generate insights yet');
+          }
 
-                return Column(
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: insights.map((insight) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppTheme.spacePulse2),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: insights.map((insight) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: AppTheme.spacePulse2),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            _getInsightIcon(insight.type),
-                            size: 16,
-                            color: AppTheme.getSubtleTextColor(context),
-                          ),
-                          const SizedBox(width: AppTheme.spacePulse2),
-                          Expanded(
-                            child: Text(
-                              insight.text,
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                          ),
-                        ],
+                  children: [
+                    Icon(
+                      _getInsightIcon(insight.type),
+                      size: 16,
+                      color: AppTheme.getSubtleTextColor(context),
+                    ),
+                    const SizedBox(width: AppTheme.spacePulse2),
+                    Expanded(
+                      child: Text(
+                        insight.text,
+                        style: theme.textTheme.bodyMedium,
                       ),
-                    );
-                  }).toList(),
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, _) => _buildEmptyState('Error generating insights'),
-            ),
-          ],
-        ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, _) => _buildEmptyState('Error generating insights'),
       ),
     );
   }
@@ -606,24 +460,6 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  /// Icon and title row at the top of each card. The title shortens with
-  /// an ellipsis instead of overflowing at large accessibility font sizes.
-  Widget _buildCardHeader(IconData icon, String title) {
-    return Row(
-      children: [
-        Icon(icon, size: 20),
-        const SizedBox(width: AppTheme.spacePulse2),
-        Flexible(
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
     );
   }
 
