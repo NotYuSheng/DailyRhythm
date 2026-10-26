@@ -1,3 +1,4 @@
+import 'package:daily_rhythm/shared/domain/name_matcher.dart';
 import 'package:daily_rhythm/features/meals/data/models/food_item.dart';
 import 'package:daily_rhythm/features/meals/domain/food_matcher.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -35,7 +36,7 @@ void main() {
   });
 
   test('edit distance', () {
-    expect(FoodMatcher.editDistance('maggie', 'maggi'), 1);
-    expect(FoodMatcher.editDistance('kitten', 'sitting'), 3);
+    expect(NameMatcher.editDistance('maggie', 'maggi'), 1);
+    expect(NameMatcher.editDistance('kitten', 'sitting'), 3);
   });
 }

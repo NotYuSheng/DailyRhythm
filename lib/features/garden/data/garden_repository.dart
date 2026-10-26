@@ -54,7 +54,9 @@ class GardenRepository {
 
     final exercises = {
       for (final r in await db.rawQuery(
-        'SELECT date, COUNT(DISTINCT lower(COALESCE(exerciseName, type))) AS n FROM exercise_entries WHERE $inRange GROUP BY date',
+        // Runs are one kind whatever they're named.
+        "SELECT date, COUNT(DISTINCT CASE WHEN type LIKE '%run%' THEN 'run' ELSE lower(COALESCE(exerciseName, type)) END) AS n "
+        'FROM exercise_entries WHERE $inRange GROUP BY date',
         args,
       ))
         day(r['date']): r['n'] as int,
