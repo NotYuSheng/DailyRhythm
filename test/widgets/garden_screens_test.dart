@@ -1,3 +1,4 @@
+import 'package:daily_rhythm/features/journal/data/models/journal_entry.dart';
 import 'package:daily_rhythm/features/garden/presentation/screens/garden_month_screen.dart';
 import 'package:daily_rhythm/features/garden/presentation/screens/garden_today_screen.dart';
 import 'package:daily_rhythm/features/garden/presentation/widgets/moment_sheet.dart';
@@ -220,5 +221,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('May 2025 garden'), findsOneWidget);
     expect(find.text('0 plants, 0 flowers'), findsOneWidget);
+  });
+
+  testWidgets('the month and year in review open from the Garden tab', (tester) async {
+    await db.upsertMoodEntry(MoodEntry(date: DateTime(2025, 6, 3), timestamp: DateTime(2025, 6, 3), moodLevel: 4, emoji: ''));
+    await JournalRepository(db).save(JournalEntry(date: DateTime(2025, 6, 3), text: 'Picnic at the reservoir', mood: 5));
+    await pump(tester, GardenMonthScreen(month: DateTime(2025, 6, 4)));
+
+    await tapVisible(tester, find.text('June in review'));
+    expect(find.text('Month in review'), findsOneWidget);
+    expect(find.text('1 plant, 1 flower'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('“Picnic at the reservoir”'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Tue 3 Jun · Great'), findsOneWidget);
+
+    await tapVisible(tester, find.text('2025 in review'));
+    expect(find.text('Year in review'), findsOneWidget);
+    expect(find.bySemanticsLabel('June: 1 plant'), findsOneWidget);
+    expect(find.bySemanticsLabel('December: 0 plants'), findsOneWidget);
   });
 }

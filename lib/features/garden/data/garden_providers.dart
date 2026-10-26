@@ -5,7 +5,9 @@ import '../../../shared/services/database/database_provider.dart';
 import '../../../shared/services/database/repositories/checkin_repository.dart';
 import '../../../shared/services/database/repositories/journal_repository.dart';
 import '../../journal/data/models/journal_entry.dart';
+import '../../tags/data/models/tag.dart';
 import '../domain/garden_day.dart';
+import '../domain/recap.dart';
 import 'garden_repository.dart';
 
 /// Every day of the month containing the given date.
@@ -25,6 +27,38 @@ final checkinProvider = FutureProvider.family<DayCheckin?, DateTime>((ref, day) 
 
 final momentsProvider = FutureProvider.family<List<JournalEntry>, DateTime>((ref, day) {
   return JournalRepository(ref.watch(databaseProvider)).forDay(day);
+});
+
+/// Recaps for every month from [start] to [end] (month starts), built
+/// from one read of the logs and moments.
+Future<List<MonthRecap>> _recaps(Ref ref, DateTime start, DateTime end) async {
+  final db = ref.watch(databaseProvider);
+  final last = DateTime(end.year, end.month + 1, 0);
+  final logs = await GardenRepository(db).logsInRange(start, last);
+  final moments = await JournalRepository(db).inRange(start, last);
+  final activities = {for (final t in await db.getAllTags()) if (t.kind == TagKind.activity) t.name};
+  return [
+    for (var m = start; !m.isAfter(end); m = DateTime(m.year, m.month + 1))
+      MonthRecap.from(
+        month: m,
+        logs: [for (final l in logs) if (l.date.year == m.year && l.date.month == m.month) l],
+        moments: [for (final j in moments) if (j.date.year == m.year && j.date.month == m.month) j],
+        activityTags: activities,
+      ),
+  ];
+}
+
+/// The month in review for the month containing the given date.
+final monthRecapProvider = FutureProvider.autoDispose.family<MonthRecap, DateTime>((ref, month) async {
+  final start = DateTime(month.year, month.month);
+  return (await _recaps(ref, start, start)).single;
+});
+
+/// The year in review, up to this month for the current year.
+final yearRecapProvider = FutureProvider.autoDispose.family<YearRecap, int>((ref, year) async {
+  final now = DateTime.now();
+  final end = year == now.year ? DateTime(year, now.month) : DateTime(year, 12);
+  return YearRecap(year, await _recaps(ref, DateTime(year), end));
 });
 
 /// Refreshes everything the garden shows after a change on [day].
