@@ -11,6 +11,7 @@ import '../../domain/plant.dart';
 import '../garden_style.dart';
 import '../widgets/plant_view.dart';
 import 'garden_today_screen.dart';
+import 'recap_screen.dart';
 
 /// A month as a garden: one pot per day, a plant in each logged one.
 class GardenMonthScreen extends ConsumerStatefulWidget {
@@ -111,6 +112,27 @@ class _GardenMonthScreenState extends ConsumerState<GardenMonthScreen> {
                 ),
                 const SizedBox(height: 14),
                 _DayCard(day: picked, colors: colors),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final (label, icon, screen) in [
+                      ('${DateFormat('MMMM').format(_month)} in review', Icons.auto_awesome_outlined, MonthRecapScreen(month: _month)),
+                      ('${_month.year} in review', Icons.calendar_view_month, YearRecapScreen(year: _month.year)),
+                    ])
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 44),
+                          foregroundColor: colors.accent,
+                          side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
+                        ),
+                        onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => screen)),
+                        icon: Icon(icon, size: 18),
+                        label: Text(label, style: nunito(14, FontWeight.w800, colors.accent)),
+                      ),
+                  ],
+                ),
                 const SizedBox(height: 14),
                 Text(
                   'Empty pots are just quiet days. Nothing here ever wilts.',
