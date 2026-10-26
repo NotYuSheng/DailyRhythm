@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A centered circular progress indicator with optional message
 class LoadingIndicator extends StatelessWidget {

@@ -23,14 +23,20 @@ class DatabaseService {
 
   DatabaseService._init();
 
+  static const String _fileName = 'dailyrhythm.db';
+
+  /// Location of the database file (used by backup and restore).
+  static Future<String> databaseFilePath() async =>
+      databasePathOverride ?? join(await getDatabasesPath(), _fileName);
+
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('dailyrhythm.db');
+    _database = await _initDB();
     return _database!;
   }
 
-  Future<Database> _initDB(String filePath) async {
-    final path = databasePathOverride ?? join(await getDatabasesPath(), filePath);
+  Future<Database> _initDB() async {
+    final path = await databaseFilePath();
 
     return await openDatabase(
       path,
@@ -1100,6 +1106,31 @@ class DatabaseService {
     final args = values.values.where((v) => v != null).toList();
     final result = await db.query(table, columns: ['id'], where: where, whereArgs: args, limit: 1);
     return result.isNotEmpty;
+  }
+
+  /// Checks that the file at [path] is a DailyRhythm database this version
+  /// of the app can open. Returns a reason it cannot be restored, or null.
+  static Future<String?> checkRestorable(String path) async {
+    Database? db;
+    try {
+      db = await openDatabase(path, readOnly: true, singleInstance: false);
+      final version = await db.getVersion();
+      if (version > schemaVersion) {
+        return 'This backup was made by a newer version of DailyRhythm. Update the app first.';
+      }
+      final tables = (await db.rawQuery("SELECT name FROM sqlite_master WHERE type = 'table'"))
+          .map((row) => row['name'])
+          .toSet();
+      const required = ['sleep_entries', 'meal_entries', 'mood_entries', 'tags'];
+      if (version < 1 || !required.every(tables.contains)) {
+        return 'This file is not a DailyRhythm backup.';
+      }
+      return null;
+    } catch (_) {
+      return 'The backup file is damaged or not a database.';
+    } finally {
+      await db?.close();
+    }
   }
 
   // ==================== Utility ====================

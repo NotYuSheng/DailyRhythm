@@ -1,7 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:archive/archive.dart';
 import 'package:csv/csv.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import '../database/database_service.dart';
 import '../../utils/date_utils.dart';
@@ -56,35 +57,45 @@ class ExportService {
   // Keep every field as text; numbers are parsed explicitly per column.
   static const _parser = CsvToListConverter(shouldParseNumbers: false);
 
-  Future<ExportResult> exportAllDataToCsv() async {
-    // Get the Downloads directory for each platform
-    Directory directory;
-
-    if (Platform.isAndroid) {
-      // Android: Use Downloads folder
-      directory = Directory('/storage/emulated/0/Download');
-      if (!await directory.exists()) {
-        // Fallback if Download doesn't exist
-        final externalDir = await getExternalStorageDirectory();
-        directory = externalDir ?? await getApplicationDocumentsDirectory();
-      }
-    } else if (Platform.isIOS) {
-      // iOS: Use app's documents directory (will be accessible via Files app)
-      directory = await getApplicationDocumentsDirectory();
-    } else if (Platform.isLinux) {
-      // Linux: Use ~/Downloads
-      final home = Platform.environment['HOME'] ?? '';
-      directory = Directory('$home/Downloads');
-      if (!await directory.exists()) {
-        directory = await getApplicationDocumentsDirectory();
-      }
-    } else {
-      // Fallback for other platforms
-      directory = await getApplicationDocumentsDirectory();
-    }
-
+  /// Builds a zip of every table and asks the user where to save it.
+  ///
+  /// The system save dialog (Storage Access Framework on Android) is used
+  /// instead of writing to Downloads directly: on Android 11+ files written
+  /// straight to Downloads can't be read back after a reinstall, which is
+  /// when an export is most needed. Returns null if the user cancels.
+  Future<ExportResult?> exportAllData() async {
     final timestamp = DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
-    return exportToDirectory(Directory('${directory.path}/DailyRhythm_Export_$timestamp'));
+    final (:bytes, :summary) = await buildExportZip();
+
+    final savedPath = await FilePicker.platform.saveFile(
+      dialogTitle: 'Save DailyRhythm export',
+      fileName: 'DailyRhythm_Export_$timestamp.zip',
+      type: FileType.custom,
+      allowedExtensions: ['zip'],
+      bytes: bytes,
+    );
+    if (savedPath == null) return null;
+
+    // On desktop the dialog only picks a path; mobile writes the bytes itself.
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      await File(savedPath).writeAsBytes(bytes);
+    }
+    return ExportResult(path: savedPath, totalEntries: summary.totalEntries, fileCount: summary.fileCount);
+  }
+
+  /// Exports every table as CSV files inside a zip archive.
+  Future<({Uint8List bytes, ExportResult summary})> buildExportZip() async {
+    final dir = await Directory.systemTemp.createTemp('dailyrhythm_export');
+    try {
+      final summary = await exportToDirectory(dir);
+      final archive = Archive();
+      for (final file in dir.listSync().whereType<File>()) {
+        archive.addFile(ArchiveFile.bytes(file.uri.pathSegments.last, await file.readAsBytes()));
+      }
+      return (bytes: ZipEncoder().encodeBytes(archive), summary: summary);
+    } finally {
+      await dir.delete(recursive: true);
+    }
   }
 
   /// Writes one CSV per table into [exportDir], creating it if needed.
@@ -208,12 +219,53 @@ class ExportService {
 
   // ==================== Import Methods ====================
 
-  /// Lets the user pick an export folder and imports it.
-  /// Returns null if the picker was cancelled.
-  Future<ImportResult?> importDataFromCsv() async {
-    final selectedDirectory = await FilePicker.platform.getDirectoryPath();
-    if (selectedDirectory == null) return null;
-    return importFromDirectory(selectedDirectory);
+  /// Lets the user pick an export zip (or individual CSV files from an
+  /// older export folder) and imports it. Returns null if cancelled.
+  Future<ImportResult?> importData() async {
+    final picked = await FilePicker.platform.pickFiles(
+      dialogTitle: 'Choose a DailyRhythm export',
+      type: FileType.custom,
+      allowedExtensions: ['zip', 'csv'],
+      allowMultiple: true,
+      withData: true,
+    );
+    if (picked == null || picked.files.isEmpty) return null;
+
+    final dir = await Directory.systemTemp.createTemp('dailyrhythm_import');
+    try {
+      for (final file in picked.files) {
+        final bytes = file.bytes ?? await File(file.path!).readAsBytes();
+        if (file.name.toLowerCase().endsWith('.zip')) {
+          await _extractZip(bytes, dir);
+        } else {
+          await File('${dir.path}/${file.name}').writeAsBytes(bytes);
+        }
+      }
+      return await importFromDirectory(dir.path);
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  }
+
+  /// Imports an export zip produced by [buildExportZip].
+  Future<ImportResult> importFromZipBytes(List<int> bytes) async {
+    final dir = await Directory.systemTemp.createTemp('dailyrhythm_import');
+    try {
+      await _extractZip(bytes, dir);
+      return await importFromDirectory(dir.path);
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  }
+
+  /// Writes the CSV files in a zip into [dir], ignoring folders inside the
+  /// archive so a re-zipped export folder also works.
+  static Future<void> _extractZip(List<int> bytes, Directory dir) async {
+    for (final entry in ZipDecoder().decodeBytes(bytes)) {
+      final name = entry.name.split('/').last;
+      if (!entry.isFile || !name.toLowerCase().endsWith('.csv')) continue;
+      await File('${dir.path}/$name').writeAsBytes(entry.content);
+    }
   }
 
   /// Imports every recognised CSV file in [dirPath].

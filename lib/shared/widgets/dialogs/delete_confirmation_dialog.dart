@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Shows a confirmation dialog for delete operations
 /// Returns true if user confirmed, false if cancelled

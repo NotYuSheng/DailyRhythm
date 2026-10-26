@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../shared/services/database/database_provider.dart';
@@ -71,7 +71,7 @@ class _DebugDatabaseScreenState extends ConsumerState<DebugDatabaseScreen> {
           Container(
             padding: const EdgeInsets.all(AppTheme.spacePulse3),
             child: DropdownButtonFormField<String>(
-              value: _selectedTable,
+              initialValue: _selectedTable,
               decoration: const InputDecoration(
                 labelText: 'Select Table',
                 border: OutlineInputBorder(),

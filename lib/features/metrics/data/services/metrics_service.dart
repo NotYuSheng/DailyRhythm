@@ -189,99 +189,83 @@ class MetricsService {
 
   // ==================== Insights Generation ====================
 
+  /// Fewest logged days a period needs before it is summarised or compared.
+  /// Below this a difference is more likely noise than a pattern.
+  static const int minDaysForInsight = 5;
+
+  /// Describes the period's data as neutral observations.
+  ///
+  /// Insights state what was logged and how it compares with the previous
+  /// period of the same length. They never give health advice or imply
+  /// cause and effect, and periods with too little data are skipped.
   Future<List<MetricsInsight>> generateInsights(DateRange range) async {
     final insights = <MetricsInsight>[];
 
-    // Get all metrics
     final previousRange = _calculatePreviousRange(range);
     final sleepMetrics = await calculateSleepMetrics(range, previousRange: previousRange);
     final moodMetrics = await calculateMoodMetrics(range, previousRange: previousRange);
     final exerciseMetrics = await calculateExerciseMetrics(range, previousRange: previousRange);
+    final previousSleepDays = (await _db.getSleepEntriesInRange(previousRange.start, previousRange.end))
+        .where((e) => e.totalHours != null)
+        .length;
+    final previousMoodDays = (await _db.getMoodEntriesInRange(previousRange.start, previousRange.end)).length;
 
-    // Sleep insights
-    if (sleepMetrics.averageHours > 0) {
-      if (sleepMetrics.previousAverageHours != null) {
-        final diff = sleepMetrics.averageHours - sleepMetrics.previousAverageHours!;
-        if (diff.abs() > 0.5) {
-          final direction = diff > 0 ? 'more' : 'less';
-          final hours = diff.abs().toStringAsFixed(1);
-          insights.add(MetricsInsight(
-            text: 'You slept $hours hours $direction this period compared to the previous period',
-            type: diff > 0 ? InsightType.positive : InsightType.negative,
-          ));
-        }
-      }
-
-      if (sleepMetrics.consistency < 1.0) {
+    // Sleep
+    final sleepDays = sleepMetrics.dailyData.length;
+    if (sleepDays >= minDaysForInsight) {
+      final average = sleepMetrics.averageHours.toStringAsFixed(1);
+      final previous = sleepMetrics.previousAverageHours;
+      if (previous != null && previousSleepDays >= minDaysForInsight &&
+          (sleepMetrics.averageHours - previous).abs() >= 0.5) {
+        final diff = sleepMetrics.averageHours - previous;
         insights.add(MetricsInsight(
-          text: 'Great sleep consistency! Your sleep hours are very regular',
-          type: InsightType.positive,
+          text: 'Average sleep was ${average}h over $sleepDays nights, '
+              '${diff.abs().toStringAsFixed(1)}h ${diff > 0 ? 'more' : 'less'} than the previous period',
+          type: diff > 0 ? InsightType.positive : InsightType.negative,
         ));
-      } else if (sleepMetrics.consistency > 2.0) {
+      } else {
         insights.add(MetricsInsight(
-          text: 'Your sleep schedule varies significantly. Try maintaining a consistent sleep routine',
-          type: InsightType.negative,
+          text: 'Average sleep was ${average}h over $sleepDays nights',
+          type: InsightType.neutral,
+        ));
+      }
+      insights.add(MetricsInsight(
+        text: 'Sleep length varied by about ±${sleepMetrics.consistency.toStringAsFixed(1)}h from night to night',
+        type: InsightType.neutral,
+      ));
+    }
+
+    // Mood
+    final moodDays = moodMetrics.dailyData.length;
+    final previousMood = moodMetrics.previousAverageMood;
+    if (moodDays >= minDaysForInsight && previousMood != null && previousMoodDays >= minDaysForInsight) {
+      final diff = moodMetrics.averageMood - previousMood;
+      if (diff.abs() >= 0.5) {
+        insights.add(MetricsInsight(
+          text: 'Average mood was ${moodMetrics.averageMood.toStringAsFixed(1)}/5 over $moodDays days, '
+              '${diff > 0 ? 'up' : 'down'} from ${previousMood.toStringAsFixed(1)} in the previous period',
+          type: diff > 0 ? InsightType.positive : InsightType.negative,
         ));
       }
     }
 
-    // Mood insights
-    if (moodMetrics.averageMood > 0) {
-      if (moodMetrics.averageMood >= 4.0) {
-        insights.add(MetricsInsight(
-          text: 'Your mood has been consistently positive! Keep up the great work',
-          type: InsightType.positive,
-        ));
-      } else if (moodMetrics.averageMood < 3.0) {
-        insights.add(MetricsInsight(
-          text: 'Your mood could use a boost. Consider activities that bring you joy',
-          type: InsightType.negative,
-        ));
-      }
-
-      if (moodMetrics.previousAverageMood != null) {
-        final diff = moodMetrics.averageMood - moodMetrics.previousAverageMood!;
-        if (diff.abs() > 0.5) {
-          final direction = diff > 0 ? 'improved' : 'decreased';
-          insights.add(MetricsInsight(
-            text: 'Your mood has $direction compared to the previous period',
-            type: diff > 0 ? InsightType.positive : InsightType.negative,
-          ));
-        }
-      }
-    }
-
-    // Exercise insights
+    // Exercise
+    final previousExercises = exerciseMetrics.previousTotalExercises;
     if (exerciseMetrics.totalExercises > 0) {
-      if (exerciseMetrics.previousTotalExercises != null) {
-        final diff = exerciseMetrics.totalExercises - exerciseMetrics.previousTotalExercises!;
-        if (diff > 0) {
-          insights.add(MetricsInsight(
-            text: 'You exercised $diff more times this period. Great progress!',
-            type: InsightType.positive,
-          ));
-        }
-      }
-
+      final sessions = exerciseMetrics.totalExercises;
+      final comparison = previousExercises != null && previousExercises != sessions
+          ? ' ($previousExercises in the previous period)'
+          : '';
+      insights.add(MetricsInsight(
+        text: '$sessions exercise ${sessions == 1 ? 'entry' : 'entries'} logged$comparison',
+        type: InsightType.neutral,
+      ));
       if (exerciseMetrics.totalRunningDistance > 0) {
         insights.add(MetricsInsight(
           text: 'You ran ${exerciseMetrics.totalRunningDistance.toStringAsFixed(1)}km this period',
           type: InsightType.neutral,
         ));
       }
-    } else if (range.daysCount >= 7) {
-      insights.add(MetricsInsight(
-        text: 'No exercises logged this period. Physical activity can improve mood and sleep',
-        type: InsightType.neutral,
-      ));
-    }
-
-    // Correlation insight (basic)
-    if (sleepMetrics.averageHours >= 7.0 && moodMetrics.averageMood >= 4.0) {
-      insights.add(MetricsInsight(
-        text: 'Good sleep and positive mood are aligned. Keep maintaining this balance!',
-        type: InsightType.correlation,
-      ));
     }
 
     return insights;

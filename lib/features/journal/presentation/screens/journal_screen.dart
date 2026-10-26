@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:unicons/unicons.dart';
@@ -169,7 +169,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                   child: Text(
                     _isToday(date) ? 'Today - ${dateFormat.format(date)}' : dateFormat.format(date),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: AppTheme.rhythmMediumGray,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                     textAlign: TextAlign.center,
                   ),
@@ -179,7 +179,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 icon: Icon(
                   Icons.chevron_right,
                   color: _isFuture(date.add(const Duration(days: 1)))
-                      ? AppTheme.rhythmLightGray
+                      ? Theme.of(context).colorScheme.outline
                       : null,
                 ),
                 onPressed: _isFuture(date.add(const Duration(days: 1)))
@@ -257,7 +257,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 child: Text(
                   'Error loading sleep data',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.rhythmMediumGray,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               ),
@@ -320,7 +320,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 child: Text(
                   'Error loading meals',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.rhythmMediumGray,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               ),
@@ -383,7 +383,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 child: Text(
                   'Error loading exercises',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.rhythmMediumGray,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               ),
@@ -428,17 +428,17 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
             children: [
               Row(
                 children: [
-                  Icon(icon, size: 20, color: AppTheme.rhythmBlack),
+                  Icon(icon, size: 20, color: Theme.of(context).colorScheme.onSurface),
                   const SizedBox(width: AppTheme.spacePulse2),
                   Text(
                     title,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const Spacer(),
-                  const Icon(
+                  Icon(
                     Icons.arrow_forward_ios,
                     size: 16,
-                    color: AppTheme.rhythmMediumGray,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -460,7 +460,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.sentiment_satisfied_alt_outlined, size: 20, color: AppTheme.rhythmBlack),
+                Icon(Icons.sentiment_satisfied_alt_outlined, size: 20, color: Theme.of(context).colorScheme.onSurface),
                 const SizedBox(width: AppTheme.spacePulse2),
                 Text(
                   'Mood',
@@ -483,7 +483,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => Row(
+              error: (_, _) => Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildMoodButton(context, ref, UniconsLine.sad_crying, 'Very Bad', 1, null, date),
@@ -626,7 +626,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 Text(
                   'Nap: ${entry.napHours!.toStringAsFixed(1)}h',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppTheme.rhythmMediumGray,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
             ],
@@ -677,7 +677,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                             Text(
                               entry.tags.join(', '),
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppTheme.rhythmMediumGray,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
                             ),
                         ],
@@ -695,7 +695,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                         Text(
                           DateFormat('h:mm a').format(entry.time),
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppTheme.rhythmMediumGray,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                         ),
                       ],
@@ -704,7 +704,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 ),
               ),
             );
-          }).toList(),
+          }),
           const Divider(),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -743,7 +743,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
         return '${total.toStringAsFixed(1)}h';
       },
       loading: () => '...',
-      error: (_, __) => 'N/A',
+      error: (_, _) => 'N/A',
     );
 
     // Calculate meal cost
@@ -757,7 +757,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
         return '\$${total.toStringAsFixed(2)}';
       },
       loading: () => '...',
-      error: (_, __) => 'N/A',
+      error: (_, _) => 'N/A',
     );
 
     return Card(
@@ -798,7 +798,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
   ) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: AppTheme.rhythmMediumGray),
+        Icon(icon, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
         const SizedBox(width: AppTheme.spacePulse2),
         Text(
           label,
@@ -946,7 +946,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                     child: Text(
                       'No tags yet. Tap + to create one.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppTheme.rhythmMediumGray,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                       textAlign: TextAlign.center,
                     ),
@@ -976,7 +976,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                         Text(
                           category,
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppTheme.rhythmMediumGray,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.bold,
                               ),
                         ),
@@ -1049,18 +1049,14 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                                                     width: 40,
                                                     height: 40,
                                                     decoration: BoxDecoration(
-                                                      color: isSelected
-                                                          ? AppTheme.rhythmBlack
-                                                          : AppTheme.rhythmLightGray.withOpacity(0.3),
+                                                      color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surfaceContainerHighest,
                                                       shape: BoxShape.circle,
                                                     ),
                                                     child: Center(
                                                       child: Icon(
                                                         _getUniconFromName(tag.emoji),
                                                         size: 20,
-                                                        color: isSelected
-                                                            ? AppTheme.rhythmWhite
-                                                            : AppTheme.rhythmBlack,
+                                                        color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
                                                       ),
                                                     ),
                                                   ),
@@ -1098,11 +1094,11 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => Center(
+              error: (_, _) => Center(
                 child: Text(
                   'Error loading tags',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.rhythmMediumGray,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
               ),
@@ -1162,7 +1158,7 @@ class _PlaceholderContent extends StatelessWidget {
         child: Text(
           text,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.rhythmLightGray,
+                color: Theme.of(context).colorScheme.outline,
               ),
         ),
       ),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/exercise_entry.dart';
@@ -753,7 +753,7 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: AppTheme.rhythmBlack,
+          backgroundColor: Theme.of(context).colorScheme.onSurface,
         ),
       );
     }

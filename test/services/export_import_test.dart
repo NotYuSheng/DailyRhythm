@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
+
+import 'package:archive/archive.dart';
 
 import 'package:daily_rhythm/features/exercise/data/models/exercise_entry.dart';
 import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
@@ -92,6 +95,32 @@ void main() {
 
     expect(result.invalid, 0);
     expect(await _snapshot(db), before);
+  });
+
+  test('round-trips through the zip used by the save dialog', () async {
+    await _seed(db);
+    final before = await _snapshot(db);
+    final (:bytes, :summary) = await ExportService.instance.buildExportZip();
+    expect(summary.fileCount, 9);
+
+    await closeTestDatabase();
+    db = await openTestDatabase();
+    final result = await ExportService.instance.importFromZipBytes(bytes);
+
+    expect(result.invalid, 0);
+    expect(await _snapshot(db), before);
+  });
+
+  test('imports a zip of an old export folder with nested paths', () async {
+    final archive = Archive()
+      ..addFile(ArchiveFile.bytes(
+        'DailyRhythm_Export_2025-01-05/meal_entries.csv',
+        utf8.encode('ID,Date,Time,Name,Quantity,Price,Calories,Tags,Notes\r\n'
+            '1,2025-01-05T00:00:00.000,2025-01-05T13:00:00.000,Noodles,1,4.5,,,'),
+      ));
+    final result = await ExportService.instance.importFromZipBytes(ZipEncoder().encodeBytes(archive));
+    expect(result.imported, 1);
+    expect((await db.getAllMealEntries()).single.name, 'Noodles');
   });
 
   test('importing the same export twice adds nothing the second time', () async {

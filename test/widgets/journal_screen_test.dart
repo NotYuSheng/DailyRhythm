@@ -4,7 +4,7 @@ import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
 import 'package:daily_rhythm/features/meals/presentation/screens/add_meal_screen.dart';
 import 'package:daily_rhythm/main.dart';
 import 'package:daily_rhythm/shared/services/database/database_service.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';

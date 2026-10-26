@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:unicons/unicons.dart';
@@ -48,20 +48,20 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                     Icon(
                       Icons.label_outline,
                       size: 64,
-                      color: AppTheme.rhythmLightGray,
+                      color: Theme.of(context).colorScheme.outline,
                     ),
                     const SizedBox(height: AppTheme.spacePulse3),
                     Text(
                       'No tags yet',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: AppTheme.rhythmMediumGray,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                     ),
                     const SizedBox(height: AppTheme.spacePulse2),
                     Text(
                       'Tap + to create your first tag',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.rhythmLightGray,
+                            color: Theme.of(context).colorScheme.outline,
                           ),
                     ),
                   ],
@@ -84,7 +84,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                   child: Text(
                     'Drag categories to reorder • Drag tags to move • Long press tags to edit',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.rhythmMediumGray,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontStyle: FontStyle.italic,
                         ),
                     textAlign: TextAlign.center,
@@ -100,10 +100,11 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                   final categoryTags = grouped[categoryName] ?? [];
 
                   return DragTarget<TagCategory>(
-                    onWillAccept: (draggedCategory) {
-                      return draggedCategory != null && draggedCategory.id != category.id;
+                    onWillAcceptWithDetails: (details) {
+                      return details.data.id != category.id;
                     },
-                    onAccept: (draggedCategory) async {
+                    onAcceptWithDetails: (details) async {
+                      final draggedCategory = details.data;
                       final db = ref.read(databaseProvider);
                       final oldIndex = categories.indexWhere((c) => c.id == draggedCategory.id);
                       if (oldIndex != -1 && oldIndex != index) {
@@ -138,7 +139,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                                 child: Text(
                                   categoryName,
                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: AppTheme.rhythmMediumGray,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                                         fontWeight: FontWeight.bold,
                                       ),
                                 ),
@@ -159,7 +160,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                           HapticFeedback.mediumImpact();
                         },
                         child: Card(
-                          color: isTargeted ? AppTheme.rhythmLightGray.withOpacity(0.3) : null,
+                          color: isTargeted ? Theme.of(context).colorScheme.primaryContainer : null,
                           child: Padding(
                           padding: const EdgeInsets.all(AppTheme.spacePulse3),
                           child: Column(
@@ -173,7 +174,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                                       Text(
                                         categoryName,
                                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                              color: AppTheme.rhythmMediumGray,
+                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                                               fontWeight: FontWeight.bold,
                                             ),
                                       ),
@@ -217,7 +218,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                                     child: Text(
                                       'No tags in this category',
                                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                            color: AppTheme.rhythmLightGray,
+                                            color: Theme.of(context).colorScheme.outline,
                                           ),
                                     ),
                                   ),
@@ -257,11 +258,13 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                                                   right: index < rowTags.length - 1 ? spacing : 0,
                                                 ),
                                                 child: DragTarget<Tag>(
-                                                  onWillAccept: (draggedTag) {
-                                                    return draggedTag != null && draggedTag.id != tag.id;
+                                                  onWillAcceptWithDetails: (details) {
+                                                    return details.data.id != tag.id;
                                                   },
-                                                  onAccept: (draggedTag) async {
+                                                  onAcceptWithDetails: (details) async {
+                                                    final draggedTag = details.data;
                                                     final db = ref.read(databaseProvider);
+                                                    final messenger = ScaffoldMessenger.of(context);
 
                                                     if (draggedTag.category == categoryName) {
                                                       // Reorder within same category
@@ -296,7 +299,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                                                       ref.invalidate(allTagsProvider);
 
                                                       if (mounted) {
-                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                        messenger.showSnackBar(
                                                           SnackBar(content: Text('${draggedTag.name} moved to $categoryName')),
                                                         );
                                                       }
@@ -314,7 +317,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                                                           color: Colors.transparent,
                                                           child: Opacity(
                                                             opacity: 0.85,
-                                                            child: Container(
+                                                            child: SizedBox(
                                                               width: itemWidth,
                                                               child: _buildTagItem(context, tag, true, itemWidth),
                                                             ),
@@ -331,7 +334,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                                                           decoration: BoxDecoration(
                                                             border: isTargeted
                                                                 ? Border.all(
-                                                                    color: AppTheme.rhythmBlack,
+                                                                    color: Theme.of(context).colorScheme.primary,
                                                                     width: 2,
                                                                   )
                                                                 : null,
@@ -388,18 +391,14 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: isSelected
-                  ? AppTheme.rhythmBlack
-                  : AppTheme.rhythmLightGray.withOpacity(0.3),
+              color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surfaceContainerHighest,
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Icon(
                 _getUniconFromName(tag.emoji),
                 size: 20,
-                color: isSelected
-                    ? AppTheme.rhythmWhite
-                    : AppTheme.rhythmBlack,
+                color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
@@ -465,6 +464,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
     final controller = TextEditingController(text: currentName);
     final categories = await ref.read(allTagCategoriesProvider.future);
     final category = categories.firstWhere((c) => c.name == currentName, orElse: () => TagCategory(name: currentName));
+    if (!context.mounted) return;
     await showDialog(
       context: context,
       builder: (context) {
@@ -521,7 +521,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(dialogContext, true),
-                            child: const Text('Delete', style: TextStyle(color: AppTheme.rhythmBlack)),
+                            child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
                           ),
                         ],
                       ),
@@ -766,15 +766,15 @@ class _AddTagScreenState extends ConsumerState<AddTagScreen> {
                     child: Container(
                       width: 80,
                       height: 80,
-                      decoration: const BoxDecoration(
-                        color: AppTheme.rhythmBlack,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
                         shape: BoxShape.circle,
                       ),
                       child: Center(
                         child: Icon(
                           _availableIcons.firstWhere((i) => i['name'] == _selectedEmoji)['icon'],
                           size: 40,
-                          color: AppTheme.rhythmWhite,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
                       ),
                     ),
@@ -803,18 +803,14 @@ class _AddTagScreenState extends ConsumerState<AddTagScreen> {
                         },
                         child: Container(
                           decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppTheme.rhythmBlack
-                                : AppTheme.rhythmLightGray.withOpacity(0.3),
+                            color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surfaceContainerHighest,
                             shape: BoxShape.circle,
                           ),
                           child: Center(
                             child: Icon(
                               icon,
                               size: 20,
-                              color: isSelected
-                                  ? AppTheme.rhythmWhite
-                                  : AppTheme.rhythmBlack,
+                              color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ),
@@ -855,11 +851,9 @@ class _AddTagScreenState extends ConsumerState<AddTagScreen> {
                             });
                           }
                         },
-                        selectedColor: AppTheme.rhythmBlack,
+                        selectedColor: Theme.of(context).colorScheme.primary,
                         labelStyle: TextStyle(
-                          color: isSelected
-                              ? AppTheme.rhythmWhite
-                              : AppTheme.rhythmBlack,
+                          color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
                         ),
                       );
                     }).toList(),
@@ -1053,15 +1047,15 @@ class _EditTagScreenState extends ConsumerState<EditTagScreen> {
                     child: Container(
                       width: 80,
                       height: 80,
-                      decoration: const BoxDecoration(
-                        color: AppTheme.rhythmBlack,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
                         shape: BoxShape.circle,
                       ),
                       child: Center(
                         child: Icon(
                           _availableIcons.firstWhere((i) => i['name'] == _selectedEmoji, orElse: () => _availableIcons[0])['icon'],
                           size: 40,
-                          color: AppTheme.rhythmWhite,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
                       ),
                     ),
@@ -1090,18 +1084,14 @@ class _EditTagScreenState extends ConsumerState<EditTagScreen> {
                         },
                         child: Container(
                           decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppTheme.rhythmBlack
-                                : AppTheme.rhythmLightGray.withOpacity(0.3),
+                            color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surfaceContainerHighest,
                             shape: BoxShape.circle,
                           ),
                           child: Center(
                             child: Icon(
                               icon,
                               size: 20,
-                              color: isSelected
-                                  ? AppTheme.rhythmWhite
-                                  : AppTheme.rhythmBlack,
+                              color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ),
@@ -1142,11 +1132,9 @@ class _EditTagScreenState extends ConsumerState<EditTagScreen> {
                             });
                           }
                         },
-                        selectedColor: AppTheme.rhythmBlack,
+                        selectedColor: Theme.of(context).colorScheme.primary,
                         labelStyle: TextStyle(
-                          color: isSelected
-                              ? AppTheme.rhythmWhite
-                              : AppTheme.rhythmBlack,
+                          color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurface,
                         ),
                       );
                     }).toList(),
@@ -1224,13 +1212,13 @@ class _EditTagScreenState extends ConsumerState<EditTagScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppTheme.rhythmLightGray,
+                    color: Theme.of(context).colorScheme.errorContainer,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.rhythmMediumGray),
+                    border: Border.all(color: Theme.of(context).colorScheme.error),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.warning, color: AppTheme.rhythmBlack, size: 20),
+                      Icon(Icons.warning, color: Theme.of(context).colorScheme.error, size: 20),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -1254,8 +1242,10 @@ class _EditTagScreenState extends ConsumerState<EditTagScreen> {
                 final db = ref.read(databaseProvider);
                 await db.deleteTag(widget.tag.id!);
                 ref.invalidate(allTagsProvider);
+                // Deleting a tag also deletes its activity entries
+                ref.invalidate(activityEntriesProvider);
 
-                if (mounted) {
+                if (mounted && dialogContext.mounted) {
                   final messenger = ScaffoldMessenger.of(context);
                   Navigator.pop(dialogContext); // Close dialog
                   Navigator.pop(context); // Close edit screen
@@ -1268,7 +1258,7 @@ class _EditTagScreenState extends ConsumerState<EditTagScreen> {
                   );
                 }
               },
-              child: const Text('Delete', style: TextStyle(color: AppTheme.rhythmBlack)),
+              child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ),
           ],
         );

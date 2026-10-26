@@ -8,7 +8,7 @@ A daily stats tracking Flutter app with rhythm aesthetic.
 ## Development Setup
 
 ### Prerequisites
-- Flutter SDK installed and configured
+- Flutter SDK 3.47 or later (Material widgets come from the standalone `material_ui` package)
 - A device or emulator for testing
 - **For Linux development**: SQLite3 library
   ```bash
@@ -122,6 +122,8 @@ flutter build apk
 # Install to device
 adb install build/app/outputs/flutter-apk/app-release.apk
 ```
+
+Release builds need `android/key.properties` (keystore path, alias and passwords) and fail without it, rather than silently signing with the debug key. For a throwaway local test build, run `ALLOW_DEBUG_SIGNED_RELEASE=true flutter build apk`.
 
 **Important for Google Sign-In with release builds:**
 - Release builds use your custom keystore (configured in `android/key.properties`)

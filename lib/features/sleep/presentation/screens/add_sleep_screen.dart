@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/sleep_entry.dart';
@@ -133,7 +133,7 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
                       Text(
                         'From ${DateFormat('h:mm a').format(_previousDaySleepTime!)} to ${DateFormat('h:mm a').format(_wakeUpTime!)}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                   ],
@@ -147,7 +147,7 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
                 child: Text(
                   'No sleep time recorded for previous day',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),

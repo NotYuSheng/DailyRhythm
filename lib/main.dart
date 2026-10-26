@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -60,10 +60,15 @@ class DailyRhythmApp extends ConsumerWidget {
       onGenerateRoute: AppRouter.generateRoute,
       initialRoute: AppRoutes.home,
       builder: (context, child) {
+        // table_calendar and fl_chart still import the SDK's
+        // material.dart; the bridge passes our theme to them. Remove once
+        // they depend on package:material_ui.
+        // ignore: deprecated_member_use
+        final bridged = MaterialUiCompatibilityBridge(child: child!);
         if (kIsWeb || defaultTargetPlatform == TargetPlatform.linux) {
-          return MobilePreviewWrapper(child: child!);
+          return MobilePreviewWrapper(child: bridged);
         }
-        return child!;
+        return bridged;
       },
     );
   }
@@ -88,7 +93,7 @@ class MobilePreviewWrapper extends StatelessWidget {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),

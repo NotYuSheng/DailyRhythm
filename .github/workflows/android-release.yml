@@ -17,7 +17,7 @@ on:
 
 env:
   # Keep in sync with the version used for local development
-  FLUTTER_VERSION: '3.38.5'
+  FLUTTER_VERSION: '3.47.8'
 
 jobs:
   test:
@@ -46,9 +46,8 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
-      # Infos (mostly deprecated color constants) are reported but not fatal
       - name: Run Flutter analyzer
-        run: flutter analyze --no-fatal-infos
+        run: flutter analyze
 
       - name: Run Flutter tests
         run: flutter test --no-pub
