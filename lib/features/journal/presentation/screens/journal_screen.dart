@@ -474,7 +474,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildMoodButton(context, ref, UniconsLine.sad_crying, 'Very Bad', 1, currentMood?.moodLevel, date),
+                    _buildMoodButton(context, ref, UniconsLine.sad_squint, 'Very Bad', 1, currentMood?.moodLevel, date),
                     _buildMoodButton(context, ref, UniconsLine.frown, 'Bad', 2, currentMood?.moodLevel, date),
                     _buildMoodButton(context, ref, UniconsLine.meh, 'Okay', 3, currentMood?.moodLevel, date),
                     _buildMoodButton(context, ref, UniconsLine.smile, 'Good', 4, currentMood?.moodLevel, date),
@@ -486,7 +486,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
               error: (_, _) => Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildMoodButton(context, ref, UniconsLine.sad_crying, 'Very Bad', 1, null, date),
+                  _buildMoodButton(context, ref, UniconsLine.sad_squint, 'Very Bad', 1, null, date),
                   _buildMoodButton(context, ref, UniconsLine.frown, 'Bad', 2, null, date),
                   _buildMoodButton(context, ref, UniconsLine.meh, 'Okay', 3, null, date),
                   _buildMoodButton(context, ref, UniconsLine.smile, 'Good', 4, null, date),

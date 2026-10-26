@@ -140,6 +140,7 @@ class AppTheme {
     snackBarRadius: radiusSmall,
     appBarCenterTitle: true,
     alignedDropdown: true,
+    segmentedButtonSchemeColor: SchemeColor.primary,
     navigationBarIndicatorSchemeColor: SchemeColor.primaryContainer,
     navigationBarMutedUnselectedLabel: true,
     navigationBarMutedUnselectedIcon: true,
