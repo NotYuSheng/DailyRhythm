@@ -16,6 +16,8 @@ import 'package:daily_rhythm/features/health/data/models/health_metric.dart';
 import 'package:daily_rhythm/features/journal/data/models/journal_entry.dart';
 import 'package:daily_rhythm/features/meals/data/models/food_item.dart';
 import 'package:daily_rhythm/shared/models/day_checkin.dart';
+import 'package:daily_rhythm/shared/models/spending_entry.dart';
+import 'package:daily_rhythm/shared/services/database/repositories/spending_repository.dart';
 import 'package:daily_rhythm/shared/models/daylio_raw_entry.dart';
 import 'package:daily_rhythm/shared/services/database/database_service.dart';
 import 'package:daily_rhythm/shared/services/database/repositories/catalog_repository.dart';
@@ -51,6 +53,8 @@ Future<void> _seed(DatabaseService db) async {
   ));
   await db.createMealEntry(MealEntry(date: _old, time: DateTime(2021, 9, 10, 16), name: 'Banana, "ripe"', notes: 'line one\nline two'));
   await db.upsertMoodEntry(MoodEntry(date: _old, timestamp: DateTime(2021, 9, 10, 23, 55), moodLevel: 3, emoji: ''));
+  await SpendingRepository(db).save(SpendingEntry(
+    date: _old, time: DateTime(2021, 9, 10, 19), label: 'Farewell, hotpot', amount: 64.5, category: SpendingEntry.event, rawText: 'farewell hotpot 64.50'));
   await db.createExerciseEntry(ExerciseEntry(
     date: _old,
     timestamp: DateTime(2021, 9, 10, 20),
@@ -112,6 +116,10 @@ Future<Map<String, Object>> _snapshot(DatabaseService db) async {
         [e.date, e.timestamp, e.type, e.runType, e.distance, e.duration, e.pace, e.exerciseName, e.equipmentType, e.reps, e.weight, e.sets],
     ],
     'tasks': [for (final e in await db.getAllTaskEntries()) [e.date, e.taskType]],
+    'spending': [
+      for (final e in await SpendingRepository(db).inRange(DateTime(2000), DateTime(2100)))
+        [e.date, e.time, e.label, e.amount, e.currency, e.category, e.notes, e.rawText],
+    ],
     // Compare by tag name: IDs differ on a fresh install.
     'activities': [for (final e in await db.getAllActivityEntries()) [e.date, tags[e.tagId]]],
     'tags': (await db.getAllTags()).map((t) => '${t.category}/${t.name}/${t.kind}').toList()..sort(),
@@ -165,7 +173,7 @@ void main() {
 
     final exported = await ExportService.instance.exportToDirectory(dir);
     expect(File('${dir.path}/nap_entries.csv').existsSync(), isTrue);
-    expect(exported.fileCount, 16); // one file per table
+    expect(exported.fileCount, 17); // one file per table
 
     // Simulate a new phone: empty database with fresh tag IDs.
     await closeTestDatabase();
@@ -180,7 +188,7 @@ void main() {
     await _seed(db);
     final before = await _snapshot(db);
     final (:bytes, :summary) = await ExportService.instance.buildExportZip();
-    expect(summary.fileCount, 16);
+    expect(summary.fileCount, 17);
 
     await closeTestDatabase();
     db = await openTestDatabase();
@@ -328,6 +336,18 @@ void main() {
       ('activity_entries (1).csv', utf8.encode('ID,Date,Timestamp,Tag ID,Notes\r\n1,2026-10-02T00:00:00.000,2026-10-02T09:00:00.000,41,')),
     ]);
     expect((result.imported, result.invalid), (3, 0));
+  });
+
+  test('a meal moved to events & gifts isn\'t brought back by importing again', () async {
+    await File('${dir.path}/meal_entries.csv').writeAsString(
+      'ID,Date,Time,Name,Quantity,Price\r\n1,2025-11-08T00:00:00.000,2025-11-08T12:00:00.000,A wedding,1,288',
+    );
+    await ExportService.instance.importFromDirectory(dir.path);
+    final meal = (await db.getMealEntriesByDate(DateTime(2025, 11, 8))).single;
+    await SpendingRepository(db).moveMeal(meal.id!, SpendingEntry(date: meal.date, label: meal.name, amount: 288, category: SpendingEntry.gift));
+    final again = await ExportService.instance.importFromDirectory(dir.path);
+    expect((again.imported, again.duplicates), (0, 1));
+    expect(await db.getMealEntriesByDate(DateTime(2025, 11, 8)), isEmpty);
   });
 
   test('reports when a folder has no export files', () async {

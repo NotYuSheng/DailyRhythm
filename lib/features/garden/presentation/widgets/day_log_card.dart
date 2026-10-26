@@ -13,6 +13,9 @@ import '../../../meals/data/providers/meal_providers.dart';
 import '../../../meals/presentation/screens/add_meal_screen.dart';
 import '../../../sleep/data/providers/sleep_providers.dart';
 import '../../../sleep/presentation/screens/add_sleep_screen.dart';
+import '../../../../shared/models/spending_entry.dart';
+import '../../../spending/data/spending_providers.dart';
+import '../../../spending/presentation/add_spending_screen.dart';
 import '../../../tags/data/models/tag.dart';
 import '../../../tags/data/providers/tag_providers.dart';
 import '../../../tags/presentation/screens/tags_screen.dart';
@@ -26,10 +29,21 @@ void invalidateDayLog(WidgetRef ref, DateTime day) {
   ref.invalidate(sleepEntriesProvider);
   ref.invalidate(mealEntriesProvider);
   ref.invalidate(foodCaloriesProvider);
+  ref.invalidate(spendingProvider);
   ref.invalidate(exerciseEntriesProvider);
   ref.invalidate(moodEntryProvider);
   ref.invalidate(activityEntriesProvider);
   invalidateGardenDay(ref, day);
+}
+
+/// Totals per currency ("\$12.40 + USD 20.00"): a trip abroad isn't added
+/// up as dollars. Zero amounts are left out.
+String moneyTotals(Iterable<(double, String)> amounts) {
+  final totals = <String, double>{};
+  for (final (amount, currency) in amounts) {
+    if (amount > 0) totals[currency] = (totals[currency] ?? 0) + amount;
+  }
+  return [for (final e in totals.entries) formatMoney(e.value, e.key)].join(' + ');
 }
 
 /// "$3.50" for Singapore dollars, the app's home currency; "USD 22.00"
@@ -51,6 +65,7 @@ class DayLogCard extends ConsumerWidget {
     final meals = ref.watch(mealEntriesProvider(day)).value ?? const <MealEntry>[];
     final exercises = ref.watch(exerciseEntriesProvider(day)).value ?? const <ExerciseEntry>[];
     final activities = ref.watch(activityEntriesProvider(day)).value ?? const <ActivityEntry>[];
+    final spending = ref.watch(spendingProvider(day)).value ?? const <SpendingEntry>[];
     final tags = {for (final t in ref.watch(allTagsProvider).value ?? const <Tag>[]) t.id: t};
 
     Future<void> open(Widget screen) async {
@@ -66,12 +81,7 @@ class DayLogCard extends ConsumerWidget {
             if (night.wakeUpTime != null) 'Woke ${time.format(night.wakeUpTime!)}',
             if (night.sleepTime != null) 'bed ${time.format(night.sleepTime!)}',
           ].join(' · ');
-    // Totals per currency: a trip abroad isn't added up as dollars.
-    final spent = <String, double>{};
-    for (final m in meals) {
-      if (m.price != null && m.price! > 0) spent[m.currency] = (spent[m.currency] ?? 0) + m.price!;
-    }
-    final spentText = [for (final e in spent.entries) formatMoney(e.value, e.key)].join(' + ');
+    final spentText = moneyTotals([for (final m in meals) if (m.price != null) (m.price!, m.currency)]);
     // Calories as logged or from each food; an estimate, so "≈".
     final foodKcal = ref.watch(foodCaloriesProvider).value ?? const <int, double>{};
     final kcal = [for (final m in meals) ?m.caloriesWith(foodKcal)];
@@ -124,6 +134,23 @@ class DayLogCard extends ConsumerWidget {
               trailing: x.amount,
               colors: colors,
               onTap: () => open(AddExerciseScreen(entry: x)),
+            ),
+          _Row(
+            icon: Icons.celebration_outlined,
+            title: 'Events & gifts',
+            summary: spending.isEmpty
+                ? 'Not food: a celebration, a gift'
+                : moneyTotals([for (final e in spending) (e.amount, e.currency)]),
+            colors: colors,
+            action: 'Add',
+            onTap: () => open(AddSpendingScreen(date: day)),
+          ),
+          for (final e in spending)
+            _Item(
+              text: e.label,
+              trailing: formatMoney(e.amount, e.currency),
+              colors: colors,
+              onTap: () => open(AddSpendingScreen(entry: e)),
             ),
           _Row(
             icon: Icons.local_activity_outlined,

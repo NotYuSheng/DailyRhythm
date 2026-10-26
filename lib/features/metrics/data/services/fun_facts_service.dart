@@ -9,7 +9,7 @@ import '../../../../shared/services/database/repositories/health_repository.dart
 import '../models/metric_data.dart';
 
 /// What a fun fact is about, for its icon and colour.
-enum FactKind { food, newFood, spend, exercise, distance, sleep, logging, weekday, garden, memory }
+enum FactKind { food, newFood, spend, events, exercise, distance, sleep, logging, weekday, garden, memory }
 
 /// One light-hearted observation about a period: a headline value and a
 /// line of detail. Facts state what was logged; they never give advice.
@@ -117,6 +117,26 @@ class FunFactsService {
         value: '\$${_money.format(p['price'])}',
         detail: '${p['name']}, ${_day.format(DateTime.parse(p['date'] as String))}. '
             '\$${_money.format(spend.first['total'])} on food in all',
+      ));
+    }
+
+    // Events and gifts: kept apart from food spending.
+    final events = (await db.rawQuery('''
+      SELECT SUM(amount) AS total, COUNT(*) AS n FROM spending_entries
+      WHERE $inRange AND currency = 'SGD' AND amount > 0
+    ''', args)).first;
+    if ((events['n'] as int) > 0) {
+      final top = (await db.rawQuery('''
+        SELECT label, date FROM spending_entries
+        WHERE $inRange AND currency = 'SGD' AND amount > 0 ORDER BY amount DESC LIMIT 1
+      ''', args)).first;
+      facts.add(FunFact(
+        kind: FactKind.events,
+        title: 'Events & gifts',
+        value: '\$${_money.format(events['total'])}',
+        detail: events['n'] == 1
+            ? '${top['label']}, ${_day.format(DateTime.parse(top['date'] as String))}'
+            : '${events['n']} of them. The biggest: ${top['label']}',
       ));
     }
 

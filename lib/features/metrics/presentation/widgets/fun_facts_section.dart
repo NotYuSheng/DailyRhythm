@@ -15,7 +15,8 @@ class FunFactsSection extends ConsumerWidget {
   static const _icons = {
     FactKind.food: Icons.ramen_dining_outlined,
     FactKind.newFood: Icons.explore_outlined,
-    FactKind.spend: Icons.celebration_outlined,
+    FactKind.spend: Icons.payments_outlined,
+    FactKind.events: Icons.celebration_outlined,
     FactKind.exercise: Icons.fitness_center_outlined,
     FactKind.distance: Icons.directions_walk,
     FactKind.sleep: Icons.bedtime_outlined,
@@ -30,6 +31,7 @@ class FunFactsSection extends ConsumerWidget {
     FactKind.food: (Color(0xFFFBE0D3), Color(0xFF4A2C1E)),
     FactKind.newFood: (Color(0xFFFFE9A8), Color(0xFF4A3D12)),
     FactKind.spend: (Color(0xFFFFDDE7), Color(0xFF4A2231)),
+    FactKind.events: (Color(0xFFFFE9A8), Color(0xFF4A3D12)),
     FactKind.exercise: (Color(0xFFD3EDDD), Color(0xFF1D3328)),
     FactKind.distance: (Color(0xFFDDEBFF), Color(0xFF1C2B44)),
     FactKind.sleep: (Color(0xFFE6E0FA), Color(0xFF2C2645)),

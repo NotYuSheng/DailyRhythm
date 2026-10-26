@@ -11,6 +11,10 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/date_utils.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 import '../../../../shared/widgets/name_suggestions.dart';
+import '../../../../shared/models/spending_entry.dart';
+import '../../../../shared/services/database/repositories/spending_repository.dart';
+import '../../../spending/data/spending_providers.dart';
+import '../../../spending/presentation/add_spending_screen.dart';
 
 class AddMealScreen extends ConsumerStatefulWidget {
   final MealEntry? entry; // For editing existing entries
@@ -368,9 +372,70 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
               ],
             ),
           ),
+          // Imported history mixes in group events and gifts; this moves one
+          // out of food spending.
+          if (widget.entry?.id != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppTheme.spacePulse2),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+                  onPressed: _moveToSpending,
+                  icon: const Icon(Icons.celebration_outlined),
+                  label: const Text('Not a meal: move to events & gifts'),
+                ),
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  /// Turns this meal into an event or gift entry and removes the meal,
+  /// after asking: the meal's food link, tags and calories don't carry over.
+  Future<void> _moveToSpending() async {
+    final meal = widget.entry!;
+    final container = ProviderScope.containerOf(context, listen: false);
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Move to events & gifts?'),
+        content: Text('“${meal.name}” stops counting as food. Its amount moves; its food link, tags and calories don’t.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Move')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final SpendingEntry moved;
+    try {
+      moved = await SpendingRepository(container.read(databaseProvider)).moveMeal(
+        meal.id!,
+        SpendingEntry(
+          date: meal.date,
+          // Imported meals have a placeholder time; don't pass it on as real.
+          time: meal.timeKnown ? meal.time : null,
+          label: meal.name,
+          amount: meal.price ?? 0,
+          currency: meal.currency,
+          notes: meal.notes,
+          rawText: meal.rawText,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Couldn’t move it: $e')));
+      return;
+    }
+    container.invalidate(mealEntriesProvider(dayOf(meal.date)));
+    container.invalidate(todayMealEntriesProvider);
+    container.invalidate(spendingProvider(dayOf(meal.date)));
+    if (!mounted) return;
+    // Straight into the new entry, to pick event or gift.
+    await navigator.pushReplacement(MaterialPageRoute<void>(builder: (_) => AddSpendingScreen(entry: moved)));
   }
 
   Future<void> _saveMeal() async {

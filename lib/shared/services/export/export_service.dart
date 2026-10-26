@@ -17,6 +17,7 @@ import '../../models/nap_entry.dart';
 import '../../models/task_entry.dart';
 import '../../models/activity_entry.dart';
 import '../../models/day_checkin.dart';
+import '../../models/spending_entry.dart';
 import '../../models/daylio_raw_entry.dart';
 import '../../../features/exercise/data/models/exercise_item.dart';
 import '../../../features/health/data/models/health_metric.dart';
@@ -261,6 +262,21 @@ class ExportService {
         for (final c in (await db.query('day_checkins', orderBy: 'date')).map(DayCheckin.fromMap))
           [c.date.toIso8601String(), c.energy ?? '', c.stress ?? '', c.focus ?? '', c.plantOverride ?? ''],
       ],
+      'spending_entries.csv': [
+        ['ID', 'Date', 'Time', 'Label', 'Amount', 'Currency', 'Category', 'Notes', 'Raw Text'],
+        for (final e in (await db.query('spending_entries', orderBy: 'date, time, id')).map(SpendingEntry.fromMap))
+          [
+            e.id ?? '',
+            e.date.toIso8601String(),
+            e.time?.toIso8601String() ?? '',
+            e.label,
+            e.amount,
+            e.currency,
+            e.category,
+            e.notes ?? '',
+            e.rawText ?? '',
+          ],
+      ],
       'health_metrics.csv': [
         ['Date', 'Metric', 'Value', 'Source'],
         for (final m in (await db.query('health_metrics', orderBy: 'date, metric')).map(HealthMetric.fromMap))
@@ -392,7 +408,7 @@ class ExportService {
     'tag_categories.csv', 'tags.csv', 'food_items.csv', 'exercise_items.csv',
     'sleep_entries.csv', 'nap_entries.csv', 'meal_entries.csv', 'mood_entries.csv',
     'exercise_entries.csv', 'task_entries.csv', 'activity_entries.csv', 'journal_entries.csv',
-    'day_checkins.csv', 'health_metrics.csv', 'health_workouts.csv', 'daylio_raw.csv',
+    'day_checkins.csv', 'spending_entries.csv', 'health_metrics.csv', 'health_workouts.csv', 'daylio_raw.csv',
   ];
 
   /// Imports every recognised CSV file in [dirPath] in one transaction, so
@@ -485,6 +501,7 @@ class _Importer {
     'task_entries': ['date', 'timestamp', 'taskType'],
     'activity_entries': ['date', 'tagId'],
     'day_checkins': ['date'],
+    'spending_entries': ['date', 'time', 'label', 'amount'],
     'health_metrics': ['date', 'metric', 'source'],
     'health_workouts': ['start', 'source'],
     'daylio_raw': ['date', 'logged_time', 'note'],
@@ -496,7 +513,16 @@ class _Importer {
   static String _journalKey(Map<String, dynamic> row, Iterable<String> tagNames) =>
       '${_key(row, const ['date', 'time', 'text', 'mood'])}\u0001${(tagNames.toList()..sort()).join(';')}';
 
+  /// Events and gifts already in the database, by day, label and amount.
+  final _movedMeals = <String>{};
+
+  static String _movedKey(DateTime? day, String? label, double? amount) =>
+      '${day == null ? '' : dayOf(day).toIso8601String()}\u0001${label?.toLowerCase()}\u0001${amount ?? 0}';
+
   Future<void> loadExisting() async {
+    for (final r in await txn.query('spending_entries', columns: ['date', 'label', 'amount'])) {
+      _movedMeals.add(_movedKey(DateTime.parse(r['date'] as String), r['label'] as String, (r['amount'] as num).toDouble()));
+    }
     for (final row in await txn.query('tag_categories', columns: ['name', 'sort_order'])) {
       _categoryNames.add(row['name'] as String);
       final order = row['sort_order'] as int?;
@@ -616,24 +642,28 @@ class _Importer {
       'nap_entries',
       NapEntry(date: _day(row, 1)!, startTime: _dateTime(row, 2)!, durationHours: _double(row, 3)!, tags: _list(row, 4)).toMap(),
     ),
-    'meal_entries.csv': (row) => _add(
-      'meal_entries',
-      MealEntry(
-        date: _day(row, 1)!,
-        time: _dateTime(row, 2)!,
-        name: _text(row, 3)!,
-        quantity: _int(row, 4) ?? 1,
-        price: _double(row, 5),
-        calories: _int(row, 6),
-        tags: _list(row, 7),
-        notes: _text(row, 8),
-        foodSource: _text(row, 9),
-        foodItemId: _foodIds[_text(row, 10)?.toLowerCase()],
-        currency: _text(row, 11) ?? 'SGD',
-        rawText: _text(row, 12),
-        timeKnown: (_int(row, 13) ?? 1) != 0,
-      ).toMap(),
-    ),
+    'meal_entries.csv': (row) async {
+      // A meal already moved to events & gifts isn't brought back.
+      if (_movedMeals.contains(_movedKey(_day(row, 1), _text(row, 3), _double(row, 5)))) return false;
+      return _add(
+        'meal_entries',
+        MealEntry(
+          date: _day(row, 1)!,
+          time: _dateTime(row, 2)!,
+          name: _text(row, 3)!,
+          quantity: _int(row, 4) ?? 1,
+          price: _double(row, 5),
+          calories: _int(row, 6),
+          tags: _list(row, 7),
+          notes: _text(row, 8),
+          foodSource: _text(row, 9),
+          foodItemId: _foodIds[_text(row, 10)?.toLowerCase()],
+          currency: _text(row, 11) ?? 'SGD',
+          rawText: _text(row, 12),
+          timeKnown: (_int(row, 13) ?? 1) != 0,
+        ).toMap(),
+      );
+    },
     'mood_entries.csv': (row) => _add(
       'mood_entries',
       MoodEntry(
@@ -717,6 +747,20 @@ class _Importer {
         focus: _int(row, 3),
         plantOverride: _text(row, 4),
       ).toMap(),
+    ),
+    'spending_entries.csv': (row) => _add(
+      'spending_entries',
+      (SpendingEntry(
+        date: _day(row, 1)!,
+        time: _dateTime(row, 2),
+        label: _text(row, 3)!,
+        amount: _double(row, 4)!,
+        currency: _text(row, 5) ?? 'SGD',
+        category: _text(row, 6) ?? SpendingEntry.event,
+        notes: _text(row, 7),
+        rawText: _text(row, 8),
+      ).toMap())
+        ..remove('id'),
     ),
     'health_metrics.csv': (row) => _add(
       'health_metrics',

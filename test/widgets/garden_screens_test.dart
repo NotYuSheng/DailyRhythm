@@ -88,8 +88,7 @@ void main() {
   testWidgets('a good moment is saved and blooms the plant', (tester) async {
     await pump(tester, const GardenTodayScreen());
     await tester.scrollUntilVisible(find.text('Log a moment'), 200, scrollable: find.byType(Scrollable).first);
-    await tester.tap(find.text('Log a moment'));
-    await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('Log a moment'));
 
     await tester.enterText(find.byType(TextField), 'Coffee with an old friend');
     await tester.tap(find.descendant(of: find.byType(MomentSheet), matching: find.text('Great')));

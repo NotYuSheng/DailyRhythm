@@ -8,6 +8,8 @@ import 'package:daily_rhythm/features/metrics/data/services/fun_facts_service.da
 import 'package:daily_rhythm/features/sleep/data/models/sleep_entry.dart';
 import 'package:daily_rhythm/shared/models/activity_entry.dart';
 import 'package:daily_rhythm/shared/models/mood_entry.dart';
+import 'package:daily_rhythm/shared/models/spending_entry.dart';
+import 'package:daily_rhythm/shared/services/database/repositories/spending_repository.dart';
 import 'package:daily_rhythm/shared/services/database/database_service.dart';
 import 'package:daily_rhythm/shared/services/database/repositories/catalog_repository.dart';
 import 'package:daily_rhythm/shared/services/database/repositories/health_repository.dart';
@@ -120,5 +122,17 @@ void main() {
     final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
     expect(facts['Longest night']!.value, '8h 0m');
     expect(facts['The garden grew']!.detail, contains('3 cacti'));
+  });
+
+  test('events and gifts are their own fact, not food spending', () async {
+    for (var d = 1; d <= 5; d++) {
+      await meal(d, 'Chicken rice', price: 4);
+    }
+    await SpendingRepository(db).save(SpendingEntry(date: DateTime(2026, 3, 8), label: 'A wedding', amount: 200, category: SpendingEntry.gift));
+    await SpendingRepository(db).save(SpendingEntry(date: DateTime(2026, 3, 9), label: 'Farewell dinner', amount: 60));
+    await SpendingRepository(db).save(SpendingEntry(date: DateTime(2026, 3, 10), label: 'Unpriced', amount: 0));
+    final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
+    expect(facts['Biggest treat']!.detail, endsWith('\$20.00 on food in all'));
+    expect((facts['Events & gifts']!.value, facts['Events & gifts']!.detail), ('\$260.00', '2 of them. The biggest: A wedding'));
   });
 }
