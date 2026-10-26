@@ -94,3 +94,43 @@ def test_synonyms_win_over_generated_rows(tmp_path):
         "meals,Maggie,maggie,4,exact,yes\n"
     )
     assert load_aliases(path)[("meals", "maggie")] == "Maggi"
+
+
+def test_synonyms_apply_to_whole_words_inside_longer_names():
+    from daylio_migration.canonical import replace_words
+
+    words = [("maggie", "Maggi")]
+    assert replace_words("Maggie goreng", words) == "Maggi goreng"
+    assert replace_words("Fried maggie mee", words) == "Fried Maggi mee"
+    assert replace_words("Maggies", words) == "Maggies"
+    assert replace_words("Ommaggie", words) == "Ommaggie"
+
+
+def test_word_synonyms_set_canonical_and_count_changes():
+    from daylio_migration.model import Meal
+
+    d = Day(date="2024-01-01", mood=3, entries=[], exercises=[])
+    d.meals = [Meal(text="Maggie goreng", name="Maggie goreng"), Meal(text="Maggie", name="Maggie")]
+    changed = apply_aliases([d], {("meals", "Maggie"): "Maggi"}, {"meals": [("maggie", "Maggi")]})
+    assert [m.canonical for m in d.meals] == ["Maggi goreng", "Maggi"]
+    assert changed == 1
+
+
+def test_proposals_merge_names_that_match_after_synonyms():
+    rows = propose([day(meals=["Maggi goreng"] * 2 + ["Maggie goreng"] * 3)], {"meals": [("maggie", "Maggi")]})
+    by_variant = {r["variant"]: r for r in rows}
+    assert (by_variant["Maggie goreng"]["canonical"], by_variant["Maggie goreng"]["how"]) == ("Maggi goreng", "exact")
+    assert "Maggi goreng" not in by_variant
+
+
+def test_load_synonyms_longest_first(tmp_path):
+    from daylio_migration.canonical import load_synonyms
+
+    path = tmp_path / "aliases.csv"
+    path.write_text(
+        "kind,canonical,variant,count,how,approve\n"
+        "meals,Maggi,maggie,0,synonym,yes\n"
+        "meals,Maggi mee,maggie mee,0,synonym,yes\n"
+        "meals,Wanton noodles,wanton mee,3,exact,yes\n"
+    )
+    assert load_synonyms(path) == {"meals": [("maggie mee", "Maggi mee"), ("maggie", "Maggi")]}

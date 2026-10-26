@@ -16,7 +16,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from .canonical import apply_aliases, load_aliases
+from .canonical import apply_aliases, load_aliases, load_synonyms
 from .llm import LlmSplitter, load_env
 from .load import build_days, read_entries
 from .validate import validate
@@ -47,12 +47,13 @@ def main() -> None:
         print(f"Using earlier LLM answers from {cache} (--no-cache for rules only)")
 
     days = build_days(entries, splitter)
-    apply_aliases(days, load_aliases(args.out / "aliases.csv"))
+    aliases = args.out / "aliases.csv"
+    renamed = apply_aliases(days, load_aliases(aliases), load_synonyms(aliases))
     validate(days)
-    write_outputs(days, args.out)
+    write_outputs(days, args.out, renamed_by_synonyms=renamed)
 
 
-def write_outputs(days, out: Path) -> None:
+def write_outputs(days, out: Path, renamed_by_synonyms: int = 0) -> None:
     out.mkdir(parents=True, exist_ok=True)
     (out / "days.json").write_text(json.dumps([d.to_dict() for d in days], indent=1, ensure_ascii=False))
 
@@ -74,6 +75,7 @@ def write_outputs(days, out: Path) -> None:
         "supplements": sum(len(d.supplements) for d in days),
         "journal entries": sum(len(d.journal) for d in days),
         "days with wake and bed": sum(1 for d in days if d.wake and d.bed),
+        "names changed by synonyms inside them": renamed_by_synonyms,
     }
     lines = [f"{k}: {v}" for k, v in totals.items()]
     lines += ["", "Parse method:"] + [f"  {k}: {v}" for k, v in methods.most_common()]
