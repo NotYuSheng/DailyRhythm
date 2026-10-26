@@ -41,10 +41,9 @@ class BackupService {
       final tempDbFile = File('${Directory.systemTemp.path}/dailyrhythm_backup_temp.db');
 
       try {
-        // Close the database so the copy cannot catch a half-written
-        // transaction. It reopens on the next query.
-        await _dbService.close();
-        await dbFile.copy(tempDbFile.path);
+        // A snapshot from the open connection: closing it would break
+        // queries the app is running, such as at launch.
+        await _dbService.snapshotTo(tempDbFile.path);
 
         final fileId = await _driveService.uploadBackup(tempDbFile);
         if (fileId == null) {
@@ -54,7 +53,12 @@ class BackupService {
           );
         }
 
-        await _driveService.pruneBackups(keep: backupsToKeep);
+        // The backup is saved; failing to tidy old ones isn't a failure.
+        try {
+          await _driveService.pruneBackups(keep: backupsToKeep);
+        } catch (e) {
+          debugPrint('Pruning old backups failed: $e');
+        }
         return BackupResult(
           success: true,
           message: 'Backup completed successfully',
@@ -128,8 +132,12 @@ class BackupService {
     final previousCopy = File(join(currentDbFile.parent.path, 'dailyrhythm_backup_before_restore.db'));
 
     await _dbService.close();
-    if (await currentDbFile.exists()) {
+    final hadData = await currentDbFile.exists();
+    if (hadData) {
       await currentDbFile.copy(previousCopy.path);
+    } else if (await previousCopy.exists()) {
+      // An older fallback isn't this device's data; don't restore it below.
+      await previousCopy.delete();
     }
     await backupFile.copy(currentDbFile.path);
 
@@ -138,13 +146,21 @@ class BackupService {
       await _dbService.database;
     } catch (e) {
       await _dbService.close();
-      if (await previousCopy.exists()) {
+      // Put the previous data back, or with none, start empty rather than
+      // keep a database that can't open.
+      if (hadData) {
         await previousCopy.copy(currentDbFile.path);
+      } else {
+        await currentDbFile.delete();
       }
-      await _dbService.database;
+      try {
+        await _dbService.database;
+      } catch (reopen) {
+        debugPrint('Reopening after a failed restore failed: $reopen');
+      }
       return BackupResult(
         success: false,
-        message: 'Restore failed and your previous data was kept: $e',
+        message: hadData ? 'Restore failed and your previous data was kept: $e' : 'Restore failed: $e',
       );
     }
 

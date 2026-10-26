@@ -294,6 +294,24 @@ void main() {
     expect((first.imported, second.imported, second.duplicates), (3, 0, 3));
   });
 
+  test('recognises export files renamed by a download', () {
+    expect(ExportService.exportFileName('sleep_entries (1).csv'), 'sleep_entries.csv');
+    expect(ExportService.exportFileName('Tags copy.csv'), 'tags.csv');
+    expect(ExportService.exportFileName('sleep_entries.csv'), 'sleep_entries.csv');
+    expect(ExportService.exportFileName('notes.csv'), isNull);
+  });
+
+  test('picked files with the same name are both imported', () async {
+    List<int> moods(String date) => utf8.encode(
+          'ID,Date,Timestamp,Mood Level,Emoji,Notes\r\n1,$date,$date,4,x,',
+        );
+    final result = await ExportService.instance.importFiles([
+      ('mood_entries.csv', moods('2026-10-01T00:00:00.000')),
+      ('mood_entries (1).csv', moods('2026-10-02T00:00:00.000')),
+    ]);
+    expect(result.imported, 2);
+  });
+
   test('reports when a folder has no export files', () async {
     final result = await ExportService.instance.importFromDirectory(dir.path);
     expect(result.foundFiles, isFalse);

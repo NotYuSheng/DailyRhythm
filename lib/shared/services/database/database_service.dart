@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
@@ -1180,7 +1182,8 @@ class DatabaseService {
       final tables = (await db.rawQuery("SELECT name FROM sqlite_master WHERE type = 'table'"))
           .map((row) => row['name'])
           .toSet();
-      const required = ['sleep_entries', 'meal_entries', 'mood_entries', 'tags'];
+      // The tables of version 1; later ones are added when it opens.
+      const required = ['sleep_entries', 'meal_entries', 'tags'];
       if (version < 1 || !required.every(tables.contains)) {
         return 'This file is not a DailyRhythm backup.';
       }
@@ -1193,6 +1196,24 @@ class DatabaseService {
   }
 
   // ==================== Utility ====================
+
+  /// Writes a consistent copy of the database to [path] without closing it.
+  Future<void> snapshotTo(String path) async {
+    final file = File(path);
+    if (await file.exists()) await file.delete();
+    final db = await database;
+    try {
+      await db.execute('VACUUM INTO ?', [path]);
+    } on DatabaseException {
+      // SQLite before 3.27 (older Android): copy while holding a lock so no
+      // write can land mid-copy.
+      if (await file.exists()) await file.delete();
+      await db.transaction((txn) async {
+        await txn.rawQuery('SELECT COUNT(*) FROM sqlite_master');
+        await File(await databaseFilePath()).copy(path);
+      }, exclusive: true);
+    }
+  }
 
   Future<void> close() async {
     if (_database != null) {

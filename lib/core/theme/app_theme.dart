@@ -155,7 +155,8 @@ class AppTheme {
     navigationBarMutedUnselectedIcon: true,
   );
 
-  static ThemeData get lightTheme => FlexThemeData.light(
+  // Built once: FlexThemeData derives every sub-theme.
+  static final ThemeData lightTheme = FlexThemeData.light(
         colors: _lightColors,
         surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
         blendLevel: 2,
@@ -165,7 +166,7 @@ class AppTheme {
         subThemesData: _subThemes,
       );
 
-  static ThemeData get darkTheme => FlexThemeData.dark(
+  static final ThemeData darkTheme = FlexThemeData.dark(
         colors: _darkColors,
         surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
         blendLevel: 8,

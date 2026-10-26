@@ -311,19 +311,65 @@ class ExportService {
     );
     if (picked == null || picked.files.isEmpty) return null;
 
-    final dir = await Directory.systemTemp.createTemp('dailyrhythm_import');
+    return importFiles(
+      [for (final file in picked.files) (file.name, file.bytes ?? await File(file.path!).readAsBytes())],
+      onProgress: onProgress,
+    );
+  }
+
+  /// The export file [name] stands for, allowing for the suffix a download
+  /// or copy adds ("sleep_entries (1).csv"), or null if it isn't one.
+  static String? exportFileName(String name) {
+    final match = RegExp(r'^(.+?)(?:\s*\(\d+\)|[ _-]copy(?:\s*\d+)?)?\.csv$', caseSensitive: false).firstMatch(name.trim());
+    final base = '${match?.group(1)?.toLowerCase()}.csv';
+    return importOrder.contains(base) ? base : null;
+  }
+
+  /// Imports picked files: export zips and loose CSVs. Each zip is its own
+  /// export; loose CSVs are matched by name, and a second file for the same
+  /// table goes into another set instead of overwriting the first.
+  Future<ImportResult> importFiles(List<(String, List<int>)> files, {ImportProgress? onProgress}) async {
+    final root = await Directory.systemTemp.createTemp('dailyrhythm_import');
     try {
-      for (final file in picked.files) {
-        final bytes = file.bytes ?? await File(file.path!).readAsBytes();
-        if (file.name.toLowerCase().endsWith('.zip')) {
-          await _extractZip(bytes, dir);
-        } else {
-          await File('${dir.path}/${file.name}').writeAsBytes(bytes);
-        }
+      final sets = <Directory>[];
+      final loose = <Directory>[];
+      Future<Directory> newSet() async {
+        final dir = Directory('${root.path}/${sets.length}');
+        await dir.create();
+        sets.add(dir);
+        return dir;
       }
-      return await importFromDirectory(dir.path, onProgress: onProgress);
+
+      for (final (name, bytes) in files) {
+        if (name.toLowerCase().endsWith('.zip')) {
+          await _extractZip(bytes, await newSet());
+          continue;
+        }
+        final table = exportFileName(name);
+        if (table == null) continue;
+        Directory? dir;
+        for (final d in loose) {
+          if (!await File('${d.path}/$table').exists()) {
+            dir = d;
+            break;
+          }
+        }
+        if (dir == null) loose.add(dir = await newSet());
+        await File('${dir.path}/$table').writeAsBytes(bytes);
+      }
+
+      final result = ImportResult();
+      for (final dir in sets) {
+        final part = await importFromDirectory(dir.path, onProgress: onProgress);
+        result
+          ..imported += part.imported
+          ..duplicates += part.duplicates
+          ..invalid += part.invalid
+          ..foundFiles |= part.foundFiles;
+      }
+      return result;
     } finally {
-      await dir.delete(recursive: true);
+      await root.delete(recursive: true);
     }
   }
 
@@ -342,8 +388,8 @@ class ExportService {
   /// archive so a re-zipped export folder also works.
   static Future<void> _extractZip(List<int> bytes, Directory dir) async {
     for (final entry in ZipDecoder().decodeBytes(bytes)) {
-      final name = entry.name.split('/').last;
-      if (!entry.isFile || !name.toLowerCase().endsWith('.csv')) continue;
+      final name = exportFileName(entry.name.split('/').last);
+      if (!entry.isFile || name == null) continue;
       await File('${dir.path}/$name').writeAsBytes(entry.content);
     }
   }
