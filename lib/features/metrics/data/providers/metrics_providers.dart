@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/services/database/database_provider.dart';
+import '../services/day_ratings_service.dart';
 import '../services/fun_facts_service.dart';
 import '../services/metrics_service.dart';
 import '../models/metric_data.dart';
@@ -45,6 +46,11 @@ final funFactsProvider = FutureProvider.autoDispose.family<List<FunFact>, DateRa
   return FunFactsService(ref.watch(databaseProvider)).factsFor(range);
 });
 
+/// Mood, energy, stress and focus, tag comparisons and watch averages.
+final dayRatingsProvider = FutureProvider.autoDispose.family<DayRatingsReport, DateRange>((ref, range) {
+  return DayRatingsService(ref.watch(databaseProvider)).reportFor(range);
+});
+
 /// Recomputes every metric, for when entries may have changed since the
 /// Metrics tab was last built (it stays alive when switching tabs).
 void invalidateMetrics(WidgetRef ref) {
@@ -55,6 +61,7 @@ void invalidateMetrics(WidgetRef ref) {
     activityMetricsProvider,
     metricsInsightsProvider,
     funFactsProvider,
+    dayRatingsProvider,
   ]) {
     ref.invalidate(provider);
   }
