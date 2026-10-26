@@ -49,6 +49,15 @@ The garden plant for a day is derived (from that day's activity tags, sleep, mov
 and moments), not stored, so it always reflects edits. Only the user's override is
 stored, in `day_checkins.plant_override`.
 
+## v14
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `spending_entries` | Money spent on something that isn't a meal: group events (farewells, KTV, weddings) and gifts. Kept apart so food spending means food | `date`, `time`, `label`, `amount`, `currency`, `category` (`event` / `gift` / `other`), `raw_text` |
+
+An imported meal that was really an event can be moved here from the meal
+screen ("Not a meal: move to events & gifts").
+
 ## Export and import
 
 Every table is exported as a CSV in the export zip. New columns go at the end of a

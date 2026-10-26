@@ -9,7 +9,9 @@ import 'package:daily_rhythm/shared/services/database/repositories/catalog_repos
 import 'package:daily_rhythm/features/meals/presentation/screens/add_meal_screen.dart';
 import 'package:daily_rhythm/features/sleep/data/models/sleep_entry.dart';
 import 'package:daily_rhythm/features/sleep/presentation/screens/add_sleep_screen.dart';
+import 'package:daily_rhythm/shared/models/spending_entry.dart';
 import 'package:daily_rhythm/shared/services/database/database_service.dart';
+import 'package:daily_rhythm/shared/services/database/repositories/spending_repository.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -189,6 +191,27 @@ void main() {
       await tester.pump();
       expect(find.text('Quantity must be at least 1'), findsOneWidget);
       expect(await db.getMealEntriesByDate(pastDay), isEmpty);
+    });
+
+    testWidgets('an imported meal can move to events & gifts', (tester) async {
+      await db.createMealEntry(MealEntry(date: pastDay, time: DateTime(2026, 10, 20, 19), name: 'Farewell hotpot', price: 64.5, rawText: 'farewell hotpot 64.50'));
+      final meal = (await db.getMealEntriesByDate(pastDay)).single;
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_app(Navigator(onGenerateRoute: (_) => MaterialPageRoute<void>(builder: (_) => AddMealScreen(entry: meal)))));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Not a meal: move to events & gifts'));
+      await tester.pumpAndSettle();
+      expect(find.text('Edit event or gift'), findsOneWidget);
+      expect(await db.getMealEntriesByDate(pastDay), isEmpty);
+      final moved = (await SpendingRepository(db).forDay(pastDay)).single;
+      expect((moved.label, moved.amount, moved.rawText), ('Farewell hotpot', 64.5, 'farewell hotpot 64.50'));
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Gift'));
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect((await SpendingRepository(db).forDay(pastDay)).single.category, SpendingEntry.gift);
     });
 
     testWidgets('a new food joins the catalog with its price', (tester) async {

@@ -12,6 +12,7 @@ import '../../../tags/data/providers/tag_providers.dart';
 import '../../../tags/presentation/screens/tags_screen.dart';
 import '../../../health/presentation/health_settings_card.dart';
 import '../../../garden/data/garden_providers.dart';
+import '../../../spending/data/spending_providers.dart';
 import '../../../metrics/data/providers/metrics_providers.dart';
 import 'backup_settings_screen.dart';
 import 'debug_database_screen.dart';
@@ -314,6 +315,7 @@ class SettingsScreen extends ConsumerWidget {
           yearRecapProvider,
           checkinProvider,
           momentsProvider,
+          spendingProvider,
           todaySleepEntriesProvider,
           todayMealEntriesProvider,
           todayMoodEntryProvider,

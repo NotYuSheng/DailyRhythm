@@ -13,6 +13,9 @@ import '../../../meals/data/providers/meal_providers.dart';
 import '../../../meals/presentation/screens/add_meal_screen.dart';
 import '../../../sleep/data/providers/sleep_providers.dart';
 import '../../../sleep/presentation/screens/add_sleep_screen.dart';
+import '../../../../shared/models/spending_entry.dart';
+import '../../../spending/data/spending_providers.dart';
+import '../../../spending/presentation/add_spending_screen.dart';
 import '../../../tags/data/models/tag.dart';
 import '../../../tags/data/providers/tag_providers.dart';
 import '../../../tags/presentation/screens/tags_screen.dart';
@@ -26,6 +29,7 @@ void invalidateDayLog(WidgetRef ref, DateTime day) {
   ref.invalidate(sleepEntriesProvider);
   ref.invalidate(mealEntriesProvider);
   ref.invalidate(foodCaloriesProvider);
+  ref.invalidate(spendingProvider);
   ref.invalidate(exerciseEntriesProvider);
   ref.invalidate(moodEntryProvider);
   ref.invalidate(activityEntriesProvider);
@@ -51,6 +55,7 @@ class DayLogCard extends ConsumerWidget {
     final meals = ref.watch(mealEntriesProvider(day)).value ?? const <MealEntry>[];
     final exercises = ref.watch(exerciseEntriesProvider(day)).value ?? const <ExerciseEntry>[];
     final activities = ref.watch(activityEntriesProvider(day)).value ?? const <ActivityEntry>[];
+    final spending = ref.watch(spendingProvider(day)).value ?? const <SpendingEntry>[];
     final tags = {for (final t in ref.watch(allTagsProvider).value ?? const <Tag>[]) t.id: t};
 
     Future<void> open(Widget screen) async {
@@ -124,6 +129,26 @@ class DayLogCard extends ConsumerWidget {
               trailing: x.amount,
               colors: colors,
               onTap: () => open(AddExerciseScreen(entry: x)),
+            ),
+          _Row(
+            icon: Icons.celebration_outlined,
+            title: 'Events & gifts',
+            summary: spending.isEmpty
+                ? 'Not food: a celebration, a gift'
+                : [
+                    for (final cur in {for (final e in spending) e.currency})
+                      formatMoney(spending.where((e) => e.currency == cur).fold(0.0, (sum, e) => sum + e.amount), cur),
+                  ].join(' + '),
+            colors: colors,
+            action: 'Add',
+            onTap: () => open(AddSpendingScreen(date: day)),
+          ),
+          for (final e in spending)
+            _Item(
+              text: e.label,
+              trailing: formatMoney(e.amount, e.currency),
+              colors: colors,
+              onTap: () => open(AddSpendingScreen(entry: e)),
             ),
           _Row(
             icon: Icons.local_activity_outlined,

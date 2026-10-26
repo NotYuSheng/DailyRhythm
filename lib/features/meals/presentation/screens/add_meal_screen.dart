@@ -11,6 +11,10 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/date_utils.dart';
 import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 import '../../../../shared/widgets/name_suggestions.dart';
+import '../../../../shared/models/spending_entry.dart';
+import '../../../../shared/services/database/repositories/spending_repository.dart';
+import '../../../spending/data/spending_providers.dart';
+import '../../../spending/presentation/add_spending_screen.dart';
 
 class AddMealScreen extends ConsumerStatefulWidget {
   final MealEntry? entry; // For editing existing entries
@@ -368,9 +372,49 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
               ],
             ),
           ),
+          // Imported history mixes in group events and gifts; this moves one
+          // out of food spending.
+          if (widget.entry?.id != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppTheme.spacePulse2),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+                  onPressed: _moveToSpending,
+                  icon: const Icon(Icons.celebration_outlined),
+                  label: const Text('Not a meal: move to events & gifts'),
+                ),
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  /// Turns this meal into an event or gift entry and removes the meal.
+  Future<void> _moveToSpending() async {
+    final meal = widget.entry!;
+    final container = ProviderScope.containerOf(context, listen: false);
+    final navigator = Navigator.of(context);
+    final db = container.read(databaseProvider);
+    final id = await SpendingRepository(db).save(SpendingEntry(
+      date: meal.date,
+      time: meal.time,
+      label: meal.name,
+      amount: meal.price ?? 0,
+      currency: meal.currency,
+      notes: meal.notes,
+      rawText: meal.rawText,
+    ));
+    await db.deleteMealEntry(meal.id!);
+    container.invalidate(mealEntriesProvider(dayOf(meal.date)));
+    container.invalidate(todayMealEntriesProvider);
+    container.invalidate(spendingProvider(dayOf(meal.date)));
+    if (!mounted) return;
+    // Straight into the new entry, to pick event or gift.
+    final entry = (await SpendingRepository(db).forDay(meal.date)).firstWhere((e) => e.id == id);
+    await navigator.pushReplacement(MaterialPageRoute<void>(builder: (_) => AddSpendingScreen(entry: entry)));
   }
 
   Future<void> _saveMeal() async {
