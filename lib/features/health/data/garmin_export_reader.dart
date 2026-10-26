@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:archive/archive.dart';
 
@@ -41,10 +42,23 @@ class GarminExportReader {
 
   /// Reads the zip in [bytes]. Throws [FormatException] if it holds none of
   /// the known files.
-  static GarminImport readZip(List<int> bytes) {
+  static GarminImport readZip(List<int> bytes) => _read(ZipDecoder().decodeBytes(bytes));
+
+  /// Reads the zip at [path] on another isolate, streaming it from disk:
+  /// exports can be gigabytes (mostly FIT files, which are never unpacked).
+  static Future<GarminImport> readZipFile(String path) => Isolate.run(() {
+        final input = InputFileStream(path);
+        try {
+          return _read(ZipDecoder().decodeStream(input));
+        } finally {
+          input.closeSync();
+        }
+      });
+
+  static GarminImport _read(Archive archive) {
     final records = <String, List<Map<String, dynamic>>>{for (final k in _files.keys) k: []};
     var found = false;
-    for (final file in ZipDecoder().decodeBytes(bytes)) {
+    for (final file in archive) {
       if (!file.isFile) continue;
       for (final MapEntry(key: kind, value: pattern) in _files.entries) {
         if (!pattern.hasMatch(file.name)) continue;

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:health/health.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,8 +10,18 @@ import 'models/health_metric.dart';
 
 /// One reading from the phone's health store, reduced to what the app keeps.
 class HealthSample {
+  /// Time asleep (any stage).
   const HealthSample.sleep(this.from, this.to)
       : kind = 'sleep',
+        value = 0,
+        workoutType = null,
+        kcal = null,
+        distanceKm = null;
+
+  /// A whole sleep session, awake time included; used only for nights
+  /// without stages.
+  const HealthSample.sleepSession(this.from, this.to)
+      : kind = 'sleep_session',
         value = 0,
         workoutType = null,
         kcal = null,
@@ -62,10 +70,19 @@ class PluginHealthStore implements HealthStore {
   final _health = Health();
   var _configured = false;
 
-  // Android records sleep as sessions; HealthKit as time asleep.
-  static HealthDataType get _sleep => Platform.isAndroid ? HealthDataType.SLEEP_SESSION : HealthDataType.SLEEP_ASLEEP;
+  static bool get _android => defaultTargetPlatform == TargetPlatform.android;
+
+  // Watches record sleep as stages (light, deep, REM); some apps only as
+  // "asleep" or, on Android, a session.
+  static List<HealthDataType> get _sleepTypes => [
+        HealthDataType.SLEEP_ASLEEP,
+        HealthDataType.SLEEP_LIGHT,
+        HealthDataType.SLEEP_DEEP,
+        HealthDataType.SLEEP_REM,
+        if (_android) HealthDataType.SLEEP_SESSION,
+      ];
   static List<HealthDataType> get _types =>
-      [HealthDataType.STEPS, _sleep, HealthDataType.RESTING_HEART_RATE, HealthDataType.WORKOUT];
+      [HealthDataType.STEPS, ..._sleepTypes, HealthDataType.RESTING_HEART_RATE, HealthDataType.WORKOUT];
 
   Future<void> _configure() async {
     if (_configured) return;
@@ -74,7 +91,7 @@ class PluginHealthStore implements HealthStore {
   }
 
   @override
-  String get source => Platform.isAndroid ? HealthSource.healthConnect : HealthSource.healthKit;
+  String get source => _android ? HealthSource.healthConnect : HealthSource.healthKit;
 
   @override
   Future<bool> available() async {
@@ -90,7 +107,7 @@ class PluginHealthStore implements HealthStore {
     final types = _types;
     final granted = await _health.requestAuthorization(types, permissions: [for (final _ in types) HealthDataAccess.READ]);
     // Health Connect only reads 30 days back unless history is allowed too.
-    if (granted && Platform.isAndroid && !await _health.isHealthDataHistoryAuthorized()) {
+    if (granted && _android && !await _health.isHealthDataHistoryAuthorized()) {
       await _health.requestHealthDataHistoryAuthorization();
     }
     return granted;
@@ -106,7 +123,7 @@ class PluginHealthStore implements HealthStore {
   Future<List<HealthSample>> samples(DateTime from, DateTime to) async {
     await _configure();
     final points = await _health.getHealthDataFromTypes(
-      types: [_sleep, HealthDataType.RESTING_HEART_RATE, HealthDataType.WORKOUT],
+      types: [..._sleepTypes, HealthDataType.RESTING_HEART_RATE, HealthDataType.WORKOUT],
       startTime: from,
       endTime: to,
     );
@@ -121,6 +138,7 @@ class PluginHealthStore implements HealthStore {
               distanceKm: w.totalDistance == null ? null : w.totalDistance! / 1000,
             ),
           NumericHealthValue v when p.type == HealthDataType.RESTING_HEART_RATE => HealthSample.restingHr(p.dateFrom, v.numericValue.toDouble()),
+          _ when p.type == HealthDataType.SLEEP_SESSION => HealthSample.sleepSession(p.dateFrom, p.dateTo),
           _ => HealthSample.sleep(p.dateFrom, p.dateTo),
         },
     ];
@@ -142,6 +160,13 @@ class HealthSyncService {
 
   /// How far back the first sync reads.
   static const firstSyncDays = 90;
+
+  /// Health Connect and HealthKit exist only on phones.
+  static bool get isSupported =>
+      !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
+
+  /// The sync running now, so a launch sync and a tap share one run.
+  static Future<int>? _running;
 
   static Future<bool> isEnabled() async => (await SharedPreferences.getInstance()).getBool(_enabledKey) ?? false;
 
@@ -166,6 +191,7 @@ class HealthSyncService {
 
   /// Syncs when turned on; quietly does nothing otherwise or on failure.
   Future<void> syncIfEnabled() async {
+    if (!isSupported) return;
     try {
       if (!await isEnabled()) return;
       await sync();
@@ -174,52 +200,90 @@ class HealthSyncService {
     }
   }
 
-  /// Reads from a day before the last sync (late data arrives) or
-  /// [firstSyncDays] back, to now. Returns how many days had data.
-  Future<int> sync({DateTime? now}) async {
-    final end = now ?? DateTime.now();
+  /// Re-reads whole days from the day before the last sync (late data
+  /// arrives), or [firstSyncDays] back, to now, and replaces what this
+  /// store gave for those days. Returns how many days had data.
+  Future<int> sync({DateTime? now}) => _running ??= _sync(now ?? DateTime.now()).whenComplete(() => _running = null);
+
+  Future<int> _sync(DateTime end) async {
     final last = await lastSync();
-    final from = dayOf(last == null
+    final first = dayOf(last == null
         ? DateTime(end.year, end.month, end.day - firstSyncDays)
         : DateTime(last.year, last.month, last.day - 1));
+    // From noon the day before, so the first day's night is read whole.
+    final readFrom = DateTime(first.year, first.month, first.day - 1, 12);
 
+    final days = [for (var d = first; !d.isAfter(end); d = DateTime(d.year, d.month, d.day + 1)) d];
     final steps = <DateTime, int>{};
-    for (var d = from; !d.isAfter(end); d = DateTime(d.year, d.month, d.day + 1)) {
-      final n = await _store.steps(d, DateTime(d.year, d.month, d.day + 1));
-      if (n != null && n > 0) steps[d] = n;
+    // A week at a time: quicker than one by one, gentle on rate limits.
+    for (var i = 0; i < days.length; i += 7) {
+      final batch = days.skip(i).take(7);
+      final counts = await Future.wait([for (final d in batch) _store.steps(d, DateTime(d.year, d.month, d.day + 1))]);
+      for (final (d, n) in [for (final (j, d) in batch.indexed) (d, counts[j])]) {
+        if (n != null && n > 0) steps[d] = n;
+      }
     }
-    final samples = await _store.samples(from, end);
-    final metrics = dailyMetrics(steps, samples, _store.source);
-    final repo = HealthRepository(_db);
-    await repo.saveMetrics(metrics);
-    await repo.saveWorkouts(workouts(samples, _store.source));
+    final samples = await _store.samples(readFrom, end);
+    final metrics = [for (final m in dailyMetrics(steps, samples, _store.source)) if (!m.date.isBefore(first)) m];
+    final sessions = [for (final w in workouts(samples, _store.source)) if (!w.start.isBefore(first)) w];
+    await HealthRepository(_db).replaceRange(_store.source, first, end, metrics, sessions);
     await (await SharedPreferences.getInstance()).setString(_lastSyncKey, end.toIso8601String());
     return {for (final m in metrics) m.date}.length;
   }
 
-  /// Imports a Garmin "Export Your Data" zip. Returns days and workouts read.
-  Future<(int, int)> importGarmin(List<int> zip) async {
-    final export = GarminExportReader.readZip(zip);
+  /// Imports a Garmin "Export Your Data" zip from [path]. Returns days
+  /// and workouts read.
+  Future<(int, int)> importGarmin(String path) async {
+    final export = await GarminExportReader.readZipFile(path);
     final repo = HealthRepository(_db);
     await repo.saveMetrics(export.metrics);
     await repo.saveWorkouts(export.workouts);
     return (export.days, export.workouts.length);
   }
 
-  /// Steps per day, minutes asleep per night (on the day it ended, like the
-  /// app's sleep) and the day's average resting heart rate.
+  /// The night a stretch of sleep belongs to: the day it ended, like the
+  /// app's sleep, except that sleep ending after 18:00 counts towards the
+  /// next morning.
+  static DateTime nightOf(DateTime end) => dayOf(end.add(const Duration(hours: 6)));
+
+  /// Minutes covered by [spans], counting overlaps once (several apps can
+  /// record the same night).
+  static double _minutesCovered(List<(DateTime, DateTime)> spans) {
+    final sorted = [...spans]..sort((a, b) => a.$1.compareTo(b.$1));
+    var total = 0.0;
+    DateTime? start, end;
+    for (final (from, to) in sorted) {
+      if (end != null && !from.isAfter(end)) {
+        if (to.isAfter(end)) end = to;
+        continue;
+      }
+      if (start != null) total += end!.difference(start).inSeconds / 60;
+      (start, end) = (from, to);
+    }
+    if (start != null) total += end!.difference(start).inSeconds / 60;
+    return total;
+  }
+
+  /// Steps per day, minutes asleep per night (stages where recorded, else
+  /// sessions; overlaps counted once) and the day's average resting heart
+  /// rate.
   static List<HealthMetric> dailyMetrics(Map<DateTime, int> steps, List<HealthSample> samples, String source) {
-    final sleep = <DateTime, double>{};
+    final asleep = <DateTime, List<(DateTime, DateTime)>>{};
+    final sessions = <DateTime, List<(DateTime, DateTime)>>{};
     final heart = <DateTime, List<double>>{};
     for (final s in samples) {
       switch (s.kind) {
         case 'sleep':
-          final day = dayOf(s.to);
-          sleep[day] = (sleep[day] ?? 0) + s.to.difference(s.from).inSeconds / 60;
+          (asleep[nightOf(s.to)] ??= []).add((s.from, s.to));
+        case 'sleep_session':
+          (sessions[nightOf(s.to)] ??= []).add((s.from, s.to));
         case 'resting_hr':
           (heart[dayOf(s.from)] ??= []).add(s.value);
       }
     }
+    final sleep = {
+      for (final night in {...asleep.keys, ...sessions.keys}) night: _minutesCovered(asleep[night] ?? sessions[night]!),
+    };
     return [
       for (final MapEntry(:key, :value) in steps.entries)
         HealthMetric(date: dayOf(key), metric: 'steps', value: value.toDouble(), source: source),
@@ -234,7 +298,8 @@ class HealthSyncService {
         for (final s in samples)
           if (s.kind == 'workout')
             HealthWorkout(
-              start: DateTime(s.from.year, s.from.month, s.from.day, s.from.hour, s.from.minute),
+              // To the second: two apps' workouts can start in the same minute.
+              start: DateTime(s.from.year, s.from.month, s.from.day, s.from.hour, s.from.minute, s.from.second),
               type: s.workoutType ?? 'other',
               durationMin: (s.to.difference(s.from).inSeconds / 6).round() / 10,
               distanceKm: s.distanceKm == null ? null : (s.distanceKm! * 100).round() / 100,

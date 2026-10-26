@@ -1,6 +1,5 @@
-import 'dart:io';
-
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
@@ -31,7 +30,9 @@ class _HealthSettingsCardState extends ConsumerState<HealthSettingsCard> {
   DateTime? _lastSync;
   bool _busy = false;
 
-  static String get _store => Platform.isIOS ? 'Apple Health' : 'Health Connect';
+  static String get _store => defaultTargetPlatform == TargetPlatform.iOS
+      ? 'Apple Health'
+      : 'Health Connect';
 
   @override
   void initState() {
@@ -50,7 +51,8 @@ class _HealthSettingsCardState extends ConsumerState<HealthSettingsCard> {
     }
   }
 
-  HealthSyncService get _service => HealthSyncService(ref.read(databaseProvider));
+  HealthSyncService get _service =>
+      HealthSyncService(ref.read(databaseProvider));
 
   Future<void> _work(Future<String> Function() task) async {
     setState(() => _busy = true);
@@ -69,61 +71,79 @@ class _HealthSettingsCardState extends ConsumerState<HealthSettingsCard> {
   }
 
   Future<void> _toggle(bool on) => _work(() async {
-        final (enabled, reason) = await _service.setEnabled(on);
-        if (!on) return 'Sync with $_store is off';
-        if (!enabled) return reason ?? 'Couldn’t turn on sync';
-        final days = await _service.sync();
-        return 'Synced $days ${days == 1 ? 'day' : 'days'} from $_store';
-      });
+    final (enabled, reason) = await _service.setEnabled(on);
+    if (!on) return 'Sync with $_store is off';
+    if (!enabled) return reason ?? 'Couldn’t turn on sync';
+    final days = await _service.sync();
+    return 'Synced $days ${days == 1 ? 'day' : 'days'} from $_store';
+  });
 
   Future<void> _syncNow() => _work(() async {
-        final days = await _service.sync();
-        return 'Synced $days ${days == 1 ? 'day' : 'days'} from $_store';
-      });
+    final days = await _service.sync();
+    return 'Synced $days ${days == 1 ? 'day' : 'days'} from $_store';
+  });
 
   Future<void> _importGarmin() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    // Read from disk, not into memory: exports can be gigabytes.
     final picked = await FilePicker.platform.pickFiles(
       dialogTitle: 'Choose a Garmin export',
       type: FileType.custom,
       allowedExtensions: ['zip'],
-      withData: true,
     );
-    final file = picked?.files.singleOrNull;
-    if (file == null) return;
+    final path = picked?.files.singleOrNull?.path;
+    if (path == null) {
+      if (mounted) setState(() => _busy = false);
+      return;
+    }
     await _work(() async {
-      final bytes = file.bytes ?? await File(file.path!).readAsBytes();
-      final (days, workouts) = await _service.importGarmin(bytes);
+      final (days, workouts) = await _service.importGarmin(path);
       return 'Imported $days ${days == 1 ? 'day' : 'days'} and $workouts ${workouts == 1 ? 'workout' : 'workouts'}';
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final last = _lastSync == null ? 'Not synced yet' : 'Last synced ${DateFormat('d MMM, HH:mm').format(_lastSync!)}';
+    final last = _lastSync == null
+        ? 'Not synced yet'
+        : 'Last synced ${DateFormat('d MMM, HH:mm').format(_lastSync!)}';
     return Card(
       child: Column(
         children: [
-          SwitchListTile(
-            secondary: const Icon(Icons.favorite_outline),
-            title: Text('Sync with $_store'),
-            subtitle: Text(_enabled ? last : 'Steps, sleep, resting heart rate and workouts. Read only.'),
-            value: _enabled,
-            onChanged: _busy ? null : _toggle,
-          ),
-          if (_enabled) ...[
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.sync),
-              title: const Text('Sync now'),
-              trailing: _busy ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : null,
-              onTap: _busy ? null : _syncNow,
+          if (HealthSyncService.isSupported) ...[
+            SwitchListTile(
+              secondary: const Icon(Icons.favorite_outline),
+              title: Text('Sync with $_store'),
+              subtitle: Text(
+                _enabled ? last : 'Steps, sleep, resting heart rate and workouts. Read only.',
+              ),
+              value: _enabled,
+              onChanged: _busy ? null : _toggle,
             ),
+            if (_enabled) ...[
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.sync),
+                title: const Text('Sync now'),
+                trailing: _busy
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : null,
+                onTap: _busy ? null : _syncNow,
+              ),
+            ],
+            const Divider(height: 1),
           ],
-          const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.watch_outlined),
             title: const Text('Import Garmin export'),
-            subtitle: const Text('The zip from Garmin Connect → Export Your Data'),
+            subtitle: const Text(
+              'The zip from Garmin Connect → Export Your Data',
+            ),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: _busy ? null : _importGarmin,
           ),

@@ -68,6 +68,26 @@ class HealthRepository {
     await batch.commit(noResult: true);
   }
 
+  /// Replaces everything [source] recorded from day [from] to day [to]
+  /// with [metrics] and [workouts], so values deleted or corrected at the
+  /// source go away here too.
+  Future<void> replaceRange(String source, DateTime from, DateTime to, List<HealthMetric> metrics, List<HealthWorkout> workouts) async {
+    final db = await _db.database;
+    final start = dayOf(from).toIso8601String();
+    final last = dayOf(to);
+    final end = DateTime(last.year, last.month, last.day + 1).toIso8601String();
+    await db.transaction((txn) async {
+      await txn.delete('health_metrics', where: 'source = ? AND date >= ? AND date < ?', whereArgs: [source, start, end]);
+      await txn.delete('health_workouts', where: 'source = ? AND start >= ? AND start < ?', whereArgs: [source, start, end]);
+      for (final m in metrics) {
+        await txn.insert('health_metrics', m.toMap()..['date'] = dayOf(m.date).toIso8601String(), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+      for (final w in workouts) {
+        await txn.insert('health_workouts', w.toMap()..remove('id'), conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    });
+  }
+
   Future<List<HealthWorkout>> workoutsInRange(DateTime start, DateTime end) async {
     final db = await _db.database;
     final to = dayOf(end);
