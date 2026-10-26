@@ -95,7 +95,8 @@ class CatalogRepository {
       final aliases = {...current.aliases, ...item.aliases}..remove(current.name);
       await txn.update(
         'exercise_items',
-        {'aliases': jsonEncode(aliases.toList()..sort()), 'category': item.category},
+        // The category already known stays: callers often pass the default.
+        {'aliases': jsonEncode(aliases.toList()..sort())},
         where: 'id = ?',
         whereArgs: [current.id],
       );

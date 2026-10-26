@@ -1,3 +1,5 @@
+import '../../../../shared/utils/date_utils.dart';
+
 /// Data models for metrics and statistics
 class MetricData {
   final double value;
@@ -29,31 +31,37 @@ class DateRange {
   final DateTime end;
   final String label;
 
+  /// A few characters, for the range selector on narrow phones.
+  final String shortLabel;
+
   DateRange({
     required this.start,
     required this.end,
     required this.label,
-  });
+    String? shortLabel,
+  }) : shortLabel = shortLabel ?? label;
 
   factory DateRange.last7Days() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final start = today.subtract(const Duration(days: 6));
+    final start = DateTime(today.year, today.month, today.day - 6);
     return DateRange(
       start: start,
       end: today,
       label: 'Last 7 Days',
+      shortLabel: '7D',
     );
   }
 
   factory DateRange.last30Days() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final start = today.subtract(const Duration(days: 29));
+    final start = DateTime(today.year, today.month, today.day - 29);
     return DateRange(
       start: start,
       end: today,
       label: 'Last 30 Days',
+      shortLabel: '30D',
     );
   }
 
@@ -65,6 +73,7 @@ class DateRange {
       start: start,
       end: today,
       label: 'This Month',
+      shortLabel: 'Month',
     );
   }
 
@@ -76,6 +85,7 @@ class DateRange {
       start: start,
       end: today,
       label: 'This Year',
+      shortLabel: 'Year',
     );
   }
 
@@ -87,10 +97,11 @@ class DateRange {
       start: start,
       end: today,
       label: 'All Time',
+      shortLabel: 'All',
     );
   }
 
-  int get daysCount => end.difference(start).inDays + 1;
+  int get daysCount => daysBetween(start, end) + 1;
 
   // Value equality so the range can be used as a provider family key.
   @override

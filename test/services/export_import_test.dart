@@ -312,6 +312,15 @@ void main() {
     expect(result.imported, 2);
   });
 
+  test('loose CSVs in separate sets still find tags from another set', () async {
+    final result = await ExportService.instance.importFiles([
+      ('tags.csv', utf8.encode('ID,Name,Emoji,Category,Color,Sort Order\r\n41,Hiking,boot,Outdoors,,0')),
+      ('activity_entries.csv', utf8.encode('ID,Date,Timestamp,Tag ID,Notes\r\n1,2026-10-01T00:00:00.000,2026-10-01T09:00:00.000,41,')),
+      ('activity_entries (1).csv', utf8.encode('ID,Date,Timestamp,Tag ID,Notes\r\n1,2026-10-02T00:00:00.000,2026-10-02T09:00:00.000,41,')),
+    ]);
+    expect((result.imported, result.invalid), (3, 0));
+  });
+
   test('reports when a folder has no export files', () async {
     final result = await ExportService.instance.importFromDirectory(dir.path);
     expect(result.foundFiles, isFalse);

@@ -44,3 +44,18 @@ final metricsInsightsProvider = FutureProvider.autoDispose.family<List<MetricsIn
 final funFactsProvider = FutureProvider.autoDispose.family<List<FunFact>, DateRange>((ref, range) async {
   return FunFactsService(ref.watch(databaseProvider)).factsFor(range);
 });
+
+/// Recomputes every metric, for when entries may have changed since the
+/// Metrics tab was last built (it stays alive when switching tabs).
+void invalidateMetrics(WidgetRef ref) {
+  for (final provider in [
+    sleepMetricsProvider,
+    moodMetricsProvider,
+    exerciseMetricsProvider,
+    activityMetricsProvider,
+    metricsInsightsProvider,
+    funFactsProvider,
+  ]) {
+    ref.invalidate(provider);
+  }
+}

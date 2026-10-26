@@ -358,16 +358,7 @@ class ExportService {
         await File('${dir.path}/$table').writeAsBytes(bytes);
       }
 
-      final result = ImportResult();
-      for (final dir in sets) {
-        final part = await importFromDirectory(dir.path, onProgress: onProgress);
-        result
-          ..imported += part.imported
-          ..duplicates += part.duplicates
-          ..invalid += part.invalid
-          ..foundFiles |= part.foundFiles;
-      }
-      return result;
+      return await _importSets([for (final d in sets) d.path], onProgress: onProgress);
     } finally {
       await root.delete(recursive: true);
     }
@@ -410,19 +401,27 @@ class ExportService {
     if (!await Directory(dirPath).exists()) {
       throw Exception('Selected directory does not exist');
     }
+    return _importSets([dirPath], onProgress: onProgress);
+  }
 
-    final files = <String, List<List<dynamic>>>{};
+  /// Imports several sets of export files (one folder each) in one
+  /// transaction: every set's tags before any set's entries, so loose CSVs
+  /// spread over sets still find their tags.
+  Future<ImportResult> _importSets(List<String> dirs, {ImportProgress? onProgress}) async {
+    final files = <(String, int, List<List<dynamic>>)>[];
     for (final name in importOrder) {
-      final file = File('$dirPath/$name');
-      if (!await file.exists()) continue;
-      files[name] = [
-        for (final row in _parser.convert(await file.readAsString()).skip(1))
-          if (row.any((cell) => cell.toString().isNotEmpty)) row,
-      ];
+      for (var set = 0; set < dirs.length; set++) {
+        final file = File('${dirs[set]}/$name');
+        if (!await file.exists()) continue;
+        files.add((name, set, [
+          for (final row in _parser.convert(await file.readAsString()).skip(1))
+            if (row.any((cell) => cell.toString().isNotEmpty)) row,
+        ]));
+      }
     }
 
     final result = ImportResult()..foundFiles = files.isNotEmpty;
-    final total = files.values.fold(0, (sum, rows) => sum + rows.length);
+    final total = files.fold(0, (sum, f) => sum + f.$3.length);
     var done = 0;
     onProgress?.call(0, total);
 
@@ -430,7 +429,8 @@ class ExportService {
     await db.transaction((txn) async {
       final importer = _Importer(txn);
       await importer.loadExisting();
-      for (final MapEntry(key: name, value: rows) in files.entries) {
+      for (final (name, set, rows) in files) {
+        importer.set = set;
         final importRow = importer.handlers[name]!;
         for (final row in rows) {
           try {
@@ -460,7 +460,15 @@ class _Importer {
 
   final _categoryNames = <String>{};
   final _tagIds = <String, int>{}; // name -> ID on this device
-  final _exportedTagNames = <int, String>{}; // exporting device's ID -> name
+  /// The set of files being imported; each export numbers its tags itself.
+  int set = 0;
+  final _exportedTagNames = <int, Map<int, String>>{}; // set -> exported ID -> name
+  var _nextCategoryOrder = 0;
+
+  /// A tag's name from its ID in the current set's tags.csv, or any set's
+  /// when this one has no tags file (loose CSVs from one export).
+  String? _exportedTagName(int? id) =>
+      (_exportedTagNames[set] ?? {for (final names in _exportedTagNames.values) ...names})[id];
   final _foodIds = <String, int>{}; // lower-case name -> ID
   final _exerciseIds = <String, int>{};
   final _keys = <String, Set<String>>{};
@@ -489,8 +497,10 @@ class _Importer {
       '${_key(row, const ['date', 'time', 'text', 'mood'])}\u0001${(tagNames.toList()..sort()).join(';')}';
 
   Future<void> loadExisting() async {
-    for (final row in await txn.query('tag_categories', columns: ['name'])) {
+    for (final row in await txn.query('tag_categories', columns: ['name', 'sort_order'])) {
       _categoryNames.add(row['name'] as String);
+      final order = row['sort_order'] as int?;
+      if (order != null && order >= _nextCategoryOrder) _nextCategoryOrder = order + 1;
     }
     for (final row in await txn.query('tags', columns: ['id', 'name'])) {
       _tagIds[row['name'] as String] = row['id'] as int;
@@ -541,20 +551,17 @@ class _Importer {
     'tag_categories.csv': (row) async {
       final name = _text(row, 1)!;
       if (!_categoryNames.add(name)) return false;
-      await txn.insert('tag_categories', TagCategory(name: name, color: _text(row, 2), sortOrder: _int(row, 3)).toMap());
+      final order = _int(row, 3);
+      if (order != null && order >= _nextCategoryOrder) _nextCategoryOrder = order + 1;
+      await txn.insert('tag_categories', TagCategory(name: name, color: _text(row, 2), sortOrder: order).toMap());
       return true;
     },
     'tags.csv': (row) async {
       final name = _text(row, 1)!;
       final exportedId = _int(row, 0);
-      if (exportedId != null) _exportedTagNames[exportedId] = name;
+      if (exportedId != null) (_exportedTagNames[set] ??= {})[exportedId] = name;
       if (_tagIds.containsKey(name)) return false;
       final category = _text(row, 3) ?? 'General';
-      // A tag can name a category the export left out; tag screens group
-      // by category, so create it rather than hide the tag.
-      if (_categoryNames.add(category)) {
-        await txn.insert('tag_categories', TagCategory(name: category, sortOrder: _categoryNames.length).toMap());
-      }
       _tagIds[name] = await txn.insert(
         'tags',
         Tag(
@@ -566,6 +573,11 @@ class _Importer {
           kind: _text(row, 6) ?? SchemaV13.kindFor(name, category),
         ).toMap(),
       );
+      // A tag can name a category the export left out; tag screens group
+      // by category, so create it (after the tag, so a bad row adds none).
+      if (_categoryNames.add(category)) {
+        await txn.insert('tag_categories', TagCategory(name: category, sortOrder: _nextCategoryOrder++).toMap());
+      }
       return true;
     },
     'food_items.csv': (row) async {
@@ -668,7 +680,7 @@ class _Importer {
         date: _day(row, 1)!,
         timestamp: _dateTime(row, 2)!,
         // Prefer the tag name column; older exports only have the tag ID.
-        tagId: _tagId(_text(row, 5) ?? _exportedTagNames[_int(row, 3)]),
+        tagId: _tagId(_text(row, 5) ?? _exportedTagName(_int(row, 3))),
         notes: _text(row, 4),
         severity: _int(row, 6),
       ).toMap(),

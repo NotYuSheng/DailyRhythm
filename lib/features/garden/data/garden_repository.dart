@@ -31,7 +31,8 @@ class GardenRepository {
 
     // Tags from the routine window before the range too, to tell what is
     // routine from what stands out.
-    final windowStart = dayOf(from.subtract(routineWindow));
+    final firstMonth = DateTime(from.year, from.month);
+    final windowStart = DateTime(firstMonth.year, firstMonth.month, firstMonth.day - routineWindow.inDays);
     final tags = <DateTime, List<String>>{};
     for (final r in await db.rawQuery(
       'SELECT a.date, t.name FROM activity_entries a JOIN tags t ON t.id = a.tagId WHERE a.$inRange',
@@ -39,12 +40,17 @@ class GardenRepository {
     )) {
       tags.putIfAbsent(day(r['date']), () => []).add(r['name'] as String);
     }
-    // One baseline for the whole range, from the weeks before it, keeps a
-    // month consistent.
-    final routine = GardenDay.routineTagsFor([
-      for (final MapEntry(key: date, value: names) in tags.entries)
-        if (date.isBefore(from)) names,
-    ]);
+    // One baseline per month, from the weeks before the 1st, so a day gets
+    // the same plant on Today as in its month, and a month is consistent.
+    final routineByMonth = <DateTime, Set<String>>{};
+    Set<String> routineFor(DateTime d) => routineByMonth.putIfAbsent(DateTime(d.year, d.month), () {
+          final month = DateTime(d.year, d.month);
+          final start = DateTime(month.year, month.month, month.day - routineWindow.inDays);
+          return GardenDay.routineTagsFor([
+            for (final MapEntry(key: date, value: names) in tags.entries)
+              if (!date.isBefore(start) && date.isBefore(month)) names,
+          ]);
+        });
 
     final exercises = {
       for (final r in await db.rawQuery(
@@ -117,7 +123,7 @@ class GardenRepository {
           mealCount: meals[d] ?? 0,
           hasCheckin: checkins.containsKey(d),
           plantOverride: PlantSpecies.byName(checkins[d]),
-          routineTags: routine,
+          routineTags: routineFor(d),
         ),
     ];
   }

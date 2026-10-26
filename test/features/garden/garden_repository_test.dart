@@ -59,10 +59,11 @@ void main() {
     expect((g.plant.species, g.chosen, g.plant.logged), (PlantSpecies.tulip, true, true));
   });
 
-  test('tags logged on most of the previous weeks count as routine', () async {
+  test('tags logged on most of the weeks before the month count as routine', () async {
     final work = await tagId('Work');
+    final month = DateTime(day.year, day.month);
     for (var i = 1; i <= 20; i++) {
-      final d = day.subtract(Duration(days: i));
+      final d = DateTime(month.year, month.month, month.day - i);
       await db.createActivityEntry(ActivityEntry(date: d, timestamp: d, tagId: work));
     }
     await db.createActivityEntry(ActivityEntry(date: day, timestamp: day, tagId: work));
@@ -70,6 +71,19 @@ void main() {
 
     final g = (await GardenRepository(db).daysInRange(day, day)).single;
     expect(g.plant.species, PlantSpecies.tulip);
+  });
+
+  test('a day gets the same plant on its own as in its month', () async {
+    final work = await tagId('Work');
+    final month = DateTime(day.year, day.month);
+    // Work becomes routine during the month, not before it.
+    for (var d = month; !d.isAfter(day); d = DateTime(d.year, d.month, d.day + 1)) {
+      await db.createActivityEntry(ActivityEntry(date: d, timestamp: d, tagId: work));
+    }
+    final alone = (await GardenRepository(db).daysInRange(day, day)).single;
+    final inMonth = (await GardenRepository(db).daysInRange(month, DateTime(month.year, month.month + 1, 0)))
+        .firstWhere((g) => g.date == day);
+    expect(alone.plant.species, inMonth.plant.species);
   });
 
   test('returns every day in the range, empty ones included', () async {

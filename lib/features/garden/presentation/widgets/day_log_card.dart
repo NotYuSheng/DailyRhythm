@@ -15,18 +15,26 @@ import '../../../sleep/data/providers/sleep_providers.dart';
 import '../../../sleep/presentation/screens/add_sleep_screen.dart';
 import '../../../tags/data/models/tag.dart';
 import '../../../tags/data/providers/tag_providers.dart';
+import '../../../tags/presentation/screens/tags_screen.dart';
 import '../../data/garden_providers.dart';
 import '../garden_style.dart';
 
-/// Refreshes the day's entries and its plant after an edit.
+/// Refreshes entries and plants after an edit. Every day, not just [day]:
+/// a bedtime changes the next day's sleep, and an edit can move an entry
+/// to another date. Only days on screen are fetched again.
 void invalidateDayLog(WidgetRef ref, DateTime day) {
-  ref.invalidate(sleepEntriesProvider(day));
-  ref.invalidate(mealEntriesProvider(day));
-  ref.invalidate(exerciseEntriesProvider(day));
-  ref.invalidate(moodEntryProvider(day));
-  ref.invalidate(activityEntriesProvider(day));
+  ref.invalidate(sleepEntriesProvider);
+  ref.invalidate(mealEntriesProvider);
+  ref.invalidate(exerciseEntriesProvider);
+  ref.invalidate(moodEntryProvider);
+  ref.invalidate(activityEntriesProvider);
   invalidateGardenDay(ref, day);
 }
+
+/// "$3.50" for Singapore dollars, the app's home currency; "USD 22.00"
+/// for anything else.
+String formatMoney(double amount, String currency) =>
+    currency == 'SGD' ? '\$${amount.toStringAsFixed(2)}' : '$currency ${amount.toStringAsFixed(2)}';
 
 /// The day's stats: sleep, meals, exercise and activities, each opening
 /// its editor.
@@ -57,7 +65,12 @@ class DayLogCard extends ConsumerWidget {
             if (night.wakeUpTime != null) 'Woke ${time.format(night.wakeUpTime!)}',
             if (night.sleepTime != null) 'bed ${time.format(night.sleepTime!)}',
           ].join(' · ');
-    final spent = meals.fold<double>(0, (sum, m) => sum + (m.price ?? 0));
+    // Totals per currency: a trip abroad isn't added up as dollars.
+    final spent = <String, double>{};
+    for (final m in meals) {
+      if (m.price != null && m.price! > 0) spent[m.currency] = (spent[m.currency] ?? 0) + m.price!;
+    }
+    final spentText = [for (final e in spent.entries) formatMoney(e.value, e.key)].join(' + ');
     final activityNames = [for (final a in activities) tags[a.tagId]?.name].whereType<String>().toList()..sort();
 
     return Container(
@@ -80,7 +93,7 @@ class DayLogCard extends ConsumerWidget {
             title: 'Meals',
             summary: meals.isEmpty
                 ? 'Add a meal'
-                : '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'}${spent > 0 ? ' · \$${spent.toStringAsFixed(2)}' : ''}',
+                : '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'}${spentText.isEmpty ? '' : ' · $spentText'}',
             colors: colors,
             action: 'Add',
             onTap: () => open(AddMealScreen(date: day)),
@@ -88,7 +101,7 @@ class DayLogCard extends ConsumerWidget {
           for (final m in meals)
             _Item(
               text: m.quantity > 1 ? '${m.quantity}× ${m.name}' : m.name,
-              trailing: m.price == null ? null : '\$${m.price!.toStringAsFixed(2)}',
+              trailing: m.price == null ? null : formatMoney(m.price!, m.currency),
               colors: colors,
               onTap: () => open(AddMealScreen(entry: m)),
             ),
@@ -227,6 +240,9 @@ class ActivitySheet extends ConsumerWidget {
     (TagKind.symptom, 'Symptoms'),
   ];
 
+  /// Toggles still saving, so a quick double tap can't add a tag twice.
+  static final _saving = <(DateTime, int)>{};
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = GardenColors.of(context);
@@ -235,14 +251,23 @@ class ActivitySheet extends ConsumerWidget {
     final byTag = {for (final e in entries) e.tagId: e};
 
     Future<void> toggle(Tag tag) async {
-      final db = ref.read(databaseProvider);
-      final existing = byTag[tag.id];
-      if (existing != null) {
-        await db.deleteActivityEntry(existing.id!);
-      } else {
-        await db.createActivityEntry(ActivityEntry(date: day, timestamp: DateTime.now(), tagId: tag.id!));
+      final key = (day, tag.id!);
+      if (!_saving.add(key)) return;
+      try {
+        final db = ref.read(databaseProvider);
+        // Read again: what was on screen may be out of date.
+        final existing = (await db.getActivityEntriesByDate(day)).where((e) => e.tagId == tag.id).toList();
+        if (existing.isNotEmpty) {
+          for (final e in existing) {
+            await db.deleteActivityEntry(e.id!);
+          }
+        } else {
+          await db.createActivityEntry(ActivityEntry(date: day, timestamp: DateTime.now(), tagId: tag.id!));
+        }
+        ref.invalidate(activityEntriesProvider(day));
+      } finally {
+        _saving.remove(key);
       }
-      ref.invalidate(activityEntriesProvider(day));
     }
 
     return SafeArea(
@@ -270,6 +295,19 @@ class ActivitySheet extends ConsumerWidget {
                   ],
                 ),
               ],
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                style: TextButton.styleFrom(minimumSize: const Size(0, 44), foregroundColor: colors.accent),
+                onPressed: () async {
+                  await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const TagsScreen()));
+                  ref.invalidate(allTagsProvider);
+                },
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: Text('Edit tags', style: nunito(14, FontWeight.w800, colors.accent)),
+              ),
+            ),
           ],
         ),
       ),

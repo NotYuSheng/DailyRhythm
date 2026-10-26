@@ -148,8 +148,15 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
                 isToday: isToday,
                 colors: colors,
                 onMood: (level) async {
+                  // Change only the level: the day's mood notes stay.
                   await ref.read(databaseProvider).upsertMoodEntry(
-                        MoodEntry(date: today, timestamp: DateTime.now(), moodLevel: level, emoji: ''),
+                        MoodEntry(
+                          date: today,
+                          timestamp: DateTime.now(),
+                          moodLevel: level,
+                          emoji: mood?.emoji ?? '',
+                          notes: mood?.notes,
+                        ),
                       );
                   invalidateDayLog(ref, today);
                 },

@@ -47,7 +47,7 @@ class FunFactsSection extends ConsumerWidget {
 
     return facts.when(
       loading: () => const SizedBox(height: 120, child: Center(child: CircularProgressIndicator())),
-      error: (e, _) => Text('Couldn’t work out fun facts: $e'),
+      error: (_, _) => Text('Fun facts aren’t available right now.', style: nunito(14, FontWeight.w600, colors.muted)),
       data: (list) {
         if (list.isEmpty) {
           return Text('Fun facts appear once there’s a few days of logging.', style: nunito(14, FontWeight.w600, colors.muted));

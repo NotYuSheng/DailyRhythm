@@ -108,9 +108,11 @@ Future<String> _prepareWorkingVersion11(Directory dir) async {
         for (final name in ['General', 'Health', 'Hobby', 'Activity', 'Fitness', 'Food']) {
           await db.insert('tag_categories', {'name': name});
         }
-        await db.insert('sleep_entries', {'date': '2024-03-05T00:00:00.000', 'wakeUpTime': '2024-03-05T07:00:00.000'});
+        await db.insert('sleep_entries', {'date': '2024-03-04T00:00:00.000', 'sleepTime': '2024-03-04T23:00:00.000'});
+        await db.insert('sleep_entries', {'date': '2024-03-05T00:00:00.000', 'wakeUpTime': '2024-03-05T07:00:00.000', 'tags': 'sick', 'totalHours': 3});
         await db.insert('sleep_entries', {'date': '2024-03-05T22:10:00.000', 'sleepTime': '2024-03-05T22:10:00.000'});
-        await db.insert('mood_entries', {'date': '2024-03-05T00:00:00.000', 'timestamp': '2024-03-05T09:00:00.000', 'moodLevel': 2, 'emoji': 'x'});
+        await db.insert('sleep_entries', {'date': '2024-03-06T00:00:00.000', 'wakeUpTime': '2024-03-06T06:10:00.000'});
+        await db.insert('mood_entries', {'date': '2024-03-05T00:00:00.000', 'timestamp': '2024-03-05T09:00:00.000', 'moodLevel': 2, 'emoji': 'x', 'notes': 'Rough morning'});
         await db.insert('mood_entries', {'date': '2024-03-05T21:00:00.000', 'timestamp': '2024-03-05T21:00:00.000', 'moodLevel': 4, 'emoji': 'x'});
       },
     ),
@@ -209,10 +211,13 @@ void main() {
       final sleep = await service.getSleepEntryByDate(DateTime(2024, 3, 5));
       expect(sleep!.wakeUpTime, DateTime(2024, 3, 5, 7));
       expect(sleep.sleepTime, DateTime(2024, 3, 5, 22, 10));
+      expect(sleep.tags, ['sick']);
+      expect(sleep.totalHours, 8, reason: '23:00 the night before to 07:00');
+      expect((await service.getSleepEntryByDate(DateTime(2024, 3, 6)))!.totalHours, 8, reason: '22:10 to 06:10');
       final db = await service.database;
-      expect(await db.query('sleep_entries'), hasLength(1));
+      expect(await db.query('sleep_entries', where: 'date LIKE ?', whereArgs: ['2024-03-05%']), hasLength(1));
       final moods = await db.query('mood_entries');
-      expect([for (final m in moods) m['moodLevel']], [4]);
+      expect([for (final m in moods) (m['moodLevel'], m['notes'])], [(4, 'Rough morning')]);
     });
   });
 }

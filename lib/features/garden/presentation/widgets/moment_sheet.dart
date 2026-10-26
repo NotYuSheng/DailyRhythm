@@ -50,13 +50,20 @@ class _MomentSheetState extends ConsumerState<MomentSheet> {
     final now = DateTime.now();
     final day = widget.day;
     final isToday = day.year == now.year && day.month == now.month && day.day == now.day;
-    await JournalRepository(ref.read(databaseProvider)).save(JournalEntry(
-      date: day,
-      time: isToday ? now : null,
-      text: _text.text.trim(),
-      mood: _mood,
-      tagIds: _tagIds.toList(),
-    ));
+    try {
+      await JournalRepository(ref.read(databaseProvider)).save(JournalEntry(
+        date: day,
+        time: isToday ? now : null,
+        text: _text.text.trim(),
+        mood: _mood,
+        tagIds: _tagIds.toList(),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Couldn’t save the moment. Try again.')));
+      return;
+    }
     if (mounted) Navigator.pop(context, true);
   }
 

@@ -175,7 +175,7 @@ class GardenDay {
   /// "Grew from a full night, 2 movement sessions, and bloomed for a good moment."
   String get detail {
     if (!plant.logged) return 'Nothing logged. That’s okay.';
-    final night = sleepHours == null ? 'no sleep logged' : _nightWords[plant.sleep];
+    final night = sleepHours == null ? 'a night of unknown length' : _nightWords[plant.sleep];
     final moves = '$moveCount movement ${moveCount == 1 ? 'session' : 'sessions'}';
     return 'Grew from $night, $moves${plant.flower ? ', and bloomed for a good moment.' : '.'}';
   }

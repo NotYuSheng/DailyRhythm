@@ -132,12 +132,11 @@ class BackupService {
     final previousCopy = File(join(currentDbFile.parent.path, 'dailyrhythm_backup_before_restore.db'));
 
     await _dbService.close();
+    // With no current data, an older safety copy stays as it is: it may be
+    // the only copy left of earlier data.
     final hadData = await currentDbFile.exists();
     if (hadData) {
       await currentDbFile.copy(previousCopy.path);
-    } else if (await previousCopy.exists()) {
-      // An older fallback isn't this device's data; don't restore it below.
-      await previousCopy.delete();
     }
     await backupFile.copy(currentDbFile.path);
 

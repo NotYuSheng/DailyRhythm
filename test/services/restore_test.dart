@@ -130,4 +130,30 @@ void main() {
     await snapshot.close();
     expect(await mealNames(), unorderedEquals(['Current', 'After']));
   });
+
+  test('the fallback snapshot for older SQLite copies tables, indexes and version', () async {
+    final copy = '${dir.path}/fallback.db';
+    await DatabaseService.snapshotByCopying(await db.database, copy);
+    await addMeal('After');
+
+    final snapshot = await databaseFactoryFfiNoIsolate.openDatabase(copy);
+    expect([for (final r in await snapshot.query('meal_entries')) r['name']], ['Current']);
+    expect(await snapshot.getVersion(), DatabaseService.schemaVersion);
+    final indexes = await snapshot.rawQuery("SELECT name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%'");
+    expect(indexes, isNotEmpty);
+    await snapshot.close();
+    expect(await DatabaseService.checkRestorable(copy), isNull);
+  });
+
+  test('rejects a later-version file without the mood table', () async {
+    final path = '${dir.path}/no_moods.db';
+    final raw = await databaseFactoryFfiNoIsolate.openDatabase(path);
+    for (final table in ['sleep_entries', 'meal_entries', 'tags']) {
+      await raw.execute('CREATE TABLE $table (id INTEGER PRIMARY KEY)');
+    }
+    await raw.setVersion(5);
+    await raw.close();
+
+    expect(await DatabaseService.checkRestorable(path), isNotNull);
+  });
 }

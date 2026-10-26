@@ -9,6 +9,7 @@ import '../../../sleep/data/providers/sleep_providers.dart';
 import '../../../meals/data/providers/meal_providers.dart';
 import '../../../exercise/data/providers/exercise_providers.dart';
 import '../../../tags/data/providers/tag_providers.dart';
+import '../../../tags/presentation/screens/tags_screen.dart';
 import '../../../garden/data/garden_providers.dart';
 import '../../../metrics/data/providers/metrics_providers.dart';
 import 'backup_settings_screen.dart';
@@ -29,6 +30,16 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppTheme.spacePulse3),
         children: [
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.label_outline),
+              title: const Text('Tags'),
+              subtitle: const Text('Activities, symptoms and food sources'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const TagsScreen())),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacePulse3),
           Card(
             child: Column(
               children: [
@@ -285,30 +296,28 @@ class SettingsScreen extends ConsumerWidget {
       }
 
       // Refresh every screen that shows imported data
-      for (final provider in [
-        sleepEntriesProvider,
-        mealEntriesProvider,
-        moodEntryProvider,
-        exerciseEntriesProvider,
-        taskEntriesProvider,
-        activityEntriesProvider,
-        tagsByCategoryProvider,
-        gardenDayProvider,
-        gardenMonthProvider,
-        checkinProvider,
-        momentsProvider,
-        funFactsProvider,
-      ]) {
-        ref.invalidate(provider);
-      }
-      for (final provider in [
-        todaySleepEntriesProvider,
-        todayMealEntriesProvider,
-        todayMoodEntryProvider,
-        allTagsProvider,
-        allTagCategoriesProvider,
-      ]) {
-        ref.invalidate(provider);
+      if (result != null) {
+        for (final provider in [
+          sleepEntriesProvider,
+          mealEntriesProvider,
+          moodEntryProvider,
+          exerciseEntriesProvider,
+          taskEntriesProvider,
+          activityEntriesProvider,
+          tagsByCategoryProvider,
+          gardenDayProvider,
+          gardenMonthProvider,
+          checkinProvider,
+          momentsProvider,
+          todaySleepEntriesProvider,
+          todayMealEntriesProvider,
+          todayMoodEntryProvider,
+          allTagsProvider,
+          allTagCategoriesProvider,
+        ]) {
+          ref.invalidate(provider);
+        }
+        invalidateMetrics(ref);
       }
 
       final String message;

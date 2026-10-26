@@ -6,6 +6,7 @@ import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
 import 'package:daily_rhythm/features/metrics/data/models/metric_data.dart';
 import 'package:daily_rhythm/features/metrics/data/services/fun_facts_service.dart';
 import 'package:daily_rhythm/features/sleep/data/models/sleep_entry.dart';
+import 'package:daily_rhythm/shared/models/activity_entry.dart';
 import 'package:daily_rhythm/shared/models/mood_entry.dart';
 import 'package:daily_rhythm/shared/services/database/database_service.dart';
 import 'package:daily_rhythm/shared/services/database/repositories/catalog_repository.dart';
@@ -97,5 +98,27 @@ void main() {
     expect(distanceComparison(42), 'about a marathon');
     expect(distanceComparison(150), 'about 3 times Singapore from Tuas to Changi');
     expect(distanceComparison(330), 'about Singapore to Kuala Lumpur');
+  });
+
+  test('a line\'s price is its total, whatever the quantity', () async {
+    for (var d = 1; d <= 5; d++) {
+      await db.createMealEntry(MealEntry(date: DateTime(2026, 3, d), time: DateTime(2026, 3, d, 12), name: 'Kopi', price: 3, quantity: 2));
+    }
+    final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
+    expect(facts['Biggest treat']!.detail, endsWith('\$15.00 on food in all'));
+  });
+
+  test('nights just under an hour round up, and work days grow cacti', () async {
+    for (var d = 2; d <= 6; d++) {
+      // An imported total, not one worked out from whole minutes.
+      await db.upsertSleepEntry(SleepEntry(date: DateTime(2026, 3, d), wakeUpTime: DateTime(2026, 3, d, 7), totalHours: d == 2 ? 7.995 : 7));
+    }
+    final work = (await db.getAllTags()).firstWhere((t) => t.name == 'Work');
+    for (var d = 10; d <= 12; d++) {
+      await db.createActivityEntry(ActivityEntry(date: DateTime(2026, 3, d), timestamp: DateTime(2026, 3, d), tagId: work.id!));
+    }
+    final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
+    expect(facts['Longest night']!.value, '8h 0m');
+    expect(facts['The garden grew']!.detail, contains('3 cacti'));
   });
 }

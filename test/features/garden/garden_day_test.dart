@@ -84,7 +84,7 @@ void main() {
   test('sleep sets the size without judging it', () {
     expect([null, 4.0, 5.5, 6.5, 7.5, 9.0].map(GardenDay.sleepLevel), [2, 0, 1, 2, 3, 4]);
     expect(GardenDay.from(log(sleep: 4, sleepLogged: true)).detail, startsWith('Grew from a very short night'));
-    expect(GardenDay.from(log(mood: 3)).detail, startsWith('Grew from no sleep logged'));
+    expect(GardenDay.from(log(mood: 3)).detail, startsWith('Grew from a night of unknown length'));
   });
 
   test('movement counts the larger of exercises and workouts, plus steps', () {

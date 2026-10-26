@@ -283,16 +283,45 @@ class DatabaseService {
   /// could get a second row; keep the latest, filling its gaps from the
   /// others, and drop the rest.
   static Future<void> _mergeDuplicateDays(DatabaseExecutor db) async {
-    for (final column in ['wakeUpTime', 'sleepTime', 'napHours', 'totalHours']) {
-      await db.execute('''
-        UPDATE sleep_entries SET $column = (
-          SELECT o.$column FROM sleep_entries o
-          WHERE o.date = sleep_entries.date AND o.$column IS NOT NULL ORDER BY o.id DESC LIMIT 1)
-        WHERE $column IS NULL
-      ''');
-    }
-    for (final table in ['sleep_entries', 'mood_entries']) {
+    final sleepDays = [
+      for (final r in await db.rawQuery('SELECT date FROM sleep_entries GROUP BY date HAVING COUNT(*) > 1')) r['date'] as String,
+    ];
+    for (final (table, columns) in [
+      ('sleep_entries', ['wakeUpTime', 'sleepTime', 'napHours', 'tags']),
+      ('mood_entries', ['notes', 'emoji']),
+    ]) {
+      for (final column in columns) {
+        await db.execute('''
+          UPDATE $table SET $column = (
+            SELECT o.$column FROM $table o
+            WHERE o.date = $table.date AND o.$column IS NOT NULL AND o.$column != '' ORDER BY o.id DESC LIMIT 1)
+          WHERE ($column IS NULL OR $column = '')
+            AND date IN (SELECT date FROM $table GROUP BY date HAVING COUNT(*) > 1)
+        ''');
+      }
       await db.execute('DELETE FROM $table WHERE id NOT IN (SELECT MAX(id) FROM $table GROUP BY date)');
+    }
+    // The kept row's wake time may have come from another row, so work out
+    // the merged days' totals, and the next days', again.
+    for (final iso in sleepDays) {
+      final day = DateTime.parse(iso);
+      for (final d in [day, DateTime(day.year, day.month, day.day + 1)]) {
+        final rows = await db.query('sleep_entries', where: 'date = ?', whereArgs: [d.toIso8601String()]);
+        if (rows.isEmpty) continue;
+        final previous = await db.query(
+          'sleep_entries',
+          where: 'date = ?',
+          whereArgs: [DateTime(d.year, d.month, d.day - 1).toIso8601String()],
+        );
+        final bed = previous.isEmpty ? null : previous.first['sleepTime'] as String?;
+        final wake = rows.first['wakeUpTime'] as String?;
+        await db.update(
+          'sleep_entries',
+          {'totalHours': bed == null || wake == null ? null : sleepDurationHours(DateTime.parse(bed), DateTime.parse(wake))},
+          where: 'id = ?',
+          whereArgs: [rows.first['id']],
+        );
+      }
     }
   }
 
@@ -824,20 +853,15 @@ class DatabaseService {
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
+  /// Deletes a tag with its activity entries and its links to moments
+  /// (foreign keys aren't enforced, so nothing cascades on its own).
   Future<int> deleteTag(int id) async {
     final db = await database;
-    // First delete all activity entries that reference this tag
-    await db.delete(
-      'activity_entries',
-      where: 'tagId = ?',
-      whereArgs: [id],
-    );
-    // Then delete the tag itself
-    return await db.delete(
-      'tags',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return db.transaction((txn) async {
+      await txn.delete('activity_entries', where: 'tagId = ?', whereArgs: [id]);
+      await txn.delete('journal_entry_tags', where: 'tag_id = ?', whereArgs: [id]);
+      return txn.delete('tags', where: 'id = ?', whereArgs: [id]);
+    });
   }
 
   // ==================== Mood Entry CRUD ====================
@@ -1182,8 +1206,9 @@ class DatabaseService {
       final tables = (await db.rawQuery("SELECT name FROM sqlite_master WHERE type = 'table'"))
           .map((row) => row['name'])
           .toSet();
-      // The tables of version 1; later ones are added when it opens.
-      const required = ['sleep_entries', 'meal_entries', 'tags'];
+      // Version 1's tables, plus moods from version 2 on: opening a
+      // backup only creates that table when upgrading from version 1.
+      final required = ['sleep_entries', 'meal_entries', 'tags', if (version >= 2) 'mood_entries'];
       if (version < 1 || !required.every(tables.contains)) {
         return 'This file is not a DailyRhythm backup.';
       }
@@ -1205,13 +1230,43 @@ class DatabaseService {
     try {
       await db.execute('VACUUM INTO ?', [path]);
     } on DatabaseException {
-      // SQLite before 3.27 (older Android): copy while holding a lock so no
-      // write can land mid-copy.
+      // SQLite before 3.27 (Android 9 and 10).
       if (await file.exists()) await file.delete();
+      await snapshotByCopying(db, path);
+    }
+  }
+
+  /// Builds a copy in [path] table by table through ATTACH, inside one
+  /// transaction. Copying the file instead could miss writes still in the
+  /// write-ahead log.
+  @visibleForTesting
+  static Future<void> snapshotByCopying(Database db, String path) async {
+    await db.execute('ATTACH DATABASE ? AS snap', [path]);
+    try {
       await db.transaction((txn) async {
-        await txn.rawQuery('SELECT COUNT(*) FROM sqlite_master');
-        await File(await databaseFilePath()).copy(path);
-      }, exclusive: true);
+        final objects = await txn.rawQuery(
+          "SELECT type, name, sql FROM main.sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' "
+          "AND type IN ('table', 'index') ORDER BY type = 'index'",
+        );
+        for (final o in objects) {
+          final sql = o['sql'] as String;
+          if (o['type'] == 'table') {
+            await txn.execute(sql.replaceFirst(RegExp(r'^CREATE TABLE\s+(IF NOT EXISTS\s+)?', caseSensitive: false), 'CREATE TABLE snap.'));
+            await txn.execute('INSERT INTO snap."${o['name']}" SELECT * FROM main."${o['name']}"');
+          } else {
+            await txn.execute(
+              sql.replaceFirstMapped(
+                RegExp(r'^CREATE\s+(UNIQUE\s+)?INDEX\s+(IF NOT EXISTS\s+)?', caseSensitive: false),
+                (m) => 'CREATE ${m[1] ?? ''}INDEX snap.',
+              ),
+            );
+          }
+        }
+        final version = (await txn.rawQuery('PRAGMA main.user_version')).first.values.first as int;
+        await txn.execute('PRAGMA snap.user_version = $version');
+      });
+    } finally {
+      await db.execute('DETACH DATABASE snap');
     }
   }
 

@@ -18,6 +18,8 @@ enum PlantSpecies {
   final String plantName;
   final String dayWord;
 
+  String get pluralName => this == cactus ? 'cacti' : '${plantName}s';
+
   static PlantSpecies? byName(String? name) {
     for (final s in values) {
       if (s.name == name) return s;

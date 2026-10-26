@@ -203,13 +203,13 @@ class MetricsService {
     final insights = <MetricsInsight>[];
 
     final previousRange = _calculatePreviousRange(range);
-    final (sleepMetrics, moodMetrics, exerciseMetrics, previousSleep, previousMoods) = await (
-      calculateSleepMetrics(range, previousRange: previousRange),
-      calculateMoodMetrics(range, previousRange: previousRange),
-      calculateExerciseMetrics(range, previousRange: previousRange),
-      _db.getSleepEntriesInRange(previousRange.start, previousRange.end),
-      _db.getMoodEntriesInRange(previousRange.start, previousRange.end),
-    ).wait;
+    // One after another: sqflite has one connection, so running these
+    // together gains nothing.
+    final sleepMetrics = await calculateSleepMetrics(range, previousRange: previousRange);
+    final moodMetrics = await calculateMoodMetrics(range, previousRange: previousRange);
+    final exerciseMetrics = await calculateExerciseMetrics(range, previousRange: previousRange);
+    final previousSleep = await _db.getSleepEntriesInRange(previousRange.start, previousRange.end);
+    final previousMoods = await _db.getMoodEntriesInRange(previousRange.start, previousRange.end);
     final previousSleepDays = previousSleep.where((e) => e.totalHours != null).length;
     // Days, not entries: a day can have more than one mood.
     final previousMoodDays = {for (final e in previousMoods) dayOf(e.date)}.length;

@@ -83,10 +83,6 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
     );
   }
 
-  // Short labels so all five ranges fit on a narrow phone; the full name is
-  // the tooltip and what screen readers announce.
-  static const List<String> _rangeShortLabels = ['7D', '30D', 'Month', 'Year', 'All'];
-
   Widget _buildTimeRangeSelector() {
     return SizedBox(
       width: double.infinity,
@@ -96,11 +92,15 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
           for (var i = 0; i < _dateRanges.length; i++)
             ButtonSegment<int>(
               value: i,
-              tooltip: _dateRanges[i].label,
+              // Short labels so all five fit on a narrow phone, shrinking
+              // at large text sizes; screen readers hear the full name.
               label: Semantics(
                 label: _dateRanges[i].label,
                 excludeSemantics: true,
-                child: Text(_rangeShortLabels[i], maxLines: 1, softWrap: false),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(_dateRanges[i].shortLabel, maxLines: 1, softWrap: false),
+                ),
               ),
             ),
         ],

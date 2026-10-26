@@ -1,17 +1,19 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import '../../features/garden/presentation/screens/garden_month_screen.dart';
 import '../../features/garden/presentation/screens/garden_today_screen.dart';
+import '../../features/metrics/data/providers/metrics_providers.dart';
 import '../../features/metrics/presentation/screens/metrics_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentIndex = 0;
 
   static const _screens = [
@@ -29,6 +31,9 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
+          // Metrics stays alive in the stack; refresh it for anything
+          // logged since.
+          if (index == 2 && _currentIndex != 2) invalidateMetrics(ref);
           setState(() {
             _currentIndex = index;
           });

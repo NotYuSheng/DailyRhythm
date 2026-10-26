@@ -5,7 +5,7 @@ import '../../../../shared/services/database/database_service.dart';
 import '../../../../shared/utils/date_utils.dart';
 import '../../../garden/data/garden_repository.dart';
 import '../../../garden/domain/plant.dart';
-import '../../../health/data/models/health_metric.dart';
+import '../../../../shared/services/database/repositories/health_repository.dart';
 import '../models/metric_data.dart';
 
 /// What a fun fact is about, for its icon and colour.
@@ -102,7 +102,7 @@ class FunFactsService {
 
     // Spending and the priciest meal (SGD only, the default currency).
     final spend = await db.rawQuery('''
-      SELECT SUM(price * quantity) AS total, COUNT(price) AS priced FROM meal_entries
+      SELECT SUM(price) AS total, COUNT(price) AS priced FROM meal_entries
       WHERE $inRange AND price IS NOT NULL AND currency = 'SGD'
     ''', args);
     final priciest = await db.rawQuery('''
@@ -137,20 +137,22 @@ class FunFactsService {
     }
 
     // Distance on foot: watch steps (about 0.75 m a step) or logged runs.
-    final steps = await _metricSum(db, 'steps', args);
+    final stepDays = await HealthRepository(_db).series('steps', from, last);
+    final steps = stepDays.isEmpty ? null : stepDays.fold<double>(0, (sum, m) => sum + m.value);
+    final hasSteps = steps != null && steps > 0;
     final runs = (await db.rawQuery(
       "SELECT SUM(distance) AS km FROM exercise_entries WHERE $inRange AND type LIKE '%run%'",
       args,
     )).first['km'] as num?;
-    final onFoot = steps != null && steps > 0 ? steps * 0.00075 : (runs ?? 0).toDouble();
+    final onFoot = hasSteps ? steps * 0.00075 : (runs ?? 0).toDouble();
     if (onFoot >= 10) {
       final comparison = distanceComparison(onFoot);
       facts.add(FunFact(
         kind: FactKind.distance,
-        title: steps != null ? 'Distance on foot' : 'Distance run',
+        title: hasSteps ? 'Distance on foot' : 'Distance run',
         value: '${_count.format(onFoot.round())} km',
         detail: '${comparison[0].toUpperCase()}${comparison.substring(1)}'
-            '${steps != null ? ' (${_count.format(steps)} steps)' : ''}',
+            '${hasSteps ? ' (${_count.format(steps)} steps)' : ''}',
       ));
     }
 
@@ -165,29 +167,26 @@ class FunFactsService {
       // Earliest by clock time, ignoring wake-ups after noon (naps, typos).
       final mornings = wakes.where((r) => wakeOf(r).hour < 12).toList()
         ..sort((a, b) => (wakeOf(a).hour * 60 + wakeOf(a).minute).compareTo(wakeOf(b).hour * 60 + wakeOf(b).minute));
-      final hours = (longest.first['totalHours'] as num).toDouble();
+      final minutes = ((longest.first['totalHours'] as num) * 60).round();
       facts.add(FunFact(
         kind: FactKind.sleep,
         title: 'Longest night',
-        value: '${hours.floor()}h ${((hours - hours.floor()) * 60).round()}m',
+        value: '${minutes ~/ 60}h ${minutes % 60}m',
         detail: '${_day.format(DateTime.parse(longest.first['date'] as String))}'
             '${mornings.isEmpty ? '' : '. Earliest start: ${DateFormat('HH:mm').format(wakeOf(mornings.first))} '
                 'on ${_day.format(DateTime.parse(mornings.first['date'] as String))}'}',
       ));
     }
 
-    // Logging: days with anything logged, and the longest run of them.
-    final logged = <DateTime>{};
-    for (final table in ['mood_entries', 'meal_entries', 'sleep_entries', 'exercise_entries', 'activity_entries', 'journal_entries']) {
-      for (final r in await db.rawQuery('SELECT DISTINCT date FROM $table WHERE $inRange', args)) {
-        logged.add(dayOf(DateTime.parse(r['date'] as String)));
-      }
-    }
-    final days = to.difference(from).inDays;
+    // Logging: days with a plant (the garden's rule for a logged day), and
+    // the longest run of them.
+    final garden = await GardenRepository(_db).daysInRange(from, last);
+    final logged = {for (final g in garden) if (g.plant.logged) g.date};
+    final days = daysBetween(from, to);
     if (logged.length >= 3) {
       var run = 0, best = 0;
-      for (var d = from; d.isBefore(to); d = DateTime(d.year, d.month, d.day + 1)) {
-        run = logged.contains(d) ? run + 1 : 0;
+      for (final g in garden) {
+        run = g.plant.logged ? run + 1 : 0;
         if (run > best) best = run;
       }
       facts.add(FunFact(
@@ -221,7 +220,6 @@ class FunFactsService {
     }
 
     // The garden's mix of plants.
-    final garden = await GardenRepository(_db).daysInRange(from, last);
     final grown = [for (final g in garden) if (g.plant.logged) g.plant];
     if (grown.length >= 3) {
       final counts = <PlantSpecies, int>{};
@@ -230,12 +228,11 @@ class FunFactsService {
       }
       final mix = counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
       final flowers = grown.where((p) => p.flower).length;
-      String plural(String name, int n) => n == 1 ? name : (name.endsWith('s') ? name : '${name}s');
       facts.add(FunFact(
         kind: FactKind.garden,
         title: 'The garden grew',
         value: '${grown.length} ${grown.length == 1 ? 'plant' : 'plants'}',
-        detail: '${mix.take(3).map((e) => '${e.value} ${plural(e.key.plantName, e.value)}').join(', ')}'
+        detail: '${mix.take(3).map((e) => '${e.value} ${e.value == 1 ? e.key.plantName : e.key.pluralName}').join(', ')}'
             '${flowers > 0 ? ', $flowers in bloom' : ''}',
       ));
     }
@@ -245,24 +242,6 @@ class FunFactsService {
     if (memory != null) facts.add(memory);
 
     return facts;
-  }
-
-  /// Sum of a health metric per day from the preferred source.
-  Future<double?> _metricSum(DatabaseExecutor db, String metric, List<Object?> args) async {
-    final rows = await db.rawQuery(
-      'SELECT date, value, source FROM health_metrics WHERE metric = ? AND date >= ? AND date < ?',
-      [metric, ...args],
-    );
-    if (rows.isEmpty) return null;
-    final best = <String, (double, String)>{};
-    for (final r in rows) {
-      final source = r['source'] as String;
-      final current = best[r['date'] as String];
-      if (current == null || HealthSource.rank(source) < HealthSource.rank(current.$2)) {
-        best[r['date'] as String] = ((r['value'] as num).toDouble(), source);
-      }
-    }
-    return best.values.fold<double>(0, (sum, v) => sum + v.$1);
   }
 
   /// The most recent earlier year with something logged on this date: a

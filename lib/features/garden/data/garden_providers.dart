@@ -29,8 +29,10 @@ final momentsProvider = FutureProvider.family<List<JournalEntry>, DateTime>((ref
 
 /// Refreshes everything the garden shows after a change on [day].
 void invalidateGardenDay(WidgetRef ref, DateTime day) {
-  ref.invalidate(gardenDayProvider(day));
-  ref.invalidate(gardenMonthProvider(DateTime(day.year, day.month)));
+  // Plants of other days can change too: the next day's sleep, and which
+  // tags count as routine.
+  ref.invalidate(gardenDayProvider);
+  ref.invalidate(gardenMonthProvider);
   ref.invalidate(checkinProvider(day));
   ref.invalidate(momentsProvider(day));
 }

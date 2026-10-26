@@ -705,6 +705,14 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
         );
       }
 
+      // Editing keeps the imported line, and the catalog link while it is
+      // still the same exercise.
+      final old = widget.entry;
+      if (old != null) {
+        final sameItem = old.type == entry.type && (old.exerciseName ?? '').toLowerCase() == (entry.exerciseName ?? '').toLowerCase();
+        entry = entry.copyWith(exerciseItemId: sameItem ? old.exerciseItemId : null, rawText: old.rawText);
+      }
+
       final db = ref.read(databaseProvider);
       if (widget.entry == null) {
         await db.createExerciseEntry(entry);
