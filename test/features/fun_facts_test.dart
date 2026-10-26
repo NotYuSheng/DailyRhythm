@@ -148,4 +148,16 @@ void main() {
     final month = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
     expect(month['On this day']!.value, 'A year ago');
   });
+
+  test('the biggest treat is per item, and all time has no new foods', () async {
+    for (var d = 1; d <= 5; d++) {
+      await meal(d, 'Chicken rice', price: 4);
+    }
+    await db.createMealEntry(MealEntry(date: DateTime(2026, 3, 6), time: DateTime(2026, 3, 6, 12), name: 'Fried rice for six', price: 60, quantity: 6));
+    await meal(7, 'Wagyu don', price: 28);
+    final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
+    expect(facts['Biggest treat']!.detail, startsWith('Wagyu don'));
+    final all = DateRange(start: DateTime(2020), end: DateTime(2026, 3, 31), label: 'All Time', isAllTime: true);
+    expect(byTitle(await FunFactsService(db).factsFor(all, today: DateTime(2026, 3, 31))).containsKey('New foods tried'), isFalse);
+  });
 }

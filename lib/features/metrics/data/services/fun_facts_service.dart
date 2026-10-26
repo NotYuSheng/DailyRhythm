@@ -92,7 +92,8 @@ class FunFactsService {
       GROUP BY f.id HAVING MIN(m.date) >= ? AND MIN(m.date) < ?
       ORDER BY MIN(m.date)
     ''', args);
-    if (firsts.isNotEmpty) {
+    // Over all time every food is new, so it says nothing there.
+    if (firsts.isNotEmpty && !range.isAllTime) {
       final names = firsts.map((r) => r['name'] as String).toList();
       facts.add(FunFact(
         kind: FactKind.newFood,
@@ -107,9 +108,10 @@ class FunFactsService {
       SELECT SUM(price) AS total, COUNT(price) AS priced FROM meal_entries
       WHERE $inRange AND price IS NOT NULL AND currency = 'SGD'
     ''', args);
+    // Per item: a line of six orders is buying for others, not a treat.
     final priciest = await db.rawQuery('''
-      SELECT name, price, date FROM meal_entries
-      WHERE $inRange AND price IS NOT NULL AND currency = 'SGD' ORDER BY price DESC LIMIT 1
+      SELECT name, price * 1.0 / MAX(quantity, 1) AS price, date FROM meal_entries
+      WHERE $inRange AND price IS NOT NULL AND currency = 'SGD' ORDER BY price * 1.0 / MAX(quantity, 1) DESC LIMIT 1
     ''', args);
     if ((spend.first['priced'] as int) >= 5 && priciest.isNotEmpty) {
       final p = priciest.first;

@@ -129,7 +129,9 @@ def parse_time_line(line: str) -> tuple[str, str | None, str | None, str] | None
 
 
 def _clean(text: str) -> str:
-    return re.sub(r"\s+", " ", text.replace("\xa0", " ")).strip(" .,-")
+    text = re.sub(r"\s+", " ", text.replace("\xa0", " ")).strip(" .,-")
+    # A split can leave the joining word behind: "and roti prata".
+    return re.sub(r"^(?:and|with|w|n|\+|&)\s+", "", text, flags=re.IGNORECASE)
 
 
 def parse_meal(line: str, flags: list[Flag]) -> Meal:
