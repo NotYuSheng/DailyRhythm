@@ -76,7 +76,8 @@ void main() {
           child: MaterialApp(theme: theme, home: const TagsScreen()),
         ));
         await tester.pumpAndSettle();
-        expect(find.text('Health'), findsWidgets);
+        expect(find.text('Activities'), findsOneWidget);
+        expect(tester.takeException(), isNull);
       });
     });
   }

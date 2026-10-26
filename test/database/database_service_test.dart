@@ -170,6 +170,60 @@ void main() {
       expect((await db.getTagsByCategory('Symptoms')).length, healthTags.length);
     });
 
+    test('merging tags moves entries and moment links, keeping one per day', () async {
+      final hike = await db.createTag(Tag(name: 'Hike', emoji: 'boot', category: 'General'));
+      final hiking = await db.createTag(Tag(name: 'Hiking', emoji: 'boot', category: 'General'));
+      for (final (d, tag) in [(1, hike), (2, hike), (2, hiking)]) {
+        await db.createActivityEntry(ActivityEntry(date: DateTime(2026, 10, d), timestamp: DateTime(2026, 10, d), tagId: tag));
+      }
+      final repo = JournalRepository(db);
+      await repo.save(JournalEntry(date: DateTime(2026, 10, 1), text: 'Hill', tagIds: [hike]));
+      await repo.save(JournalEntry(date: DateTime(2026, 10, 2), text: 'Both', tagIds: [hike, hiking]));
+
+      await db.mergeTags(hike, hiking);
+
+      expect(await db.getTag(hike), isNull);
+      final entries = await (await db.database).query('activity_entries', orderBy: 'date');
+      expect([for (final e in entries) (e['date'], e['tagId'])], [
+        (DateTime(2026, 10, 1).toIso8601String(), hiking),
+        (DateTime(2026, 10, 2).toIso8601String(), hiking),
+      ]);
+      expect([for (final m in await repo.inRange(DateTime(2026, 10, 1), DateTime(2026, 10, 2))) m.tagIds], [
+        [hiking],
+        [hiking],
+      ]);
+      expect((await db.getTagUseCounts())[hiking], 4);
+    });
+
+    test('merging keeps the notes of a day that had both tags', () async {
+      final hike = await db.createTag(Tag(name: 'Hike', emoji: 'boot', category: 'General'));
+      final hiking = await db.createTag(Tag(name: 'Hiking', emoji: 'boot', category: 'General'));
+      final day = DateTime(2026, 10, 3);
+      await db.createActivityEntry(ActivityEntry(date: day, timestamp: day, tagId: hike, notes: 'Mt. Faber'));
+      await db.createActivityEntry(ActivityEntry(date: day, timestamp: day, tagId: hiking));
+      await db.mergeTags(hike, hiking);
+      final kept = (await db.getActivityEntriesByDate(day)).single;
+      expect((kept.tagId, kept.notes), (hiking, 'Mt. Faber'));
+    });
+
+    test('moving tags to an existing group joins it, and empty groups go', () async {
+      final a = await db.createTag(Tag(name: 'Hike', emoji: 'x', category: 'Outdoors'));
+      await db.createTag(Tag(name: 'Read', emoji: 'x', category: 'Indoors'));
+      await db.createTagCategory(TagCategory(name: 'Outdoors'));
+      await db.createTagCategory(TagCategory(name: 'Indoors'));
+      await db.moveTagsToGroup([a], 'Indoors');
+      expect((await db.getTag(a))!.category, 'Indoors');
+      final groups = (await db.getAllTagCategories()).map((c) => c.name);
+      expect(groups, contains('Indoors'));
+      expect(groups, isNot(contains('Outdoors')));
+    });
+
+    test('changing a tag\'s kind', () async {
+      final id = await db.createTag(Tag(name: 'Coffee', emoji: 'cup', category: 'General'));
+      await db.updateTag((await db.getTag(id))!.copyWith(kind: TagKind.foodSource));
+      expect((await db.getTag(id))!.kind, TagKind.foodSource);
+    });
+
     test('deleting a tag removes it from moments', () async {
       final tag = await db.createTag(Tag(name: 'Hiking', emoji: 'boot', category: 'General'));
       final repo = JournalRepository(db);
