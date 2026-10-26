@@ -6,6 +6,7 @@ import 'package:unicons/unicons.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/metric_data.dart';
 import '../../data/providers/metrics_providers.dart';
+import '../widgets/fun_facts_section.dart';
 import '../widgets/quick_stat_card.dart';
 
 class MetricsScreen extends ConsumerStatefulWidget {
@@ -53,6 +54,9 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
           children: [
             // Time Range Selector
             _buildTimeRangeSelector(),
+            const SizedBox(height: AppTheme.spacePulse4),
+
+            FunFactsSection(range: _selectedRange),
             const SizedBox(height: AppTheme.spacePulse4),
 
             // Quick Stats Cards

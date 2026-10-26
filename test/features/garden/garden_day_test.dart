@@ -8,6 +8,7 @@ DayLog log({
   int workouts = 0,
   double? steps,
   double? sleep,
+  bool sleepLogged = false,
   int? mood,
   List<int> moments = const [],
   PlantSpecies? override,
@@ -20,6 +21,7 @@ DayLog log({
       workouts: workouts,
       steps: steps,
       sleepHours: sleep,
+      sleepLogged: sleepLogged,
       dayMood: mood,
       momentMoods: moments,
       momentCount: moments.length,
@@ -81,7 +83,7 @@ void main() {
 
   test('sleep sets the size without judging it', () {
     expect([null, 4.0, 5.5, 6.5, 7.5, 9.0].map(GardenDay.sleepLevel), [2, 0, 1, 2, 3, 4]);
-    expect(GardenDay.from(log(sleep: 4)).detail, startsWith('Grew from a very short night'));
+    expect(GardenDay.from(log(sleep: 4, sleepLogged: true)).detail, startsWith('Grew from a very short night'));
     expect(GardenDay.from(log(mood: 3)).detail, startsWith('Grew from no sleep logged'));
   });
 
@@ -103,6 +105,7 @@ void main() {
     expect(day.plant.logged, isFalse);
     expect(day.title, 'A quiet day');
     expect(GardenDay.from(log(steps: 9000)).plant.logged, isFalse, reason: 'watch data alone isn’t a logged day');
+    expect(GardenDay.from(log(sleep: 7)).plant.logged, isFalse, reason: 'nor is watch sleep');
   });
 
   test('every plant draws in every state', () {

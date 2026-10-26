@@ -58,7 +58,9 @@ class GardenRepository {
         day(r['date']): r['n'] as int,
     };
     final sleep = <DateTime, double>{};
+    final sleepLogged = <DateTime>{};
     for (final r in await db.query('sleep_entries', columns: ['date', 'totalHours'], where: inRange, whereArgs: args)) {
+      sleepLogged.add(day(r['date']));
       final hours = (r['totalHours'] as num?)?.toDouble();
       if (hours != null) sleep[day(r['date'])] = hours;
     }
@@ -108,6 +110,7 @@ class GardenRepository {
           steps: metrics[(d, 'steps')]?.$1,
           // The app's own sleep log first; the watch fills days without one.
           sleepHours: sleep[d] ?? _hours(metrics[(d, 'sleep_minutes')]?.$1),
+          sleepLogged: sleepLogged.contains(d),
           dayMood: moods[d],
           momentMoods: momentMoods[d] ?? const [],
           momentCount: momentCounts[d] ?? 0,
