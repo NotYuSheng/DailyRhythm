@@ -64,6 +64,6 @@ def validate(days: list[Day]) -> None:
             if not MIN_SLEEP_HOURS <= hours <= MAX_SLEEP_HOURS:
                 day.flags.append(Flag("sleep_length", f"{hours:.1f}h from {previous.bed} to {day.wake}"))
 
-        spend = sum(m.price for m in day.meals if m.price is not None and m.currency == "SGD")
+        spend = sum(m.price for m in day.meals if m.price is not None and m.currency == "SGD" and not m.spending)
         if spend > MAX_DAY_SPEND:
             day.flags.append(Flag("day_spend_high", f"${spend:.2f} in one day"))

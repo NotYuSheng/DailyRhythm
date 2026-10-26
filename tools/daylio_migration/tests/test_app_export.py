@@ -144,8 +144,10 @@ def test_moments_after_midnight_sort_last():
 
 
 def _meal(text, name, price, food=None):
+    from daylio_migration.spending import spending_kind
+
     return {"text": text, "name": name, "canonical": None, "food": food, "quantity": None, "price": price,
-            "currency": "SGD", "comment": None, "price_approx": False}
+            "currency": "SGD", "comment": None, "price_approx": False, "spending": spending_kind(name, price)}
 
 
 def test_events_and_gifts_go_to_spending_not_meals():
@@ -154,12 +156,13 @@ def test_events_and_gifts_go_to_spending_not_meals():
         _meal("Paradise hotpot team farewell 187", "Paradise hotpot team farewell", 187),
         _meal("Farewell lunch", "Farewell lunch", None),
         _meal("Chicken rice 4", "Chicken rice", 4),
+        _meal("Party wings 9", "Party wings", 9),
     ])])
     spending = rows(files, "spending_entries.csv")
     assert [(s["Label"], s["Amount"], s["Category"]) for s in spending] == [
         ("Zhi's wedding", "288", "gift"), ("Paradise hotpot team farewell", "187", "event"),
     ]
-    assert [m["Name"] for m in rows(files, "meal_entries.csv")] == ["Farewell lunch", "Chicken rice"], \
+    assert [m["Name"] for m in rows(files, "meal_entries.csv")] == ["Farewell lunch", "Chicken rice", "Party wings"], \
         "unpriced is still a meal"
 
 

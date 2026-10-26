@@ -72,15 +72,25 @@ def is_likely_same(a: str, b: str) -> bool:
 ACRONYMS = {"kfc": "KFC", "ktv": "KTV", "bbq": "BBQ", "kbbq": "KBBQ", "mos": "MOS", "a&w": "A&W", "ytf": "YTF"}
 
 # "Fried rice with chicken cutlet and curry veg" is fried rice with sides.
-_SIDES = re.compile(r"\s+(?:with|w/|w)\s+|\s*,\s*|\s+\+\s+", re.IGNORECASE)
+# Commas are left alone: "Kopi, teh" is two things, not kopi with a side.
+_SIDES = re.compile(r"\s+(?:with|w)\s+|\s+w/\s*|\s+\+\s+", re.IGNORECASE)
+
+
+def split_sides(name: str) -> tuple[str, str]:
+    """(main dish, the rest as written) for a combination: the part before
+    "with", "w", "w/" or "+". No sides gives (name, "")."""
+    name = name.strip()
+    match = _SIDES.search(name)
+    if not match or match.start() < 2:
+        return name, ""
+    return name[: match.start()].strip(), name[match.start():]
 
 
 def base_dish(name: str) -> str:
-    """The main dish of a combination: the part before "with", "w/", a
-    comma or "+". The full name is kept on the meal; the food it links to
-    is the base, so sides don't make every plate a new food."""
-    base = _SIDES.split(name.strip(), maxsplit=1)[0].strip()
-    return base if len(base) >= 2 else name.strip()
+    """The main dish of a combination. The full name is kept on the meal;
+    the food it links to is the base, so sides don't make every plate a new
+    food."""
+    return split_sides(name)[0]
 
 
 def display_name(name: str) -> str:
@@ -88,8 +98,9 @@ def display_name(name: str) -> str:
     words = name.strip().split()
     out = []
     for i, w in enumerate(words):
-        if w.lower() in ACRONYMS:
-            out.append(ACRONYMS[w.lower()])
+        core = w.strip(".,;:!?'’").lower().removesuffix("'s").removesuffix("’s")
+        if core in ACRONYMS:
+            out.append(w.lower().replace(core, ACRONYMS[core], 1))
             continue
         keep = w.isupper() and len(w) > 1 or any(c.isupper() for c in w[1:])
         if keep:
@@ -233,16 +244,23 @@ def apply_aliases(days, aliases: dict[tuple[str, str], str], synonyms: Synonyms 
                 def canonical_of(name: str) -> str:
                     canonical = resolve(aliases, kind, name)
                     rewritten = words.apply(canonical) if words else canonical
-                    if rewritten != canonical:
-                        # A whole name that is a synonym is a rename, not a change inside it.
-                        if canonical.lower() not in words.replacements:
-                            changed.add((kind, item.name))
-                        canonical = resolve(aliases, kind, rewritten)
-                    return canonical
+                    return resolve(aliases, kind, rewritten) if rewritten != canonical else canonical
 
-                item.canonical = canonical_of(item.name)
+                # Counted once per name; a whole name that is a synonym is a
+                # rename, not a change inside it.
+                if words and words.apply(item.name) != item.name and item.name.lower() not in words.replacements:
+                    changed.add((kind, item.name))
+
                 if kind == "meals":
-                    item.food = display_name(canonical_of(base_dish(item.name)))
+                    # Proposals are made for main dishes, so the full name is
+                    # the main dish's agreed name plus the sides as written.
+                    base, sides = split_sides(item.name)
+                    # Synonyms go on after sentence case, so "Maggi" keeps its capital.
+                    food = display_name(resolve(aliases, kind, base))
+                    item.food = resolve(aliases, kind, words.apply(food)) if words else food
+                    item.canonical = canonical_of(item.food + (words.apply(sides) if words else sides))
+                else:
+                    item.canonical = canonical_of(item.name)
     return len(changed)
 
 

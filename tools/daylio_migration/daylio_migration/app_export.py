@@ -1,4 +1,4 @@
-"""Writes parsed days as a DailyRhythm export zip (schema v13).
+"""Writes parsed days as a DailyRhythm export zip (schema v14).
 
     python -m daylio_migration.app_export [--days ...] [--garmin ...] [--out ...]
 
@@ -23,7 +23,6 @@ import argparse
 import csv
 import io
 import json
-import re
 import zipfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -72,23 +71,6 @@ def _catalog(names: list[tuple[str, str]]) -> dict[str, list[str]]:
     return {name: sorted(spellings.values(), key=str.lower) for name, spellings in items.items()}
 
 
-GIFT_WORDS = re.compile(r"\b(wedding|ang ?bao|hong ?bao|gifts?|present for|presents?)\b", re.IGNORECASE)
-EVENT_WORDS = re.compile(
-    r"\b(farewell|welcom\w*|celebrat\w*|party|ktv|karaoke|rally|d&d|dinner and dance|reunion|hackathon|"
-    r"gathering|outing|send ?off)\b",
-    re.IGNORECASE,
-)
-
-
-def spending_kind(text: str) -> str | None:
-    """'gift' or 'event' for a line that is really a gift or a group event."""
-    if GIFT_WORDS.search(text):
-        return "gift"
-    if EVENT_WORDS.search(text):
-        return "event"
-    return None
-
-
 def build(days: list[dict], garmin: list[dict] | None = None) -> dict[str, str]:
     by_date = {d["date"]: d for d in days}
     sleep = [["ID", "Date", "Wake Up Time", "Sleep Time", "Total Hours", "Nap Hours", "Tags"]]
@@ -130,7 +112,7 @@ def build(days: list[dict], garmin: list[dict] | None = None) -> dict[str, str]:
                 continue
             name = m.get("canonical") or m["name"]
             # Paid-for group events and gifts aren't meals: their own file.
-            if m["price"] is not None and (kind := spending_kind(m.get("text") or m["name"])):
+            if kind := m.get("spending"):
                 spending.append(["", midnight, _iso(day, "19:00", i), name, m["price"], m["currency"], kind,
                                  m.get("comment") or "", m.get("text") or ""])
                 continue
@@ -146,8 +128,9 @@ def build(days: list[dict], garmin: list[dict] | None = None) -> dict[str, str]:
                 notes.append("approximate price")
             price = m["price"]
             # A plate with sides costs more than the dish alone.
-            if price is not None and m["currency"] == "SGD" and food.lower() == name.lower():
-                last_price[food] = price / max(1, round(quantity))
+            # The app remembers what one entry cost, so only single orders count.
+            if price is not None and m["currency"] == "SGD" and food.lower() == name.lower() and quantity == 1:
+                last_price[food] = round(price, 2)
             meals.append(["", midnight, _iso(day, "12:00", i), name, max(1, round(quantity)),
                           "" if price is None else price, "", ";".join(tags), "; ".join(notes),
                           "", food, m["currency"], m.get("text") or "", 0])
