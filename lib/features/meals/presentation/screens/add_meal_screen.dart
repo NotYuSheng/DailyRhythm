@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/food_item.dart';
 import '../../data/models/meal_entry.dart';
+import '../../data/services/calorie_lookup.dart';
 import '../../domain/food_matcher.dart';
 import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/services/database/repositories/catalog_repository.dart';
@@ -31,6 +32,9 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   final FocusNode _nameFocus = FocusNode();
   String? _foodSource;
 
+  /// Where typed calories came from: 'off' after a lookup, else the user.
+  String? _kcalSource;
+
   /// The user's foods, for suggestions; empty until loaded.
   FoodMatcher _matcher = FoodMatcher(const []);
   List<FoodChoice> _usual = const [];
@@ -46,6 +50,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     _notesController.text = widget.entry?.notes ?? '';
     _foodSource = widget.entry?.foodSource;
     _nameController.addListener(() => setState(() {}));
+    _quantityController.addListener(() => setState(() {}));
     _loadFoods();
   }
 
@@ -81,6 +86,83 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       if (_priceController.text.trim().isEmpty && food.lastPrice != null) {
         _priceController.text = _formatPrice(food.lastPrice!);
       }
+    });
+  }
+
+  int get _quantity => int.tryParse(_quantityController.text.trim()) ?? 1;
+
+  /// The known food's calories for this quantity, when it has them.
+  double? get _inheritedCalories => switch (_matcher.exact(_nameController.text)?.item.kcal) {
+        final kcal? => kcal * _quantity,
+        null => null,
+      };
+
+  /// Asks Open Food Facts (only when tapped; only the name is sent) and
+  /// fills the calories from the match the user picks.
+  Future<void> _lookUpCalories() async {
+    final name = _nameController.text.trim();
+    final lookup = ref.read(calorieLookupProvider);
+    final picked = await showModalBottomSheet<CalorieMatch>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: FutureBuilder<List<CalorieMatch>>(
+          future: lookup.search(name),
+          builder: (context, snapshot) {
+            final theme = Theme.of(context);
+            return ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                    child: Text('Calories for “$name”', style: theme.textTheme.titleLarge),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      'From Open Food Facts (ODbL). Estimates, not nutrition advice.',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (snapshot.connectionState != ConnectionState.done)
+                    const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
+                  else if (snapshot.hasError)
+                    const Padding(padding: EdgeInsets.all(20), child: Text('Couldn’t reach Open Food Facts. Check the connection and try again.'))
+                  else if (snapshot.data!.isEmpty)
+                    const Padding(padding: EdgeInsets.all(20), child: Text('No matches. You can type the calories instead.'))
+                  else
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          for (final m in snapshot.data!)
+                            ListTile(
+                              title: Text(m.name),
+                              subtitle: m.brand == null ? null : Text(m.brand!),
+                              trailing: Text('${m.kcal.round()} kcal\nper ${m.basis}', textAlign: TextAlign.right),
+                              onTap: () => Navigator.pop(context, m),
+                            ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      // Per serving scales with the quantity; per 100 g is a starting point.
+      final kcal = picked.basis == 'serving' ? picked.kcal * _quantity : picked.kcal;
+      _caloriesController.text = '${kcal.round()}';
+      _kcalSource = picked.source;
     });
   }
 
@@ -224,12 +306,23 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
               children: [
                 TextField(
                   controller: _caloriesController,
-                  decoration: const InputDecoration(
-                    labelText: 'Calories (Optional)',
-                    hintText: 'Enter calories',
-                    suffixText: 'cal',
+                  decoration: InputDecoration(
+                    labelText: 'Calories (optional)',
+                    // A known food's calories apply unless one is typed.
+                    hintText: _inheritedCalories == null ? 'Enter calories' : '≈ ${_inheritedCalories!.round()} from ${_matcher.exact(text)!.item.name}',
+                    suffixText: 'kcal',
                   ),
                   keyboardType: TextInputType.number,
+                  onChanged: (_) => _kcalSource = null,
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+                    onPressed: text.trim().isEmpty ? null : _lookUpCalories,
+                    icon: const Icon(Icons.search, size: 18),
+                    label: const Text('Look up calories'),
+                  ),
                 ),
                 const SizedBox(height: AppTheme.spacePulse3),
                 TextField(
@@ -295,8 +388,14 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       // needed, and remember the price for next time.
       final name = _nameController.text.trim();
       final known = _matcher.exact(name)?.item;
+      // Typed calories become the food's, per serving, for next time.
       final foodItemId = await CatalogRepository(db).saveFood(
-        FoodItem(name: known?.name ?? name, lastPrice: price),
+        FoodItem(
+          name: known?.name ?? name,
+          lastPrice: price,
+          kcal: calories == null ? null : calories / quantity,
+          kcalSource: calories == null ? null : _kcalSource ?? 'user',
+        ),
       );
 
       final entry = MealEntry(
@@ -327,6 +426,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       final normalizedDate = DateTime(entry.date.year, entry.date.month, entry.date.day);
       ref.invalidate(mealEntriesProvider(normalizedDate));
       ref.invalidate(todayMealEntriesProvider);
+      ref.invalidate(foodCaloriesProvider);
 
       if (mounted) {
         Navigator.pop(context);

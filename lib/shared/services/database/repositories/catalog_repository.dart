@@ -68,6 +68,13 @@ class CatalogRepository {
           FoodChoice(FoodItem.fromMap(r), r['uses'] as int),
       ];
 
+  /// Calories per serving of every food that has them, by food id.
+  Future<Map<int, double>> foodCalories() async {
+    final db = await _db.database;
+    final rows = await db.query('food_items', columns: ['id', 'kcal'], where: 'kcal IS NOT NULL');
+    return {for (final r in rows) r['id'] as int: (r['kcal'] as num).toDouble()};
+  }
+
   // ==================== Exercises ====================
 
   Future<int> saveExercise(ExerciseItem item) async {

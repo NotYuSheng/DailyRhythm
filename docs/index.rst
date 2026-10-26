@@ -8,6 +8,7 @@ Welcome to DailyRhythm's documentation. DailyRhythm is a daily stats tracking ap
    :caption: Contents:
 
    deletion-policy
+   calories
 
 Indices and tables
 ==================
