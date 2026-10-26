@@ -307,6 +307,8 @@ class SettingsScreen extends ConsumerWidget {
           tagsByCategoryProvider,
           gardenDayProvider,
           gardenMonthProvider,
+          monthRecapProvider,
+          yearRecapProvider,
           checkinProvider,
           momentsProvider,
           todaySleepEntriesProvider,

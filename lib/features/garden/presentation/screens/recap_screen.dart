@@ -193,7 +193,7 @@ class YearRecapScreen extends ConsumerWidget {
                 Text('Nothing logged this year yet.', style: nunito(15, FontWeight.w600, colors.muted))
               else ...[
                 if (top != null)
-                  _Fact(colors: colors, title: 'Grown most', body: '${top.$2} ${top.$2 == 1 ? top.$1.plantName : top.$1.pluralName}'),
+                  _Fact(colors: colors, title: 'Grown most', body: _plants([top])),
                 if (r.mostActive case final m?)
                   _Fact(colors: colors, title: 'Most active month', body: '${month.format(m.month)}, ${_count(m.moveSessions, 'movement session')}'),
                 if (r.mostMoments case final m?)
@@ -250,7 +250,8 @@ class _Fact extends StatelessWidget {
   }
 }
 
-/// The month's days as small pots, seven to a row from the 1st.
+/// The month's days as small pots, in weeks from Monday like the month
+/// garden.
 class _MiniGarden extends StatelessWidget {
   const _MiniGarden({required this.recap});
 
@@ -262,8 +263,10 @@ class _MiniGarden extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, box) {
           final cell = box.maxWidth / 7;
+          final lead = recap.month.weekday - 1;
           return Wrap(
             children: [
+              for (var i = 0; i < lead; i++) SizedBox(width: cell, height: 1),
               for (final d in recap.days)
                 SizedBox(
                   width: cell,

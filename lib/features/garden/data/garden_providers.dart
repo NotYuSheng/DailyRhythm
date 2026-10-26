@@ -67,6 +67,8 @@ void invalidateGardenDay(WidgetRef ref, DateTime day) {
   // tags count as routine.
   ref.invalidate(gardenDayProvider);
   ref.invalidate(gardenMonthProvider);
+  ref.invalidate(monthRecapProvider);
+  ref.invalidate(yearRecapProvider);
   ref.invalidate(checkinProvider(day));
   ref.invalidate(momentsProvider(day));
 }

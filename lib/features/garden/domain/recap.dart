@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../../journal/data/models/journal_entry.dart';
 import 'garden_day.dart';
 import 'plant.dart';
@@ -43,7 +45,7 @@ class MonthRecap {
   final int momentCount;
 
   /// Moments worth seeing again: good moods first, then ones with the most
-  /// to say (up to three, with words).
+  /// to say (up to three, with words, leaving out bad and awful ones).
   final List<JournalEntry> highlights;
 
   bool get isEmpty => plants == 0;
@@ -59,6 +61,7 @@ class MonthRecap {
   }) {
     final end = today ?? DateTime.now();
     final past = [for (final l in logs) if (!l.date.isAfter(end)) l];
+    final pastMoments = [for (final m in moments) if (!m.date.isAfter(end)) m];
     final days = [for (final l in past) GardenDay.from(l)];
     final grown = [for (final d in days) if (d.plant.logged) d];
 
@@ -73,14 +76,16 @@ class MonthRecap {
       }
     }
     final sleeps = [for (final l in past) if (l.sleepHours != null) l.sleepHours!];
-    final withWords = [for (final m in moments) if (m.text.trim().isNotEmpty) m];
-    final highlights = [...withWords]..sort((a, b) {
-        final mood = (b.mood ?? 0).compareTo(a.mood ?? 0);
-        return mood != 0 ? mood : b.text.length.compareTo(a.text.length);
+    // A moment without a mood counts as neutral.
+    final highlights = [
+      for (final m in pastMoments)
+        if (m.text.trim().isNotEmpty && (m.mood ?? 3) >= 3) m,
+    ]..sort((a, b) {
+        final mood = (b.mood ?? 3).compareTo(a.mood ?? 3);
+        return mood != 0 ? mood : b.text.trim().length.compareTo(a.text.trim().length);
       });
-
-    List<(K, int)> ranked<K>(Map<K, int> counts) =>
-        [for (final e in counts.entries) (e.key, e.value)]..sort((a, b) => b.$2.compareTo(a.$2));
+    // Logged exercise or watch workouts; the garden's step bonus isn't a session.
+    final sessions = [for (final l in past) math.max(l.exerciseKinds, l.workouts)];
 
     return MonthRecap._(
       month: DateTime(month.year, month.month),
@@ -88,14 +93,14 @@ class MonthRecap {
       plants: grown.length,
       flowers: grown.where((d) => d.plant.flower).length,
       quietDays: days.length - grown.length,
-      species: ranked(bySpecies),
-      topActivities: ranked(tagDays).take(5).toList(),
+      species: rankByCount(bySpecies),
+      topActivities: rankByCount(tagDays).take(5).toList(),
       sleepShortest: sleeps.isEmpty ? null : sleeps.reduce((a, b) => a < b ? a : b),
       sleepLongest: sleeps.isEmpty ? null : sleeps.reduce((a, b) => a > b ? a : b),
       sleepAverage: sleeps.isEmpty ? null : sleeps.reduce((a, b) => a + b) / sleeps.length,
-      moveSessions: days.fold(0, (sum, d) => sum + d.moveCount),
-      movingDays: days.where((d) => d.moveCount > 0).length,
-      momentCount: moments.length,
+      moveSessions: sessions.fold(0, (sum, n) => sum + n),
+      movingDays: sessions.where((n) => n > 0).length,
+      momentCount: pastMoments.length,
       highlights: highlights.take(3).toList(),
     );
   }
@@ -135,7 +140,10 @@ class YearRecap {
         counts[s] = (counts[s] ?? 0) + n;
       }
     }
-    final ranked = [for (final e in counts.entries) (e.key, e.value)]..sort((a, b) => b.$2.compareTo(a.$2));
-    return ranked.firstOrNull;
+    return rankByCount(counts).firstOrNull;
   }
 }
+
+/// Entries of [counts] as pairs, largest count first.
+List<(K, int)> rankByCount<K>(Map<K, int> counts) =>
+    [for (final e in counts.entries) (e.key, e.value)]..sort((a, b) => b.$2.compareTo(a.$2));

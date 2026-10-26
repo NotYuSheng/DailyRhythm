@@ -69,6 +69,25 @@ void main() {
     expect(r.momentCount, 5);
   });
 
+  test('bad moments aren\'t highlights, and later moments wait', () {
+    JournalEntry m(int day, String text, int? mood) => JournalEntry(date: DateTime(2026, 3, day), text: text, mood: mood);
+    final r = recap([log(1)], today: DateTime(2026, 3, 10), moments: [
+      m(1, 'Argument at work', 2),
+      m(2, 'Nice coffee', null),
+      m(20, 'Not yet', 5),
+    ]);
+    expect(r.highlights.map((e) => e.text), ['Nice coffee']);
+    expect(r.momentCount, 2);
+  });
+
+  test('steps alone are not movement sessions', () {
+    final r = recap([
+      DayLog(date: DateTime(2026, 3, 1), steps: 13000),
+      DayLog(date: DateTime(2026, 3, 2), exerciseKinds: 1, workouts: 1),
+    ]);
+    expect((r.moveSessions, r.movingDays), (1, 1));
+  });
+
   test('year facts pick the months with the most', () {
     MonthRecap month(int m, List<DayLog> logs, [int moments = 0]) => MonthRecap.from(
           month: DateTime(2026, m),
