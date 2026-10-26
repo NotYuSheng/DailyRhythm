@@ -55,8 +55,7 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _date = widget.entry?.date ?? widget.date ?? DateTime(now.year, now.month, now.day);
+    _date = dayOf(widget.entry?.date ?? widget.date ?? DateTime.now());
     _sleepTime = widget.entry?.sleepTime;
     _wakeUpTime = widget.entry?.wakeUpTime;
     _napHoursController.text = widget.entry?.napHours?.toString() ?? '';
@@ -64,12 +63,15 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
     _loadUsualTimes();
   }
 
+  // Calendar days, not 24 hours, so DST changes don't land on the wrong day.
+  DateTime get _previousDay => DateTime(_date.year, _date.month, _date.day - 1);
+
   /// Your most common wake and bed times over the last month, rounded to
   /// 15 minutes, offered as one-tap choices.
   Future<void> _loadUsualTimes() async {
     final entries = await ref
         .read(databaseProvider)
-        .getSleepEntriesInRange(_date.subtract(const Duration(days: 30)), _date.subtract(const Duration(days: 1)));
+        .getSleepEntriesInRange(DateTime(_date.year, _date.month, _date.day - 30), _previousDay);
     if (mounted) {
       setState(() {
         _usualWake = usualTimes(entries.map((e) => e.wakeUpTime));
@@ -80,8 +82,7 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
 
   Future<void> _loadPreviousDaySleepTime() async {
     final db = ref.read(databaseProvider);
-    final previousDate = _date.subtract(const Duration(days: 1));
-    final previousEntry = await db.getSleepEntryByDate(previousDate);
+    final previousEntry = await db.getSleepEntryByDate(_previousDay);
     if (mounted) {
       setState(() {
         _previousDaySleepTime = previousEntry?.sleepTime;
@@ -351,6 +352,8 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
   }
 
   Future<void> _confirmDelete() async {
+    // Read before awaiting: ref can't be used once the screen is gone.
+    final container = ProviderScope.containerOf(context, listen: false);
     final confirmed = await showDeleteConfirmationDialog(
       context: context,
       title: 'Delete Sleep Entry',
@@ -358,8 +361,11 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
     );
     if (!confirmed || widget.entry?.id == null) return;
 
-    await ref.read(databaseProvider).deleteSleepEntry(widget.entry!.id!);
-    ref.invalidate(sleepEntriesProvider(widget.entry!.date));
+    await container.read(databaseProvider).deleteSleepEntry(widget.entry!.id!);
+    // The next day's total depended on this night's bedtime.
+    container.invalidate(sleepEntriesProvider(_date));
+    container.invalidate(sleepEntriesProvider(DateTime(_date.year, _date.month, _date.day + 1)));
+    container.invalidate(todaySleepEntriesProvider);
     if (!mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);

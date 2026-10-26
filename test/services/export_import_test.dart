@@ -274,6 +274,14 @@ void main() {
     expect([kinds['Back Pain'], kinds['Delivery'], kinds['Chess']], [TagKind.symptom, TagKind.foodSource, TagKind.activity]);
   });
 
+  test('creates categories that tags use but the export left out', () async {
+    await File('${dir.path}/tags.csv').writeAsString(
+      'ID,Name,Emoji,Category,Color,Sort Order\r\n1,Hiking,boot,Outdoors,,0',
+    );
+    await ExportService.instance.importFromDirectory(dir.path);
+    expect((await db.getAllTagCategories()).map((c) => c.name), contains('Outdoors'));
+  });
+
   test('keeps moments logged in the same minute that differ only by mood or tags', () async {
     await File('${dir.path}/journal_entries.csv').writeAsString(
       'ID,Date,Time,Text,Mood,Source,Created At,Tag Names\r\n'

@@ -9,6 +9,8 @@ import '../../../sleep/data/providers/sleep_providers.dart';
 import '../../../meals/data/providers/meal_providers.dart';
 import '../../../exercise/data/providers/exercise_providers.dart';
 import '../../../tags/data/providers/tag_providers.dart';
+import '../../../garden/data/garden_providers.dart';
+import '../../../metrics/data/providers/metrics_providers.dart';
 import 'backup_settings_screen.dart';
 import 'debug_database_screen.dart';
 
@@ -290,11 +292,24 @@ class SettingsScreen extends ConsumerWidget {
         exerciseEntriesProvider,
         taskEntriesProvider,
         activityEntriesProvider,
+        tagsByCategoryProvider,
+        gardenDayProvider,
+        gardenMonthProvider,
+        checkinProvider,
+        momentsProvider,
+        funFactsProvider,
       ]) {
         ref.invalidate(provider);
       }
-      ref.invalidate(allTagsProvider);
-      ref.invalidate(allTagCategoriesProvider);
+      for (final provider in [
+        todaySleepEntriesProvider,
+        todayMealEntriesProvider,
+        todayMoodEntryProvider,
+        allTagsProvider,
+        allTagCategoriesProvider,
+      ]) {
+        ref.invalidate(provider);
+      }
 
       final String message;
       if (result == null) {

@@ -744,6 +744,8 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
   }
 
   Future<void> _confirmDelete() async {
+    // Read before awaiting: ref can't be used once the screen is gone.
+    final container = ProviderScope.containerOf(context, listen: false);
     final confirmed = await showDeleteConfirmationDialog(
       context: context,
       title: 'Delete Exercise',
@@ -751,8 +753,8 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
     );
     if (!confirmed || widget.entry?.id == null) return;
 
-    await ref.read(databaseProvider).deleteExerciseEntry(widget.entry!.id!);
-    ref.invalidate(exerciseEntriesProvider(dayOf(widget.entry!.date)));
+    await container.read(databaseProvider).deleteExerciseEntry(widget.entry!.id!);
+    container.invalidate(exerciseEntriesProvider(dayOf(widget.entry!.date)));
     if (!mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);

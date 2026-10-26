@@ -504,6 +504,11 @@ class _Importer {
       if (exportedId != null) _exportedTagNames[exportedId] = name;
       if (_tagIds.containsKey(name)) return false;
       final category = _text(row, 3) ?? 'General';
+      // A tag can name a category the export left out; tag screens group
+      // by category, so create it rather than hide the tag.
+      if (_categoryNames.add(category)) {
+        await txn.insert('tag_categories', TagCategory(name: category, sortOrder: _categoryNames.length).toMap());
+      }
       _tagIds[name] = await txn.insert(
         'tags',
         Tag(

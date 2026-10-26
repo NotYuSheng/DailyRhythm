@@ -394,6 +394,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   }
 
   Future<void> _confirmDelete() async {
+    // Read before awaiting: ref can't be used once the screen is gone.
+    final container = ProviderScope.containerOf(context, listen: false);
     final confirmed = await showDeleteConfirmationDialog(
       context: context,
       title: 'Delete Meal',
@@ -401,8 +403,9 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     );
     if (!confirmed || widget.entry?.id == null) return;
 
-    await ref.read(databaseProvider).deleteMealEntry(widget.entry!.id!);
-    ref.invalidate(mealEntriesProvider(dayOf(widget.entry!.date)));
+    await container.read(databaseProvider).deleteMealEntry(widget.entry!.id!);
+    container.invalidate(mealEntriesProvider(dayOf(widget.entry!.date)));
+    container.invalidate(todayMealEntriesProvider);
     if (!mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);

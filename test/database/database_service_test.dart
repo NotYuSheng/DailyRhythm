@@ -93,6 +93,31 @@ void main() {
       expect(next.sleepTime!.hour, 23);
     });
 
+    Future<void> threeNights() async {
+      for (final d in [19, 20, 21]) {
+        await db.saveSleepEntry(SleepEntry(
+          date: DateTime(2026, 10, d),
+          wakeUpTime: DateTime(2026, 10, d, 7),
+          sleepTime: DateTime(2026, 10, d, 23),
+        ));
+      }
+    }
+
+    test('clearing a bedtime makes the next day\'s total unknown', () async {
+      await threeNights();
+      expect((await day(21))!.totalHours, 8);
+      await db.saveSleepEntry(SleepEntry(id: (await day(20))!.id, date: DateTime(2026, 10, 20), wakeUpTime: DateTime(2026, 10, 20, 7)));
+      expect((await day(21))!.totalHours, isNull);
+    });
+
+    test('deleting a day makes the next day\'s total unknown', () async {
+      await threeNights();
+      await db.deleteSleepEntry((await day(20))!.id!);
+      expect(await day(20), isNull);
+      expect((await day(21))!.totalHours, isNull);
+      expect((await day(21))!.wakeUpTime, DateTime(2026, 10, 21, 7));
+    });
+
     test('one entry per day', () async {
       for (var i = 0; i < 3; i++) {
         await db.saveSleepEntry(SleepEntry(

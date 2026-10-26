@@ -200,9 +200,14 @@ class DatabaseService {
     if (oldVersion < 12) {
       // Version 11 shipped without an upgrade step, so databases upgraded from
       // version 10 or earlier never received these tables.
+      final hadCategories = (await db.rawQuery(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'tag_categories'",
+      )).isNotEmpty;
       await db.execute(_napEntriesSql(ifNotExists: true));
       await db.execute(_tagCategoriesSql(ifNotExists: true));
-      await _seedTagCategories(db);
+      // Defaults only for a new table: on a working v11 database they may
+      // have been deleted on purpose. Categories in use are always added.
+      await _seedTagCategories(db, includeDefaults: !hadCategories);
 
       // Price becomes optional (fruit, snacks and free food often have none).
       // SQLite cannot drop NOT NULL in place, so rebuild the table.
@@ -222,6 +227,7 @@ class DatabaseService {
           "WHERE date NOT LIKE '%T00:00:00.000'",
         );
       }
+      await _mergeDuplicateDays(db);
     }
     if (oldVersion < 13) {
       await SchemaV13.apply(db);
@@ -271,10 +277,27 @@ class DatabaseService {
     )
   ''';
 
-  /// Ensures the default categories, plus any category already referenced by
-  /// a tag, exist in `tag_categories`.
-  static Future<void> _seedTagCategories(DatabaseExecutor db) async {
-    const defaults = ['General', 'Health', 'Work', 'Hobby', 'Activity'];
+  /// Sleep and mood are one row per day. Before dates were normalized a day
+  /// could get a second row; keep the latest, filling its gaps from the
+  /// others, and drop the rest.
+  static Future<void> _mergeDuplicateDays(DatabaseExecutor db) async {
+    for (final column in ['wakeUpTime', 'sleepTime', 'napHours', 'totalHours']) {
+      await db.execute('''
+        UPDATE sleep_entries SET $column = (
+          SELECT o.$column FROM sleep_entries o
+          WHERE o.date = sleep_entries.date AND o.$column IS NOT NULL ORDER BY o.id DESC LIMIT 1)
+        WHERE $column IS NULL
+      ''');
+    }
+    for (final table in ['sleep_entries', 'mood_entries']) {
+      await db.execute('DELETE FROM $table WHERE id NOT IN (SELECT MAX(id) FROM $table GROUP BY date)');
+    }
+  }
+
+  /// Ensures the default categories (unless [includeDefaults] is false),
+  /// plus any category already referenced by a tag, exist in `tag_categories`.
+  static Future<void> _seedTagCategories(DatabaseExecutor db, {bool includeDefaults = true}) async {
+    final defaults = includeDefaults ? const ['General', 'Health', 'Work', 'Hobby', 'Activity'] : const <String>[];
     final existing = (await db.query('tag_categories', columns: ['name']))
         .map((row) => row['name'] as String)
         .toSet();
@@ -534,29 +557,48 @@ class DatabaseService {
   /// time, so saving day N computes N's total and recomputes N+1's.
   /// Returns the saved total for day N, or null if it cannot be computed.
   Future<double?> saveSleepEntry(SleepEntry entry) async {
+    final db = await database;
     final day = dayOf(entry.date);
-    final previous = await getSleepEntryByDate(DateTime(day.year, day.month, day.day - 1));
-    final totalHours = previous?.sleepTime != null && entry.wakeUpTime != null
-        ? sleepDurationHours(previous!.sleepTime!, entry.wakeUpTime!)
-        : null;
+    // One transaction, so day N and N+1 can't end up with mismatched totals.
+    return db.transaction((txn) async {
+      Future<SleepEntry?> onDay(DateTime d) async {
+        final rows = await txn.query('sleep_entries', where: 'date = ?', whereArgs: [d.toIso8601String()], limit: 1);
+        return rows.isEmpty ? null : SleepEntry.fromMap(rows.first);
+      }
 
-    await upsertSleepEntry(SleepEntry(
-      id: entry.id,
-      date: day,
-      wakeUpTime: entry.wakeUpTime,
-      sleepTime: entry.sleepTime,
-      totalHours: totalHours,
-      napHours: entry.napHours,
-      tags: entry.tags,
-    ));
+      final previous = await onDay(DateTime(day.year, day.month, day.day - 1));
+      final totalHours = previous?.sleepTime != null && entry.wakeUpTime != null
+          ? sleepDurationHours(previous!.sleepTime!, entry.wakeUpTime!)
+          : null;
 
-    final next = await getSleepEntryByDate(DateTime(day.year, day.month, day.day + 1));
-    if (next != null && next.wakeUpTime != null && entry.sleepTime != null) {
-      await updateSleepEntry(next.copyWith(
-        totalHours: sleepDurationHours(entry.sleepTime!, next.wakeUpTime!),
-      ));
-    }
-    return totalHours;
+      final existing = await onDay(day);
+      final map = SleepEntry(
+        id: existing?.id ?? entry.id,
+        date: day,
+        wakeUpTime: entry.wakeUpTime,
+        sleepTime: entry.sleepTime,
+        totalHours: totalHours,
+        napHours: entry.napHours,
+        tags: entry.tags,
+      ).toMap();
+      if (existing == null) {
+        map.remove('id');
+        await txn.insert('sleep_entries', map);
+      } else {
+        await txn.update('sleep_entries', map, where: 'id = ?', whereArgs: [existing.id]);
+      }
+
+      final next = await onDay(DateTime(day.year, day.month, day.day + 1));
+      if (next != null && next.wakeUpTime != null) {
+        await txn.update(
+          'sleep_entries',
+          {'totalHours': entry.sleepTime == null ? null : sleepDurationHours(entry.sleepTime!, next.wakeUpTime!)},
+          where: 'id = ?',
+          whereArgs: [next.id],
+        );
+      }
+      return totalHours;
+    });
   }
 
   Future<int> updateSleepEntry(SleepEntry entry) async {
@@ -569,13 +611,24 @@ class DatabaseService {
     );
   }
 
+  /// Deletes a day's sleep. The next day's total came from this day's
+  /// bedtime, so it becomes unknown.
   Future<int> deleteSleepEntry(int id) async {
     final db = await database;
-    return await db.delete(
-      'sleep_entries',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return db.transaction((txn) async {
+      final rows = await txn.query('sleep_entries', columns: ['date'], where: 'id = ?', whereArgs: [id]);
+      final deleted = await txn.delete('sleep_entries', where: 'id = ?', whereArgs: [id]);
+      if (rows.isNotEmpty) {
+        final day = dayOf(DateTime.parse(rows.first['date'] as String));
+        await txn.update(
+          'sleep_entries',
+          {'totalHours': null},
+          where: 'date = ?',
+          whereArgs: [DateTime(day.year, day.month, day.day + 1).toIso8601String()],
+        );
+      }
+      return deleted;
+    });
   }
 
   // ==================== Nap Entry CRUD ====================

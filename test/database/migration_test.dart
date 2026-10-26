@@ -92,6 +92,33 @@ Future<Map<String, List<String>>> _columns(Database db) async {
   };
 }
 
+/// A version 11 database that did get its tables (a fresh v11 install):
+/// one default category deleted on purpose, and a day with two sleep rows
+/// from before dates were normalized.
+Future<String> _prepareWorkingVersion11(Directory dir) async {
+  final path = '${dir.path}/v11_working.db';
+  sqfliteFfiInit();
+  final db = await databaseFactoryFfiNoIsolate.openDatabase(
+    path,
+    options: OpenDatabaseOptions(
+      version: 11,
+      onCreate: (db, _) async {
+        await _createVersion10Schema(db);
+        await db.execute('CREATE TABLE tag_categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, color TEXT, sort_order INTEGER)');
+        for (final name in ['General', 'Health', 'Hobby', 'Activity', 'Fitness', 'Food']) {
+          await db.insert('tag_categories', {'name': name});
+        }
+        await db.insert('sleep_entries', {'date': '2024-03-05T00:00:00.000', 'wakeUpTime': '2024-03-05T07:00:00.000'});
+        await db.insert('sleep_entries', {'date': '2024-03-05T22:10:00.000', 'sleepTime': '2024-03-05T22:10:00.000'});
+        await db.insert('mood_entries', {'date': '2024-03-05T00:00:00.000', 'timestamp': '2024-03-05T09:00:00.000', 'moodLevel': 2, 'emoji': 'x'});
+        await db.insert('mood_entries', {'date': '2024-03-05T21:00:00.000', 'timestamp': '2024-03-05T21:00:00.000', 'moodLevel': 4, 'emoji': 'x'});
+      },
+    ),
+  );
+  await db.close();
+  return path;
+}
+
 void main() {
   late Directory dir;
 
@@ -166,4 +193,26 @@ void main() {
       });
     });
   }
+
+  group('upgrade from a working version 11', () {
+    late DatabaseService service;
+
+    setUp(() async => service = await openTestDatabase(path: await _prepareWorkingVersion11(dir)));
+
+    test('doesn\'t bring back default categories that were deleted', () async {
+      final categories = (await service.getAllTagCategories()).map((c) => c.name);
+      expect(categories, isNot(contains('Work')));
+      expect(categories, contains('Hobby'));
+    });
+
+    test('merges days that had two sleep or mood rows', () async {
+      final sleep = await service.getSleepEntryByDate(DateTime(2024, 3, 5));
+      expect(sleep!.wakeUpTime, DateTime(2024, 3, 5, 7));
+      expect(sleep.sleepTime, DateTime(2024, 3, 5, 22, 10));
+      final db = await service.database;
+      expect(await db.query('sleep_entries'), hasLength(1));
+      final moods = await db.query('mood_entries');
+      expect([for (final m in moods) m['moodLevel']], [4]);
+    });
+  });
 }
