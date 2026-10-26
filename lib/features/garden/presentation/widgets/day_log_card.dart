@@ -25,6 +25,7 @@ import '../garden_style.dart';
 void invalidateDayLog(WidgetRef ref, DateTime day) {
   ref.invalidate(sleepEntriesProvider);
   ref.invalidate(mealEntriesProvider);
+  ref.invalidate(foodCaloriesProvider);
   ref.invalidate(exerciseEntriesProvider);
   ref.invalidate(moodEntryProvider);
   ref.invalidate(activityEntriesProvider);
@@ -71,6 +72,10 @@ class DayLogCard extends ConsumerWidget {
       if (m.price != null && m.price! > 0) spent[m.currency] = (spent[m.currency] ?? 0) + m.price!;
     }
     final spentText = [for (final e in spent.entries) formatMoney(e.value, e.key)].join(' + ');
+    // Calories as logged or from each food; an estimate, so "≈".
+    final foodKcal = ref.watch(foodCaloriesProvider).value ?? const <int, double>{};
+    final kcal = [for (final m in meals) ?m.caloriesWith(foodKcal)];
+    final kcalText = kcal.isEmpty ? '' : ' · ≈${NumberFormat.decimalPattern().format(kcal.reduce((a, b) => a + b).round())} kcal';
     final activityNames = [for (final a in activities) tags[a.tagId]?.name].whereType<String>().toList()..sort();
 
     return Container(
@@ -93,7 +98,7 @@ class DayLogCard extends ConsumerWidget {
             title: 'Meals',
             summary: meals.isEmpty
                 ? 'Add a meal'
-                : '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'}${spentText.isEmpty ? '' : ' · $spentText'}',
+                : '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'}${spentText.isEmpty ? '' : ' · $spentText'}$kcalText',
             colors: colors,
             action: 'Add',
             onTap: () => open(AddMealScreen(date: day)),

@@ -57,6 +57,14 @@ class MealEntry {
   });
 
   // Convert to Map for database
+  /// Calories for the line: as logged, or else the food's calories per
+  /// serving times the quantity. Null when neither is known.
+  double? caloriesWith(Map<int, double> foodKcal) =>
+      calories?.toDouble() ?? switch (foodKcal[foodItemId]) {
+        final kcal? => kcal * quantity,
+        null => null,
+      };
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,

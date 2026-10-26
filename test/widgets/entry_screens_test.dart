@@ -3,6 +3,8 @@ import 'package:daily_rhythm/features/exercise/data/models/exercise_item.dart';
 import 'package:daily_rhythm/features/exercise/presentation/screens/add_exercise_screen.dart';
 import 'package:daily_rhythm/features/meals/data/models/food_item.dart';
 import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
+import 'package:daily_rhythm/features/meals/data/providers/meal_providers.dart';
+import 'package:daily_rhythm/features/meals/data/services/calorie_lookup.dart';
 import 'package:daily_rhythm/shared/services/database/repositories/catalog_repository.dart';
 import 'package:daily_rhythm/features/meals/presentation/screens/add_meal_screen.dart';
 import 'package:daily_rhythm/features/sleep/data/models/sleep_entry.dart';
@@ -120,6 +122,73 @@ void main() {
       final meal = (await db.getMealEntriesByDate(pastDay)).single;
       final rice = await CatalogRepository(db).findFood('Mixed rice');
       expect((meal.name, meal.foodItemId, meal.foodSource), ('Mixed rice', rice!.id, FoodSource.foodCourt));
+    });
+
+    testWidgets('typed calories become the food\'s, per serving', (tester) async {
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.enterText(_field('Meal Name'), 'Laksa');
+      await tester.enterText(_field('Qty'), '2');
+      await tester.tap(find.text('More'));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Calories (optional)'), '1100');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final laksa = (await CatalogRepository(db).findFood('Laksa'))!;
+      expect((laksa.kcal, laksa.kcalSource), (550.0, 'user'));
+    });
+
+    testWidgets('a known food\'s calories show as the default; a lookup fills them', (tester) async {
+      await CatalogRepository(db).saveFood(FoodItem(name: 'Maggi', kcal: 380, kcalSource: 'off'));
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [calorieLookupProvider.overrideWithValue(_FakeLookup())],
+        child: MaterialApp(home: AddMealScreen(date: pastDay)),
+      ));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Meal Name'), 'Maggi');
+      await tester.tap(find.text('More'));
+      await tester.pumpAndSettle();
+      expect(find.text('≈ 380 from Maggi'), findsOneWidget);
+
+      await tester.enterText(_field('Meal Name'), 'Mee goreng');
+      await tester.pump();
+      await tester.tap(find.text('Look up calories'));
+      await tester.pumpAndSettle();
+      expect(find.text('From Open Food Facts (ODbL). Estimates, not nutrition advice.'), findsOneWidget);
+      await tester.tap(find.text('Fried noodles'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(_field('Calories (optional)')).controller!.text, '510');
+      await tester.enterText(_field('Qty'), '2');
+      await tester.pump();
+      expect(tester.widget<TextField>(_field('Calories (optional)')).controller!.text, '1020');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final food = (await CatalogRepository(db).findFood('Mee goreng'))!;
+      expect((food.kcal, food.kcalSource), (510.0, 'off'));
+    });
+
+    testWidgets('editing an old meal doesn\'t change its food\'s calories', (tester) async {
+      final maggi = await CatalogRepository(db).saveFood(FoodItem(name: 'Maggi', kcal: 380, kcalSource: 'off'));
+      await db.createMealEntry(MealEntry(date: pastDay, time: DateTime(2026, 10, 20, 12), name: 'Maggi', calories: 500, foodItemId: maggi));
+      final meal = (await db.getMealEntriesByDate(pastDay)).single;
+      await tester.pumpWidget(_app(AddMealScreen(entry: meal)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final food = (await CatalogRepository(db).findFood('Maggi'))!;
+      expect((food.kcal, food.kcalSource), (380.0, 'off'));
+    });
+
+    testWidgets('a quantity of 0 isn\'t saved', (tester) async {
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.enterText(_field('Meal Name'), 'Laksa');
+      await tester.enterText(_field('Qty'), '0');
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      expect(find.text('Quantity must be at least 1'), findsOneWidget);
+      expect(await db.getMealEntriesByDate(pastDay), isEmpty);
     });
 
     testWidgets('a new food joins the catalog with its price', (tester) async {
@@ -358,4 +427,10 @@ void main() {
       expect(saved.timestamp, DateTime(2026, 10, 20, 19));
     });
   });
+}
+
+class _FakeLookup implements CalorieLookup {
+  @override
+  Future<List<CalorieMatch>> search(String query) async =>
+      [const CalorieMatch(name: 'Fried noodles', kcal: 510, basis: 'serving', source: 'off')];
 }
