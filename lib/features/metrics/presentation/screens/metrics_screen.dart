@@ -125,8 +125,13 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                   icon: Icons.bedtime_outlined,
                   label: 'Avg Sleep',
                   value: metrics.dailyData.isEmpty ? '–' : '${metrics.averageHours.toStringAsFixed(1)}h',
-                  trend: _calculateTrend(metrics.averageHours, metrics.previousAverageHours),
-                  trendPercentage: _calculateTrendPercentage(metrics.averageHours, metrics.previousAverageHours),
+                  // No trend without sleep this period.
+                  trend: metrics.dailyData.isEmpty
+                      ? TrendDirection.neutral
+                      : _calculateTrend(metrics.averageHours, metrics.previousAverageHours),
+                  trendPercentage: metrics.dailyData.isEmpty
+                      ? 0
+                      : _calculateTrendPercentage(metrics.averageHours, metrics.previousAverageHours),
                 ),
                 loading: () => _buildLoadingCard(),
                 error: (_, _) => _buildErrorCard('Sleep'),
@@ -329,7 +334,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
 
   Widget _buildActivityBreakdown() {
     final activityAsync = ref.watch(activityMetricsProvider(_selectedRange));
-    final theme = Theme.of(context);
+    final colors = GardenColors.of(context);
 
     return GardenSection(
       title: 'Top activities',
@@ -351,19 +356,17 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                     Expanded(
                       child: Text(
                         activity.tagName,
-                        style: theme.textTheme.bodyMedium,
+                        style: nunito(14, FontWeight.w700, colors.ink),
                       ),
                     ),
                     Text(
                       '${activity.count}x',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: nunito(14, FontWeight.w900, colors.ink),
                     ),
                     const SizedBox(width: AppTheme.spacePulse2),
                     Text(
                       '${activity.percentage.toStringAsFixed(0)}%',
-                      style: theme.textTheme.bodySmall,
+                      style: nunito(12, FontWeight.w700, colors.muted),
                     ),
                   ],
                 ),
@@ -379,7 +382,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
 
   Widget _buildInsights() {
     final insightsAsync = ref.watch(metricsInsightsProvider(_selectedRange));
-    final theme = Theme.of(context);
+    final colors = GardenColors.of(context);
 
     return GardenSection(
       title: 'Compared with before',
@@ -401,13 +404,13 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
                     Icon(
                       _getInsightIcon(insight.type),
                       size: 16,
-                      color: AppTheme.getSubtleTextColor(context),
+                      color: colors.leaf,
                     ),
                     const SizedBox(width: AppTheme.spacePulse2),
                     Expanded(
                       child: Text(
                         insight.text,
-                        style: theme.textTheme.bodyMedium,
+                        style: nunito(14, FontWeight.w600, colors.ink),
                       ),
                     ),
                   ],
@@ -470,10 +473,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
         child: Text(
           message,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontSize: 14,
-          ),
+          style: nunito(14, FontWeight.w600, GardenColors.of(context).muted),
         ),
       ),
     );

@@ -84,3 +84,30 @@ TextStyle nunito(double size, FontWeight weight, Color color) => TextStyle(
       color: color,
       height: 1.25,
     );
+
+/// A titled garden card.
+class GardenSection extends StatelessWidget {
+  const GardenSection({super.key, required this.title, required this.colors, required this.child, this.subtitle});
+
+  final String title;
+  final String? subtitle;
+  final GardenColors colors;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(26)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(header: true, child: Text(title, style: nunito(18, FontWeight.w900, colors.ink))),
+          if (subtitle != null) Text(subtitle!, style: nunito(13, FontWeight.w600, colors.muted)),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+}

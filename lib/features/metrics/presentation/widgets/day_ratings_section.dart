@@ -83,33 +83,6 @@ class DayRatingsSection extends ConsumerWidget {
   }
 }
 
-/// A titled garden card.
-class GardenSection extends StatelessWidget {
-  const GardenSection({super.key, required this.title, required this.colors, required this.child, this.subtitle});
-
-  final String title;
-  final String? subtitle;
-  final GardenColors colors;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(26)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Semantics(header: true, child: Text(title, style: nunito(18, FontWeight.w900, colors.ink))),
-          if (subtitle != null) Text(subtitle!, style: nunito(13, FontWeight.w600, colors.muted)),
-          const SizedBox(height: 12),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
 class _RatingRow extends StatelessWidget {
   const _RatingRow({required this.summary, required this.colors});
 
@@ -121,7 +94,7 @@ class _RatingRow extends StatelessWidget {
     final rating = summary.rating;
     final average = summary.average!;
     final previous = summary.previousAverage;
-    final change = previous == null || (average - previous).abs() < 0.3
+    final change = previous == null || summary.days < DayRatingsService.minDays || (average - previous).abs() < 0.3
         ? ''
         : ', ${average > previous ? 'higher' : 'lower'} than the period before';
     final values = [for (var v = rating.min; v <= rating.max; v++) v];
@@ -130,7 +103,7 @@ class _RatingRow extends StatelessWidget {
 
     return Semantics(
       container: true,
-      label: '${rating.label}: mostly ${rating.wordNear(average).toLowerCase()} over ${summary.days} days$change. '
+      label: '${rating.label}: mostly ${rating.wordFor(summary.mostCommon).toLowerCase()} over ${summary.days} days$change. '
           '${[for (final v in values) if (summary.counts[v]! > 0) '${rating.wordFor(v)} ${summary.counts[v]}'].join(', ')}',
       excludeSemantics: true,
       child: Padding(
@@ -144,7 +117,7 @@ class _RatingRow extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'mostly ${rating.wordNear(average).toLowerCase()} · ${summary.days} ${summary.days == 1 ? 'day' : 'days'}$change',
+                    'mostly ${rating.wordFor(summary.mostCommon).toLowerCase()} · ${summary.days} ${summary.days == 1 ? 'day' : 'days'}$change',
                     style: nunito(13, FontWeight.w600, colors.muted),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 2,

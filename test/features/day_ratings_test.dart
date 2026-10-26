@@ -26,8 +26,19 @@ void main() {
       expect(s.counts, {-2: 0, -1: 1, 0: 0, 1: 2, 2: 0});
       expect(s.days, 3);
       expect(s.average, closeTo(1 / 3, 1e-9));
-      expect(Rating.energy.wordNear(s.average!), 'Usual');
+      expect(Rating.energy.wordFor(s.mostCommon), 'Higher');
       expect(DayRatingsService.summarize(Rating.mood, days).days, 1);
+    });
+
+    test('the usual word is the value logged most, and values off the scale are left out', () {
+      final days = [
+        for (var d = 1; d <= 3; d++) day(d, {Rating.mood: 1}),
+        for (var d = 4; d <= 6; d++) day(d, {Rating.mood: 5}),
+        day(7, {Rating.mood: 0}),
+      ];
+      final s = DayRatingsService.summarize(Rating.mood, days);
+      expect(s.days, 6);
+      expect(Rating.mood.wordFor(s.mostCommon), 'Great', reason: 'a tie goes to the higher value, never the unlogged middle');
     });
 
     test('the previous period needs the minimum days to compare', () {
@@ -74,7 +85,7 @@ void main() {
         if (d <= 6) await db.createActivityEntry(ActivityEntry(date: date, timestamp: date, tagId: gym));
       }
       await HealthRepository(db).saveMetrics([
-        for (var d = 1; d <= 4; d++)
+        for (var d = 1; d <= 5; d++)
           HealthMetric(date: DateTime(2026, 3, d), metric: 'sleep_minutes', value: 450, source: HealthSource.garminExport),
       ]);
 

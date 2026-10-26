@@ -1,5 +1,5 @@
 import '../../../../shared/services/database/database_service.dart';
-import '../../../../shared/services/database/repositories/health_repository.dart';
+import '../../../health/data/models/health_metric.dart';
 import '../../../../shared/utils/date_utils.dart';
 import '../models/metric_data.dart';
 
@@ -22,8 +22,6 @@ enum Rating {
 
   String wordFor(int value) => words[value - min];
 
-  /// The word nearest an average, for "mostly usual".
-  String wordNear(double average) => wordFor(average.round().clamp(min, max));
 }
 
 const _relative = ['Much lower', 'Lower', 'Usual', 'Higher', 'Much higher'];
@@ -48,6 +46,9 @@ class RatingSummary {
   final double? previousAverage;
 
   int get days => counts.values.fold(0, (sum, n) => sum + n);
+
+  /// The value logged most, highest first on a tie.
+  int get mostCommon => counts.entries.reduce((a, b) => b.value >= a.value ? b : a).key;
 
   double? get average =>
       days == 0 ? null : counts.entries.fold<int>(0, (sum, e) => sum + e.key * e.value) / days;
@@ -95,7 +96,7 @@ class WatchAverage {
 /// Watch metrics shown on Metrics, when the watch recorded them.
 enum WatchMetric {
   steps('steps', 'Steps', ''),
-  sleep('sleep_minutes', 'Sleep', 'h'),
+  sleep('sleep_minutes', 'Sleep (watch)', 'h'),
   restingHr('resting_hr', 'Resting heart rate', 'bpm'),
   stress('stress_avg', 'Stress (watch)', ''),
   bodyBattery('body_battery_high', 'Body Battery peak', ''),
@@ -139,18 +140,20 @@ class DayRatingsService {
     final previousStart = DateTime(previousEnd.year, previousEnd.month, previousEnd.day - length + 1);
     final previous = await ratedDays(previousStart, previousEnd);
 
-    final health = HealthRepository(_db);
+    // One query for every watch metric over both periods.
+    final values = await _watchValues(previousStart, range.end);
     final watch = <WatchAverage>[];
     for (final metric in WatchMetric.values) {
-      final now = await health.series(metric.key, range.start, range.end);
-      if (now.length < 3) continue;
-      final before = await health.series(metric.key, previousStart, previousEnd);
+      final byDay = values[metric.key] ?? const <DateTime, double>{};
+      final now = [for (final e in byDay.entries) if (!e.key.isBefore(dayOf(range.start))) e.value];
+      final before = [for (final e in byDay.entries) if (e.key.isBefore(dayOf(range.start))) e.value];
+      if (now.length < minDays) continue;
       double avg(List<double> v) => v.reduce((a, b) => a + b) / v.length;
       watch.add(WatchAverage(
         metric: metric,
         days: now.length,
-        average: metric.display(avg([for (final m in now) m.value])),
-        previousAverage: before.length < 3 ? null : metric.display(avg([for (final m in before) m.value])),
+        average: metric.display(avg(now)),
+        previousAverage: before.length < minDays ? null : metric.display(avg(before)),
       ));
     }
 
@@ -159,6 +162,29 @@ class DayRatingsService {
       comparisons: compareTags(days),
       watch: watch,
     );
+  }
+
+  /// Watch values by metric and day, from the preferred source each day.
+  Future<Map<String, Map<DateTime, double>>> _watchValues(DateTime start, DateTime end) async {
+    final db = await _db.database;
+    final last = dayOf(end);
+    final keys = [for (final m in WatchMetric.values) m.key];
+    final rows = await db.query(
+      'health_metrics',
+      where: 'date >= ? AND date < ? AND metric IN (${List.filled(keys.length, '?').join(', ')})',
+      whereArgs: [dayOf(start).toIso8601String(), DateTime(last.year, last.month, last.day + 1).toIso8601String(), ...keys],
+    );
+    final best = <String, Map<DateTime, (double, String)>>{};
+    for (final r in rows) {
+      final day = dayOf(DateTime.parse(r['date'] as String));
+      final source = r['source'] as String;
+      final byDay = best[r['metric'] as String] ??= {};
+      final current = byDay[day];
+      if (current == null || HealthSource.rank(source) < HealthSource.rank(current.$2)) {
+        byDay[day] = ((r['value'] as num).toDouble(), source);
+      }
+    }
+    return {for (final MapEntry(:key, :value) in best.entries) key: {for (final e in value.entries) e.key: e.value.$1}};
   }
 
   /// Every day from [start] to [end] with at least one rating.
@@ -196,9 +222,13 @@ class DayRatingsService {
   static RatingSummary summarize(Rating rating, List<RatedDay> days, [List<RatedDay> previous = const []]) {
     final counts = {for (var v = rating.min; v <= rating.max; v++) v: 0};
     for (final d in days) {
-      if (d.ratings[rating] case final v?) counts[v] = (counts[v] ?? 0) + 1;
+      // Values outside the scale (bad imports) are left out.
+      if (d.ratings[rating] case final v? when counts.containsKey(v)) counts[v] = counts[v]! + 1;
     }
-    final before = [for (final d in previous) ?d.ratings[rating]];
+    final before = [
+      for (final d in previous)
+        if (d.ratings[rating] case final v? when v >= rating.min && v <= rating.max) v,
+    ];
     return RatingSummary(
       rating: rating,
       counts: counts,
