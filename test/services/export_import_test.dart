@@ -282,6 +282,15 @@ void main() {
     expect((await db.getAllTagCategories()).map((c) => c.name), contains('Outdoors'));
   });
 
+  test('an unrecognised tag kind falls back to one worked out from the tag', () async {
+    await File('${dir.path}/tags.csv').writeAsString(
+      'ID,Name,Emoji,Category,Color,Sort Order,Kind\r\n1,Headache,x,Health,,0,Symptoms\r\n2,Chess,x,Hobby,,1,ACTIVITY',
+    );
+    await ExportService.instance.importFromDirectory(dir.path);
+    final kinds = {for (final t in await db.getAllTags()) t.name: t.kind};
+    expect([kinds['Headache'], kinds['Chess']], [TagKind.symptom, TagKind.activity]);
+  });
+
   test('keeps moments logged in the same minute that differ only by mood or tags', () async {
     await File('${dir.path}/journal_entries.csv').writeAsString(
       'ID,Date,Time,Text,Mood,Source,Created At,Tag Names\r\n'

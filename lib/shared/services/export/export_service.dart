@@ -570,7 +570,10 @@ class _Importer {
           category: category,
           color: _text(row, 4),
           sortOrder: _int(row, 5),
-          kind: _text(row, 6) ?? SchemaV13.kindFor(name, category),
+          kind: switch (_text(row, 6)?.toLowerCase()) {
+            final k? when const [TagKind.activity, TagKind.symptom, TagKind.foodSource].contains(k) => k,
+            _ => SchemaV13.kindFor(name, category),
+          },
         ).toMap(),
       );
       // A tag can name a category the export left out; tag screens group

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../shared/services/database/database_provider.dart';
+import '../../../../shared/services/database/database_service.dart';
 import '../../../garden/data/garden_providers.dart';
 import '../../../garden/presentation/garden_style.dart';
 import '../../data/models/tag.dart';
@@ -14,17 +15,26 @@ const tagKinds = [
   (TagKind.symptom, 'Symptoms', 'How your body felt'),
 ];
 
-/// Refreshes everything that shows tags after one changes.
-void _invalidateTags(WidgetRef ref) {
+/// Refreshes everything that shows tags after one changes. Takes the
+/// container, read before any await, so it works after a sheet closes.
+void _invalidateTags(ProviderContainer container) {
   for (final provider in [allTagsProvider, allTagCategoriesProvider, tagUseCountsProvider]) {
-    ref.invalidate(provider);
+    container.invalidate(provider);
   }
-  ref.invalidate(tagsByCategoryProvider);
-  ref.invalidate(activityEntriesProvider);
-  ref.invalidate(momentsProvider);
-  ref.invalidate(gardenDayProvider);
-  ref.invalidate(gardenMonthProvider);
+  container.invalidate(tagsByCategoryProvider);
+  container.invalidate(activityEntriesProvider);
+  container.invalidate(momentsProvider);
+  container.invalidate(gardenDayProvider);
+  container.invalidate(gardenMonthProvider);
 }
+
+/// A tag's kind, with anything unrecognised (an odd value from an import)
+/// shown as an activity so it can still be edited.
+String kindOf(Tag tag) => tagKinds.any((k) => k.$1 == tag.kind) ? tag.kind : TagKind.activity;
+
+/// By the user's order where set, then by name.
+int _byOrder(int? a, int? b, String nameA, String nameB) =>
+    a != b ? (a ?? 1 << 30).compareTo(b ?? 1 << 30) : nameA.toLowerCase().compareTo(nameB.toLowerCase());
 
 /// Tags grouped by kind, as pills. Tap one to rename it, change its kind
 /// or group, merge it into another, or delete it.
@@ -62,7 +72,7 @@ class TagsScreen extends ConsumerWidget {
               Semantics(header: true, child: Text(title, style: nunito(20, FontWeight.w900, colors.ink))),
               Text(subtitle, style: nunito(13, FontWeight.w600, colors.muted)),
               const SizedBox(height: 8),
-              _KindCard(tags: [for (final t in list) if (t.kind == kind) t], uses: uses, colors: colors),
+              _KindCard(tags: [for (final t in list) if (kindOf(t) == kind) t], kind: kind, uses: uses, colors: colors),
             ],
           ],
         ),
@@ -72,9 +82,10 @@ class TagsScreen extends ConsumerWidget {
 }
 
 class _KindCard extends ConsumerWidget {
-  const _KindCard({required this.tags, required this.uses, required this.colors});
+  const _KindCard({required this.tags, required this.kind, required this.uses, required this.colors});
 
   final List<Tag> tags;
+  final String kind;
   final Map<int, int> uses;
   final GardenColors colors;
 
@@ -84,7 +95,8 @@ class _KindCard extends ConsumerWidget {
     for (final t in tags) {
       byCategory.putIfAbsent(t.category, () => []).add(t);
     }
-    final categories = byCategory.keys.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    final order = {for (final c in ref.watch(allTagCategoriesProvider).value ?? const <TagCategory>[]) c.name: c.sortOrder};
+    final categories = byCategory.keys.toList()..sort((a, b) => _byOrder(order[a], order[b], a, b));
     // Groups are optional: only shown when a kind has more than one.
     final showGroups = categories.length > 1;
 
@@ -120,7 +132,7 @@ class _KindCard extends ConsumerWidget {
                     spacing: 6,
                     runSpacing: 6,
                     children: [
-                      for (final tag in byCategory[category]!..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase())))
+                      for (final tag in byCategory[category]!..sort((a, b) => _byOrder(a.sortOrder, b.sortOrder, a.name, b.name)))
                         _TagPill(tag: tag, uses: uses[tag.id] ?? 0, colors: colors),
                     ],
                   ),
@@ -130,7 +142,11 @@ class _KindCard extends ConsumerWidget {
     );
   }
 
+  /// Renames a group for this kind's tags only; renaming to a group that
+  /// already exists joins it.
   Future<void> _renameCategory(BuildContext context, WidgetRef ref, String name) async {
+    final container = ProviderScope.containerOf(context, listen: false);
+    final messenger = ScaffoldMessenger.of(context);
     final controller = TextEditingController(text: name);
     final renamed = await showDialog<String>(
       context: context,
@@ -145,17 +161,12 @@ class _KindCard extends ConsumerWidget {
     );
     controller.dispose();
     if (renamed == null || renamed.isEmpty || renamed == name) return;
-    final db = ref.read(databaseProvider);
-    final category = (await db.getAllTagCategories()).where((c) => c.name == name).firstOrNull;
-    if (category == null) {
-      // A group only tags name: move them.
-      for (final t in tags.where((t) => t.category == name)) {
-        await db.updateTag(t.copyWith(category: renamed));
-      }
-    } else {
-      await db.updateTagCategory(TagCategory(id: category.id, name: renamed, color: category.color, sortOrder: category.sortOrder));
+    try {
+      await container.read(databaseProvider).moveTagsToGroup([for (final t in tags) if (t.category == name) t.id!], renamed);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Couldn’t rename the group: $e')));
     }
-    _invalidateTags(ref);
+    _invalidateTags(container);
   }
 }
 
@@ -225,6 +236,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
   final _groupFocus = FocusNode();
   late String _kind = widget.tag?.kind ?? TagKind.activity;
   String? _error;
+  bool _busy = false;
 
   @override
   void dispose() {
@@ -241,23 +253,41 @@ class _TagSheetState extends ConsumerState<TagSheet> {
       setState(() => _error = 'Give the tag a name');
       return;
     }
-    final db = ref.read(databaseProvider);
-    final clash = (await db.getAllTags()).where((t) => t.name.toLowerCase() == name.toLowerCase() && t.id != widget.tag?.id);
+    final clash = (ref.read(allTagsProvider).value ?? const <Tag>[])
+        .where((t) => t.name.toLowerCase() == name.toLowerCase() && t.id != widget.tag?.id);
     if (clash.isNotEmpty) {
       setState(() => _error = 'There’s already a tag called ${clash.first.name}. Merge into it instead?');
       return;
     }
-    if (!(await db.getAllTagCategories()).any((c) => c.name == group)) {
-      await db.createTagCategory(TagCategory(name: group));
+    await _run((db) async {
+      final tag = widget.tag;
+      if (tag == null) {
+        await db.createTag(Tag(name: name, emoji: 'tag', category: group, kind: _kind));
+        await db.moveTagsToGroup(const [], group); // makes sure the group exists
+      } else {
+        await db.updateTag(tag.copyWith(name: name, kind: _kind));
+        await db.moveTagsToGroup([tag.id!], group);
+      }
+    });
+  }
+
+  /// Runs one change with the sheet disabled, refreshes, and closes;
+  /// shows the error instead if it fails.
+  Future<void> _run(Future<void> Function(DatabaseService db) change) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final container = ProviderScope.containerOf(context, listen: false);
+    final navigator = Navigator.of(context);
+    try {
+      await change(container.read(databaseProvider));
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Couldn’t save: $e');
+      return;
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    final tag = widget.tag;
-    if (tag == null) {
-      await db.createTag(Tag(name: name, emoji: 'tag', category: group, kind: _kind));
-    } else {
-      await db.updateTag(tag.copyWith(name: name, category: group, kind: _kind));
-    }
-    _invalidateTags(ref);
-    if (mounted) Navigator.pop(context);
+    _invalidateTags(container);
+    if (mounted) navigator.pop();
   }
 
   Future<void> _merge(Tag tag, int uses) async {
@@ -287,13 +317,11 @@ class _TagSheetState extends ConsumerState<TagSheet> {
     if (into == null || !mounted) return;
     final ok = await _confirm(
       'Merge ${tag.name} into ${into.name}?',
-      'Its $uses ${uses == 1 ? 'use moves' : 'uses move'} to ${into.name}, and ${tag.name} is removed.',
+      'Its $uses ${uses == 1 ? 'use moves' : 'uses move'} to ${into.name} (a day that has both keeps one), and ${tag.name} is removed.',
       'Merge',
     );
     if (!ok) return;
-    await ref.read(databaseProvider).mergeTags(tag.id!, into.id!);
-    _invalidateTags(ref);
-    if (mounted) Navigator.pop(context);
+    await _run((db) => db.mergeTags(tag.id!, into.id!));
   }
 
   Future<void> _delete(Tag tag, int uses) async {
@@ -303,9 +331,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
       'Delete',
     );
     if (!ok) return;
-    await ref.read(databaseProvider).deleteTag(tag.id!);
-    _invalidateTags(ref);
-    if (mounted) Navigator.pop(context);
+    await _run((db) => db.deleteTag(tag.id!));
   }
 
   Future<bool> _confirm(String title, String message, String action) async {
@@ -328,10 +354,8 @@ class _TagSheetState extends ConsumerState<TagSheet> {
     final colors = GardenColors.of(context);
     final tag = widget.tag;
     final uses = tag == null ? 0 : ref.watch(tagUseCountsProvider).value?[tag.id] ?? 0;
-    final groups = {
-      for (final c in ref.watch(allTagCategoriesProvider).value ?? const <TagCategory>[]) c.name,
-    }.toList()
-      ..sort();
+    // Groups in use, so a mistyped one goes away once nothing uses it.
+    final groups = {for (final t in ref.watch(allTagsProvider).value ?? const <Tag>[]) t.category}.toList()..sort();
 
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
@@ -394,7 +418,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
             ),
             const SizedBox(height: 18),
             FilledButton(
-              onPressed: _save,
+              onPressed: _busy ? null : _save,
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(52),
                 backgroundColor: colors.accent,
@@ -409,7 +433,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                   Expanded(
                     child: TextButton.icon(
                       style: TextButton.styleFrom(minimumSize: const Size(0, 48), foregroundColor: colors.leaf),
-                      onPressed: () => _merge(tag, uses),
+                      onPressed: _busy ? null : () => _merge(tag, uses),
                       icon: const Icon(Icons.merge_type),
                       label: const Text('Merge into…'),
                     ),
@@ -417,7 +441,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
                   Expanded(
                     child: TextButton.icon(
                       style: TextButton.styleFrom(minimumSize: const Size(0, 48), foregroundColor: Theme.of(context).colorScheme.error),
-                      onPressed: () => _delete(tag, uses),
+                      onPressed: _busy ? null : () => _delete(tag, uses),
                       icon: const Icon(Icons.delete_outline),
                       label: const Text('Delete'),
                     ),

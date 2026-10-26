@@ -195,6 +195,29 @@ void main() {
       expect((await db.getTagUseCounts())[hiking], 4);
     });
 
+    test('merging keeps the notes of a day that had both tags', () async {
+      final hike = await db.createTag(Tag(name: 'Hike', emoji: 'boot', category: 'General'));
+      final hiking = await db.createTag(Tag(name: 'Hiking', emoji: 'boot', category: 'General'));
+      final day = DateTime(2026, 10, 3);
+      await db.createActivityEntry(ActivityEntry(date: day, timestamp: day, tagId: hike, notes: 'Mt. Faber'));
+      await db.createActivityEntry(ActivityEntry(date: day, timestamp: day, tagId: hiking));
+      await db.mergeTags(hike, hiking);
+      final kept = (await db.getActivityEntriesByDate(day)).single;
+      expect((kept.tagId, kept.notes), (hiking, 'Mt. Faber'));
+    });
+
+    test('moving tags to an existing group joins it, and empty groups go', () async {
+      final a = await db.createTag(Tag(name: 'Hike', emoji: 'x', category: 'Outdoors'));
+      await db.createTag(Tag(name: 'Read', emoji: 'x', category: 'Indoors'));
+      await db.createTagCategory(TagCategory(name: 'Outdoors'));
+      await db.createTagCategory(TagCategory(name: 'Indoors'));
+      await db.moveTagsToGroup([a], 'Indoors');
+      expect((await db.getTag(a))!.category, 'Indoors');
+      final groups = (await db.getAllTagCategories()).map((c) => c.name);
+      expect(groups, contains('Indoors'));
+      expect(groups, isNot(contains('Outdoors')));
+    });
+
     test('changing a tag\'s kind', () async {
       final id = await db.createTag(Tag(name: 'Coffee', emoji: 'cup', category: 'General'));
       await db.updateTag((await db.getTag(id))!.copyWith(kind: TagKind.foodSource));

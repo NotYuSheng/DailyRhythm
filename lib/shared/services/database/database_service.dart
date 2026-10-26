@@ -865,17 +865,39 @@ class DatabaseService {
     return {for (final r in rows) r['tag_id'] as int: r['n'] as int};
   }
 
+  /// Moves tags [tagIds] into the group [group], creating it if needed,
+  /// and removes groups no tag uses any more.
+  Future<void> moveTagsToGroup(List<int> tagIds, String group) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      for (final id in tagIds) {
+        await txn.update('tags', {'category': group}, where: 'id = ?', whereArgs: [id]);
+      }
+      final order = Sqflite.firstIntValue(await txn.rawQuery('SELECT COALESCE(MAX(sort_order) + 1, 0) FROM tag_categories'));
+      await txn.rawInsert('INSERT OR IGNORE INTO tag_categories (name, sort_order) VALUES (?, ?)', [group, order]);
+      await txn.delete('tag_categories', where: 'name NOT IN (SELECT category FROM tags)');
+    });
+  }
+
   /// Merges tag [fromId] into [intoId]: its activity entries and moment
-  /// links move over (a day or moment that already has both keeps one),
-  /// then [fromId] is deleted.
+  /// links move over (a day or moment that already has both keeps one,
+  /// with both notes), then [fromId] is deleted.
   Future<void> mergeTags(int fromId, int intoId) async {
     if (fromId == intoId) return;
     final db = await database;
     await db.transaction((txn) async {
-      await txn.rawDelete(
-        'DELETE FROM activity_entries WHERE tagId = ? AND date IN (SELECT date FROM activity_entries WHERE tagId = ?)',
-        [fromId, intoId],
-      );
+      final both = await txn.rawQuery('''
+        SELECT f.id AS from_id, f.notes AS from_notes, i.id AS into_id, i.notes AS into_notes
+        FROM activity_entries f JOIN activity_entries i ON i.date = f.date AND i.tagId = ?
+        WHERE f.tagId = ?
+      ''', [intoId, fromId]);
+      for (final r in both) {
+        final notes = [r['into_notes'], r['from_notes']].whereType<String>().where((n) => n.trim().isNotEmpty);
+        if (r['from_notes'] case final String n when n.trim().isNotEmpty) {
+          await txn.update('activity_entries', {'notes': notes.toSet().join('; ')}, where: 'id = ?', whereArgs: [r['into_id']]);
+        }
+        await txn.delete('activity_entries', where: 'id = ?', whereArgs: [r['from_id']]);
+      }
       await txn.update('activity_entries', {'tagId': intoId}, where: 'tagId = ?', whereArgs: [fromId]);
       await txn.rawInsert(
         'INSERT OR IGNORE INTO journal_entry_tags (entry_id, tag_id) SELECT entry_id, ? FROM journal_entry_tags WHERE tag_id = ?',
