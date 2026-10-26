@@ -102,11 +102,17 @@ class GardenRepository {
         metrics[key] = ((r['value'] as num).toDouble(), source);
       }
     }
-    final workouts = <DateTime, int>{};
-    for (final r in await db.query('health_workouts', columns: ['start'], where: 'start >= ? AND start < ?', whereArgs: args)) {
-      final d = day(r['start']);
-      workouts[d] = (workouts[d] ?? 0) + 1;
+    // Workouts from one source per day, the preferred one, so a run in
+    // both a Garmin export and Health Connect counts once.
+    final bySource = <DateTime, Map<String, int>>{};
+    for (final r in await db.query('health_workouts', columns: ['start', 'source'], where: 'start >= ? AND start < ?', whereArgs: args)) {
+      final counts = bySource[day(r['start'])] ??= {};
+      counts[r['source'] as String] = (counts[r['source'] as String] ?? 0) + 1;
     }
+    final workouts = {
+      for (final MapEntry(key: d, value: counts) in bySource.entries)
+        d: counts[(counts.keys.toList()..sort((a, b) => HealthSource.rank(a).compareTo(HealthSource.rank(b)))).first]!,
+    };
 
     return [
       for (var d = from; d.isBefore(to); d = DateTime(d.year, d.month, d.day + 1))

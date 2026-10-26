@@ -1,5 +1,6 @@
 package com.dailyrhythm.dailyrhythm
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// FlutterFragmentActivity: Health Connect's permission screen needs it.
+class MainActivity : FlutterFragmentActivity()

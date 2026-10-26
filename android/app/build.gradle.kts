@@ -31,7 +31,8 @@ android {
 
     defaultConfig {
         applicationId = "com.dailyrhythm.dailyrhythm"
-        minSdk = flutter.minSdkVersion
+        // Health Connect needs Android 8.0 (API 26).
+        minSdk = maxOf(flutter.minSdkVersion, 26)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

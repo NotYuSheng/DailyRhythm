@@ -2,7 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import '../../features/garden/presentation/screens/garden_month_screen.dart';
 import '../../features/garden/presentation/screens/garden_today_screen.dart';
+import '../../features/health/data/health_sync_service.dart';
+import '../../features/health/presentation/health_settings_card.dart';
 import '../../features/metrics/data/providers/metrics_providers.dart';
+import '../../shared/services/database/database_provider.dart';
 import '../../features/metrics/presentation/screens/metrics_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 
@@ -15,6 +18,15 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Picks up new steps, sleep and workouts when sync is on.
+    HealthSyncService(ref.read(databaseProvider)).syncIfEnabled().then((_) {
+      if (mounted) invalidateHealth(ref);
+    });
+  }
 
   static const _screens = [
     GardenTodayScreen(),

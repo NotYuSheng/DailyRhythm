@@ -48,6 +48,7 @@ dependencies:
   # Date/Time handling
   intl: ^0.20.2
   http: ^1.5.0
+  health: ^13.3.1
 
   # UI Components
   unicons: ^3.0.0
