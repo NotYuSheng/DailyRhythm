@@ -248,12 +248,9 @@ class _Pixels extends StatelessWidget {
           runSpacing: 4,
           children: [for (var i = 0; i < 5; i++) _Swatch(Color(palette[i]), levels[i], colors)],
         ),
-        if (metric == YearMetric.calories) ...[
+        if (metric == YearMetric.calories && kcal == null) ...[
           const SizedBox(height: 4),
-          Text(
-            'Only days with ${PeriodOverview.completeDayMeals}+ meals logged.${kcal == null ? ' Add your profile in Settings to see your range.' : ''}',
-            style: nunito(12, FontWeight.w700, colors.muted),
-          ),
+          Text('Add your profile in Settings to see your range.', style: nunito(12, FontWeight.w700, colors.muted)),
         ],
         if (overview.scale == OverviewScale.all) ...[
           const SizedBox(height: 4),
@@ -626,7 +623,7 @@ class _Table extends StatelessWidget {
             const TextSpan(text: ' under, '),
             _arrow(1, outside, 12),
             const TextSpan(text: ' over. '),
-            TextSpan(text: 'Calories are estimates, from days with ${PeriodOverview.completeDayMeals}+ meals logged.'),
+            const TextSpan(text: 'Calories are estimates.'),
             if (kcalRange == null) const TextSpan(text: ' Add your profile in Settings to see your calorie range.'),
           ]),
           style: nunito(12, FontWeight.w700, colors.muted),

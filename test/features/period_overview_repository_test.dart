@@ -8,7 +8,7 @@ import '../helpers/test_database.dart';
 void main() {
   tearDown(closeTestDatabase);
 
-  test('calories count only on days with enough meals logged', () async {
+  test('every day with meals logged counts its calories', () async {
     final db = await openTestDatabase();
     final full = DateTime(2025, 3, 3), partial = DateTime(2025, 3, 4);
     for (var i = 0; i < 3; i++) {
@@ -18,7 +18,7 @@ void main() {
 
     final o = await PeriodOverviewRepository(db).load(OverviewScale.week, full, DateTime(2025, 3, 9), today: DateTime(2026));
     final days = o.grid.single.cells;
-    expect((days[0]!.kcal, days[1]!.kcal), (1800, null));
-    expect(o.rows.map((r) => r.kcal), [1800, null]);
+    expect((days[0]!.kcal, days[1]!.kcal), (1800, 700), reason: 'one meal logged is still a day of calories');
+    expect(o.rows.map((r) => r.kcal), [1800, 700]);
   });
 }

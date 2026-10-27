@@ -186,10 +186,6 @@ class PeriodOverview {
 
   static const maxRareTags = 5;
 
-  /// Meals that make a day's calories count: fewer usually means some
-  /// weren't logged.
-  static const completeDayMeals = 3;
-
   /// Average daily steps over the period, for the calorie range.
   final double? averageSteps;
 
