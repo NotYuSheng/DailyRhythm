@@ -1,4 +1,4 @@
-import 'package:daily_rhythm/features/garden/domain/year_overview.dart';
+import 'package:daily_rhythm/features/metrics/data/models/year_overview.dart';
 import 'package:daily_rhythm/features/metrics/data/models/metric_data.dart';
 import 'package:flutter_test/flutter_test.dart';
 

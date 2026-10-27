@@ -12,7 +12,7 @@ import '../garden_style.dart';
 import '../widgets/plant_view.dart';
 import 'garden_today_screen.dart';
 import 'recap_screen.dart';
-import 'year_overview_screen.dart';
+import 'year_gardens_screen.dart';
 
 /// A month as a garden: one pot per day, a plant in each logged one.
 class GardenMonthScreen extends ConsumerStatefulWidget {
@@ -55,7 +55,6 @@ class _GardenMonthScreenState extends ConsumerState<GardenMonthScreen> {
           data: (list) {
             final past = [for (final d in list) if (!d.date.isAfter(today)) d];
             final plants = past.where((d) => d.plant.logged).length;
-            final flowers = past.where((d) => d.plant.logged && d.plant.flower).length;
             final picked = list.firstWhere((d) => d.date == _picked, orElse: () => list.first);
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
@@ -80,7 +79,7 @@ class _GardenMonthScreenState extends ConsumerState<GardenMonthScreen> {
                           Semantics(
                             header: true,
                             child: Text(
-                              '$plants ${plants == 1 ? 'plant' : 'plants'}, $flowers ${flowers == 1 ? 'flower' : 'flowers'}',
+                              '$plants ${plants == 1 ? 'plant' : 'plants'}',
                               style: nunito(26, FontWeight.w900, colors.ink),
                             ),
                           ),
@@ -120,7 +119,7 @@ class _GardenMonthScreenState extends ConsumerState<GardenMonthScreen> {
                   children: [
                     for (final (label, icon, screen) in [
                       ('${DateFormat('MMMM').format(_month)} in review', Icons.auto_awesome_outlined, MonthRecapScreen(month: _month)),
-                      ('${_month.year} in review', Icons.calendar_view_month, YearOverviewScreen(year: _month.year)),
+                      ('${_month.year}’s gardens', Icons.calendar_view_month, YearGardensScreen(year: _month.year)),
                     ])
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(

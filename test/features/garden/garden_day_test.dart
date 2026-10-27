@@ -93,23 +93,28 @@ void main() {
     });
   });
 
-  test('sleep sets the size without judging it', () {
-    expect([null, 4.0, 5.5, 6.5, 7.5, 9.0].map(GardenDay.sleepLevel), [2, 0, 1, 2, 3, 4]);
-    expect(GardenDay.from(log(sleep: 4, sleepLogged: true)).detail, startsWith('Grew from a very short night'));
-    expect(GardenDay.from(log(mood: 3)).detail, startsWith('Grew from a night of unknown length'));
+  test('the detail says why the day grew its plant', () {
+    expect(GardenDay.from(log(tags: ['Work'])).detail, 'From Work.');
+    expect(GardenDay.from(log(tags: ['Study', 'Class'])).detail, 'From Study and Class.');
+    expect(GardenDay.from(log(tags: ['Work', 'Study'])).detail, 'A mix: Work and Study.');
+    expect(GardenDay.from(log(exercises: 1)).detail, 'From exercise.');
+    expect(GardenDay.from(log(tags: ['Birthday'])).detail, 'From Birthday.');
+    expect(GardenDay.from(log(mood: 3)).detail, 'No one thing stood out.');
+    expect(GardenDay.from(log(tags: ['Work'], override: PlantSpecies.tulip)).detail, 'You picked this plant.');
+    expect(GardenDay.from(log()).detail, 'Nothing logged. That’s okay.');
   });
 
   test('movement counts the larger of exercises and workouts, plus steps', () {
     expect(GardenDay.moveCountFor(log(exercises: 2, workouts: 1)), 2);
     expect(GardenDay.moveCountFor(log(workouts: 1, steps: 8000)), 2);
     expect(GardenDay.moveCountFor(log(steps: 15000)), 2);
-    expect(GardenDay.from(log(exercises: 9)).plant.move, 4);
   });
 
-  test('a good day mood or moment adds a bloom', () {
-    expect(GardenDay.from(log(mood: 3)).plant.flower, isFalse);
-    expect(GardenDay.from(log(mood: 4)).plant.flower, isTrue);
-    expect(GardenDay.from(log(mood: 3, moments: [2, 5])).plant.flower, isTrue);
+  test('a plant shows only its kind of day, not sleep, movement or mood', () {
+    final quiet = GardenDay.from(log(tags: ['Work'], mood: 1, sleep: 4, sleepLogged: true));
+    final full = GardenDay.from(log(tags: ['Work'], mood: 5, sleep: 9, sleepLogged: true, exercises: 0, steps: 15000));
+    expect(quiet.plant, full.plant);
+    expect(PlantSvg.plant(quiet.plant), PlantSvg.plant(full.plant));
   });
 
   test('a day with nothing logged is an empty pot', () {
@@ -120,16 +125,12 @@ void main() {
     expect(GardenDay.from(log(sleep: 7)).plant.logged, isFalse, reason: 'nor is watch sleep');
   });
 
-  test('every plant draws in every state', () {
+  test('every plant draws', () {
     for (final species in PlantSpecies.values) {
-      for (final flower in [false, true]) {
-        for (var move = 0; move <= 4; move++) {
-          final svg = PlantSvg.plant(PlantSpec(species: species, move: move, sleep: move, flower: flower))!;
-          expect(svg, startsWith('<svg'));
-          expect(svg, isNot(contains('NaN')));
-          expect('<'.allMatches(svg).length, '>'.allMatches(svg).length, reason: '$species $move');
-        }
-      }
+      final svg = PlantSvg.plant(PlantSpec(species: species))!;
+      expect(svg, startsWith('<svg'));
+      expect(svg, isNot(contains('NaN')));
+      expect('<'.allMatches(svg).length, '>'.allMatches(svg).length, reason: '$species');
     }
     expect(PlantSvg.plant(const PlantSpec(species: PlantSpecies.fern, logged: false)), isNull);
   });

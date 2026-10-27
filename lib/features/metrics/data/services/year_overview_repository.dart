@@ -1,25 +1,18 @@
-import '../../../shared/services/database/database_service.dart';
-import '../../../shared/services/database/repositories/catalog_repository.dart';
-import '../../../shared/services/database/repositories/checkin_repository.dart';
-import '../../../shared/services/database/repositories/spending_repository.dart';
-import '../../../shared/utils/date_utils.dart';
-import '../../tags/data/models/tag.dart';
-import '../domain/garden_day.dart';
-import '../domain/year_overview.dart';
-import 'garden_repository.dart';
+import '../../../../shared/services/database/database_service.dart';
+import '../../../../shared/services/database/repositories/catalog_repository.dart';
+import '../../../../shared/services/database/repositories/checkin_repository.dart';
+import '../../../../shared/services/database/repositories/spending_repository.dart';
+import '../../../../shared/utils/date_utils.dart';
+import '../../../garden/data/garden_repository.dart';
+import '../../../garden/domain/garden_day.dart';
+import '../../../tags/data/models/tag.dart';
+import '../models/year_overview.dart';
 
 /// Reads one year from every table for [YearOverview].
 class YearOverviewRepository {
   YearOverviewRepository([DatabaseService? db]) : _db = db ?? DatabaseService.instance;
 
   final DatabaseService _db;
-
-  /// The years with anything logged, oldest first, up to [today]'s.
-  Future<List<int>> years({DateTime? today}) async {
-    final now = today ?? DateTime.now();
-    final first = await _db.firstLoggedDay();
-    return [for (var y = first?.year ?? now.year; y <= now.year; y++) y];
-  }
 
   Future<YearOverview> load(int year, {DateTime? today}) async {
     final now = dayOf(today ?? DateTime.now());

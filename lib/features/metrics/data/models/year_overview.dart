@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
-import '../../../shared/utils/date_utils.dart';
-import '../../metrics/data/models/metric_data.dart';
+import '../../../../shared/utils/date_utils.dart';
+import 'metric_data.dart';
 
 /// What one day of the year held, for the year in pixels.
 class DayValues {

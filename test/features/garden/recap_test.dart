@@ -24,14 +24,14 @@ void main() {
         today: today ?? DateTime(2026, 4, 1),
       );
 
-  test('counts plants, flowers, quiet days and species', () {
+  test('counts plants, quiet days and species', () {
     final r = recap([
       log(1, tags: ['Work'], mood: 4),
       log(2, tags: ['Work']),
       log(3, exercises: 1),
       log(4),
     ]);
-    expect((r.plants, r.flowers, r.quietDays), (3, 1, 1));
+    expect((r.plants, r.quietDays), (3, 1));
     expect(r.species, [(PlantSpecies.cactus, 2), (PlantSpecies.sunflower, 1)]);
   });
 
@@ -43,12 +43,6 @@ void main() {
       log(4, tags: ['Gym']),
     ]);
     expect(r.topActivities, [('Work', 2), ('Study', 2), ('Gym', 1)]);
-  });
-
-  test('sleep range and movement', () {
-    final r = recap([log(1, sleep: 6, exercises: 2), log(2, sleep: 8.5), log(3, exercises: 1)]);
-    expect((r.sleepShortest, r.sleepLongest, r.sleepAverage), (6.0, 8.5, 7.25));
-    expect((r.moveSessions, r.movingDays), (3, 2));
   });
 
   test('a month in progress counts only days so far', () {
@@ -80,11 +74,4 @@ void main() {
     expect(r.momentCount, 2);
   });
 
-  test('steps alone are not movement sessions', () {
-    final r = recap([
-      DayLog(date: DateTime(2026, 3, 1), steps: 13000),
-      DayLog(date: DateTime(2026, 3, 2), exerciseKinds: 1, workouts: 1),
-    ]);
-    expect((r.moveSessions, r.movingDays), (1, 1));
-  });
 }

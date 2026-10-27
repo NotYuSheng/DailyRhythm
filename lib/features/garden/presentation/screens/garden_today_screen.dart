@@ -140,8 +140,6 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              _Stats(day: g, momentCount: moments.length, colors: colors),
-              const SizedBox(height: 16),
               _CheckinCard(
                 checkin: checkin,
                 mood: mood?.moodLevel,
@@ -189,12 +187,8 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
   }
 
   static String _caption(GardenDay g, bool isToday) {
-    final name = g.plant.species.plantName;
-    final when = isToday ? 'today' : 'that day';
     if (!g.plant.logged) return isToday ? 'An empty pot, ready for whatever today brings.' : 'An empty pot: a quiet day.';
-    if (g.plant.flower) return 'Your $name is in bloom. A good moment $when.';
-    if (g.plant.move >= 3) return 'A leafy $name! Lots of moving $when.';
-    return 'A $name, grown from ${isToday ? 'last night’s' : 'the night’s'} sleep.';
+    return 'A ${g.plant.species.plantName} for ${g.plant.species.dayWord}. ${g.reason}';
   }
 }
 
@@ -233,58 +227,6 @@ class _PlantBed extends StatelessWidget {
   }
 }
 
-class _Stats extends StatelessWidget {
-  const _Stats({required this.day, required this.momentCount, required this.colors});
-
-  final GardenDay day;
-  final int momentCount;
-  final GardenColors colors;
-
-  @override
-  Widget build(BuildContext context) {
-    final hours = day.sleepHours;
-    final sleep = hours == null ? '—' : '${hours.floor()}h ${((hours - hours.floor()) * 60).round()}m';
-    final moves = day.moveCount;
-    return Row(
-      children: [
-        _Stat(label: 'SLEEP', value: sleep, labelColor: const Color(0xFF2D6CA8), colors: colors),
-        const SizedBox(width: 8),
-        _Stat(label: 'MOVING', value: '$moves', labelColor: const Color(0xFF8A5F00), colors: colors),
-        const SizedBox(width: 8),
-        _Stat(label: 'MOMENTS', value: '$momentCount', labelColor: const Color(0xFFB0305C), colors: colors),
-      ],
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value, required this.labelColor, required this.colors});
-
-  final String label;
-  final String value;
-  final Color labelColor;
-  final GardenColors colors;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-        decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(20)),
-        child: Column(
-          children: [
-            Text(label, style: nunito(12, FontWeight.w800, dark ? colors.muted : labelColor)),
-            FittedBox(child: Text(value, style: nunito(20, FontWeight.w900, colors.ink))),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// How the day went: the day mood (1–5), then energy, stress and focus
-/// relative to a usual day (−2 to +2).
 class _CheckinCard extends StatelessWidget {
   const _CheckinCard({
     required this.checkin,
