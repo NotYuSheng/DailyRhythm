@@ -235,7 +235,11 @@ void main() {
 
     await tapVisible(tester, find.text('2025 in review'));
     expect(find.text('Year in review'), findsOneWidget);
-    expect(find.bySemanticsLabel('June: 1 plant'), findsOneWidget);
-    expect(find.bySemanticsLabel('December: 0 plants'), findsOneWidget);
+    expect(find.text('2025'), findsOneWidget);
+    expect(find.text('1 day logged'), findsOneWidget);
+    expect(find.text('Every day of the year'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('1 plant'), 300, scrollable: find.byType(Scrollable).first);
+    await tapVisible(tester, find.text('1 plant'));
+    expect(find.text('Month in review'), findsOneWidget, reason: 'a month tile opens its review');
   });
 }

@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 import '../../../../shared/utils/date_utils.dart';
 
 /// Data models for metrics and statistics
@@ -92,6 +94,32 @@ class DateRange {
       label: 'This Year',
       shortLabel: 'Year',
     );
+  }
+
+  /// The calendar week (Monday to Sunday) holding [day], up to [today].
+  factory DateRange.week(DateTime day, {DateTime? today}) {
+    final d = dayOf(day);
+    final start = DateTime(d.year, d.month, d.day - (d.weekday - 1));
+    final end = DateTime(start.year, start.month, start.day + 6);
+    return DateRange._period(start, end, today, (s, e) => s.month == e.month
+        ? '${s.day}–${e.day} ${DateFormat('MMM').format(s)}'
+        : '${DateFormat('d MMM').format(s)} – ${DateFormat('d MMM').format(e)}');
+  }
+
+  /// The calendar month holding [day], up to [today].
+  factory DateRange.month(DateTime day, {DateTime? today}) {
+    final start = DateTime(day.year, day.month);
+    return DateRange._period(start, DateTime(day.year, day.month + 1, 0), today, (s, _) => DateFormat('MMMM y').format(s));
+  }
+
+  /// The calendar year holding [day], up to [today].
+  factory DateRange.year(DateTime day, {DateTime? today}) =>
+      DateRange._period(DateTime(day.year), DateTime(day.year, 12, 31), today, (s, _) => '${s.year}');
+
+  /// A whole calendar period, cut at today while it's still going.
+  factory DateRange._period(DateTime start, DateTime end, DateTime? today, String Function(DateTime, DateTime) label) {
+    final now = dayOf(today ?? DateTime.now());
+    return DateRange(start: start, end: end.isAfter(now) ? now : end, label: label(start, end));
   }
 
   factory DateRange.allTime() {

@@ -18,17 +18,26 @@ class MetricsScreen extends ConsumerStatefulWidget {
 }
 
 class _MetricsScreenState extends ConsumerState<MetricsScreen> {
-  int _selectedRangeIndex = 0;
+  _Period _period = _Period.month;
 
-  final List<DateRange> _dateRanges = [
-    DateRange.last7Days(),
-    DateRange.last30Days(),
-    DateRange.thisMonth(),
-    DateRange.thisYear(),
-    DateRange.allTime(),
-  ];
+  /// Any day in the period shown; arrows move it back and forward.
+  DateTime _anchor = DateTime.now();
 
-  DateRange get _selectedRange => _dateRanges[_selectedRangeIndex];
+  DateRange get _selectedRange => switch (_period) {
+        _Period.week => DateRange.week(_anchor),
+        _Period.month => DateRange.month(_anchor),
+        _Period.year => DateRange.year(_anchor),
+        _Period.all => DateRange.allTime(),
+      };
+
+  void _step(int delta) => setState(() {
+        _anchor = switch (_period) {
+          _Period.week => DateTime(_anchor.year, _anchor.month, _anchor.day + 7 * delta),
+          _Period.month => DateTime(_anchor.year, _anchor.month + delta),
+          _Period.year => DateTime(_anchor.year + delta),
+          _Period.all => _anchor,
+        };
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -79,33 +88,60 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
   }
 
   Widget _buildTimeRangeSelector() {
-    return SizedBox(
-      width: double.infinity,
-      child: SegmentedButton<int>(
-        showSelectedIcon: false,
-        segments: [
-          for (var i = 0; i < _dateRanges.length; i++)
-            ButtonSegment<int>(
-              value: i,
-              // Short labels so all five fit on a narrow phone, shrinking
-              // at large text sizes; screen readers hear the full name.
-              label: Semantics(
-                label: _dateRanges[i].label,
-                excludeSemantics: true,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(_dateRanges[i].shortLabel, maxLines: 1, softWrap: false),
+    final colors = GardenColors.of(context);
+    final range = _selectedRange;
+    final today = DateTime.now();
+    final first = ref.watch(firstLoggedDayProvider).value;
+    final canGoBack = first != null && range.start.isAfter(first);
+    final canGoForward = range.end.isBefore(DateTime(today.year, today.month, today.day));
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<_Period>(
+            showSelectedIcon: false,
+            segments: [
+              for (final p in _Period.values)
+                ButtonSegment<_Period>(
+                  value: p,
+                  // Shrinks at large text sizes rather than overflowing.
+                  label: FittedBox(fit: BoxFit.scaleDown, child: Text(p.label, maxLines: 1, softWrap: false)),
+                ),
+            ],
+            selected: {_period},
+            // Each kind opens on the period holding today.
+            onSelectionChanged: (selection) => setState(() {
+              _period = selection.first;
+              _anchor = DateTime.now();
+            }),
+          ),
+        ),
+        if (_period != _Period.all) ...[
+          const SizedBox(height: AppTheme.spacePulse2),
+          Row(
+            children: [
+              IconButton(
+                onPressed: canGoBack ? () => _step(-1) : null,
+                tooltip: 'Previous ${_period.label.toLowerCase()}',
+                icon: const Icon(Icons.chevron_left),
+                style: IconButton.styleFrom(minimumSize: const Size(44, 44), backgroundColor: colors.card),
+              ),
+              Expanded(
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(range.label, textAlign: TextAlign.center, style: nunito(17, FontWeight.w900, colors.ink)),
                 ),
               ),
-            ),
+              IconButton(
+                onPressed: canGoForward ? () => _step(1) : null,
+                tooltip: 'Next ${_period.label.toLowerCase()}',
+                icon: const Icon(Icons.chevron_right),
+                style: IconButton.styleFrom(minimumSize: const Size(44, 44), backgroundColor: colors.card),
+              ),
+            ],
+          ),
         ],
-        selected: {_selectedRangeIndex},
-        onSelectionChanged: (selection) {
-          setState(() {
-            _selectedRangeIndex = selection.first;
-          });
-        },
-      ),
+      ],
     );
   }
 
@@ -493,4 +529,16 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
     if (previous == null || previous == 0) return 0.0;
     return ((current - previous) / previous) * 100;
   }
+}
+
+/// The kinds of period Metrics shows; all but [all] step with arrows.
+enum _Period {
+  week('Week'),
+  month('Month'),
+  year('Year'),
+  all('All');
+
+  const _Period(this.label);
+
+  final String label;
 }

@@ -46,6 +46,11 @@ final funFactsProvider = FutureProvider.autoDispose.family<List<FunFact>, DateRa
   return FunFactsService(ref.watch(databaseProvider)).factsFor(range);
 });
 
+/// The first day anything was logged, where stepping back stops.
+final firstLoggedDayProvider = FutureProvider.autoDispose<DateTime?>((ref) {
+  return ref.watch(databaseProvider).firstLoggedDay();
+});
+
 /// Mood, energy, stress and focus, tag comparisons and watch averages.
 final dayRatingsProvider = FutureProvider.autoDispose.family<DayRatingsReport, DateRange>((ref, range) {
   return DayRatingsService(ref.watch(databaseProvider)).reportFor(range);
