@@ -72,6 +72,19 @@ class _MomentSheetState extends ConsumerState<MomentSheet> {
     final colors = GardenColors.of(context);
     final tags = ref.watch(allTagsProvider).value ?? const <Tag>[];
     final about = [for (final t in tags) if (t.kind != TagKind.foodSource) t];
+    final order = {for (final c in ref.watch(allTagCategoriesProvider).value ?? const <TagCategory>[]) c.name: c.sortOrder ?? 0};
+    final groups = <String, List<Tag>>{};
+    for (final t in about) {
+      (groups[t.category] ??= []).add(t);
+    }
+    // In the user's category order, symptoms last: a long list that's
+    // rarely what a moment is about.
+    bool symptoms(String category) => groups[category]!.every((t) => t.kind == TagKind.symptom);
+    final categories = groups.keys.toList()
+      ..sort((a, b) {
+        final bySymptoms = (symptoms(a) ? 1 : 0).compareTo(symptoms(b) ? 1 : 0);
+        return bySymptoms != 0 ? bySymptoms : (order[a] ?? 1 << 20).compareTo(order[b] ?? 1 << 20);
+      });
 
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
@@ -109,19 +122,23 @@ class _MomentSheetState extends ConsumerState<MomentSheet> {
             if (about.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text('About (optional)', style: nunito(15, FontWeight.w800, colors.ink)),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final tag in about)
-                    FilterChip(
-                      label: Text(tag.name),
-                      selected: _tagIds.contains(tag.id),
-                      onSelected: (on) => setState(() => on ? _tagIds.add(tag.id!) : _tagIds.remove(tag.id)),
-                    ),
-                ],
-              ),
+              for (final category in categories) ...[
+                const SizedBox(height: 10),
+                Text(category, style: nunito(13, FontWeight.w800, colors.leaf)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final tag in groups[category]!)
+                      FilterChip(
+                        label: Text(tag.name),
+                        selected: _tagIds.contains(tag.id),
+                        onSelected: (on) => setState(() => on ? _tagIds.add(tag.id!) : _tagIds.remove(tag.id)),
+                      ),
+                  ],
+                ),
+              ],
             ],
             const SizedBox(height: 20),
             FilledButton(
