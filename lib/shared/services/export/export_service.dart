@@ -617,7 +617,19 @@ class _Importer {
         kcalSource: _text(row, 4),
         lastPrice: _double(row, 5),
       );
-      if (_foodIds.containsKey(item.name.toLowerCase())) return false;
+      final known = _foodIds[item.name.toLowerCase()];
+      if (known != null) {
+        // A known food without calories takes them from the import; ones
+        // it already has (perhaps the user's own) stay.
+        if (item.kcal == null) return false;
+        final filled = await txn.update(
+          'food_items',
+          {'kcal': item.kcal, 'kcal_source': item.kcalSource},
+          where: 'id = ? AND kcal IS NULL',
+          whereArgs: [known],
+        );
+        return filled > 0;
+      }
       _foodIds[item.name.toLowerCase()] = await txn.insert('food_items', item.toMap());
       return true;
     },

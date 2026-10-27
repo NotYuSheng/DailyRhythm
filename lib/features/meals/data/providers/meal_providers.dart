@@ -1,7 +1,11 @@
+import 'dart:convert';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/services/database/repositories/catalog_repository.dart';
+import '../../domain/calorie_estimator.dart';
 import '../models/meal_entry.dart';
 import '../services/calorie_lookup.dart';
 
@@ -10,6 +14,17 @@ final calorieLookupProvider = Provider<CalorieLookup>((ref) {
   final client = http.Client();
   ref.onDispose(client.close);
   return OpenFoodFactsLookup(client);
+});
+
+/// The built-in table of common foods' calories, for estimates; empty if
+/// it can't be read.
+final referenceFoodsProvider = FutureProvider<List<ReferenceFood>>((ref) async {
+  try {
+    final json = jsonDecode(await rootBundle.loadString('assets/data/common_foods.json')) as List;
+    return [for (final f in json) ReferenceFood.fromJson(f as Map<String, dynamic>)];
+  } catch (_) {
+    return const [];
+  }
 });
 
 /// Calories per serving of each food that has them, by food id.

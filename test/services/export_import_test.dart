@@ -350,6 +350,19 @@ void main() {
     expect(await db.getMealEntriesByDate(DateTime(2025, 11, 8)), isEmpty);
   });
 
+  test('importing again fills in calories a food doesn\'t have, and keeps ones it does', () async {
+    await CatalogRepository(db).saveFood(FoodItem(name: 'Laksa'));
+    await CatalogRepository(db).saveFood(FoodItem(name: 'Maggi', kcal: 400, kcalSource: 'user'));
+    await File('${dir.path}/food_items.csv').writeAsString(
+      'ID,Name,Aliases,Kcal,Kcal Source,Last Price\r\n1,Laksa,,590,estimate,\r\n2,Maggi,,350,estimate,',
+    );
+    final result = await ExportService.instance.importFromDirectory(dir.path);
+    expect((result.imported, result.duplicates), (1, 1));
+    final laksa = (await CatalogRepository(db).findFood('Laksa'))!;
+    final maggi = (await CatalogRepository(db).findFood('Maggi'))!;
+    expect((laksa.kcal, laksa.kcalSource, maggi.kcal, maggi.kcalSource), (590.0, 'estimate', 400.0, 'user'));
+  });
+
   test('reports when a folder has no export files', () async {
     final result = await ExportService.instance.importFromDirectory(dir.path);
     expect(result.foundFiles, isFalse);

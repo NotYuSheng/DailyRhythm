@@ -28,6 +28,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from . import taxonomy
+from .calories import load_calories
 from .canonical import base_dish
 from .validate import sleep_hours
 
@@ -71,7 +72,8 @@ def _catalog(names: list[tuple[str, str]]) -> dict[str, list[str]]:
     return {name: sorted(spellings.values(), key=str.lower) for name, spellings in items.items()}
 
 
-def build(days: list[dict], garmin: list[dict] | None = None) -> dict[str, str]:
+def build(days: list[dict], garmin: list[dict] | None = None, calories: dict[str, dict] | None = None) -> dict[str, str]:
+    """[calories] is calories.csv, by lower-case food name."""
     by_date = {d["date"]: d for d in days}
     sleep = [["ID", "Date", "Wake Up Time", "Sleep Time", "Total Hours", "Nap Hours", "Tags"]]
     meals = [["ID", "Date", "Time", "Name", "Quantity", "Price", "Calories", "Tags", "Notes",
@@ -185,8 +187,14 @@ def build(days: list[dict], garmin: list[dict] | None = None) -> dict[str, str]:
     categories = [["ID", "Name", "Color", "Sort Order"]] + [
         ["", name, "", ""] for name in sorted(set(used_tags.values()))
     ]
+    calories = calories or {}
+
+    def kcal(name: str) -> tuple:
+        c = calories.get(name.lower())
+        return ("", "") if c is None else (round(c["kcal"]), "user" if c["how"] == "user" else "estimate")
+
     foods = [["ID", "Name", "Aliases", "Kcal", "Kcal Source", "Last Price"]] + [
-        ["", name, ";".join(aliases), "", "", last_price.get(name, "")]
+        ["", name, ";".join(aliases), *kcal(name), last_price.get(name, "")]
         for name, aliases in sorted(_catalog(food_names).items(), key=lambda kv: kv[0].lower())
     ]
     exercise_items = [["ID", "Name", "Aliases", "Category"]] + [
@@ -224,7 +232,8 @@ def main() -> None:
     args = parser.parse_args()
 
     garmin = json.loads(args.garmin.read_text()) if args.garmin.exists() else None
-    files = build(json.loads(args.days.read_text()), garmin)
+    calories = load_calories(args.days.parent / "calories.csv")
+    files = build(json.loads(args.days.read_text()), garmin, calories)
     with zipfile.ZipFile(args.out, "w", zipfile.ZIP_DEFLATED) as archive:
         for name, content in files.items():
             archive.writestr(name, content)

@@ -11,6 +11,10 @@ Each food stores its calories per serving and where that value came from.
 A meal uses the calories you type for it, or else its food's calories
 times the quantity.
 
+A new food starts with an estimate (below) unless you type its calories.
+Change it any time by typing the calories on a meal of that food: from then
+on it's yours (``user``).
+
 .. list-table::
    :header-rows: 1
 
@@ -40,10 +44,16 @@ times the quantity.
        link to the licence, and no implied endorsement by HPB. To be checked
        again before bundling.
      - Planned: bundled for offline search
-   * - AI estimate
+   * - Estimate
      - ``estimate``
-     - Opt-in; would send only the dish name. Always labelled as an estimate.
-     - Planned
+     - Offered for every food without calories, worked out on the phone: from
+       one of your own foods with calories (the same name, or a dish it
+       contains, "Spicy laksa" from "Laksa"), else from the built-in table of
+       common foods (``assets/data/common_foods.json``). That table is generic,
+       generated once with a language model and reviewed; its values are
+       typical servings, not measurements. Always shown as an estimate and
+       replaced by anything you type.
+     - Available
 
 Privacy
 -------

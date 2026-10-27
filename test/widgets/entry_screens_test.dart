@@ -114,10 +114,14 @@ void main() {
 
     testWidgets('saves a typed alias under the agreed name, linked to the food', (tester) async {
       await seedFoods(db);
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
       await tester.pumpAndSettle();
       await tester.enterText(_field('Meal Name'), 'cai peng');
       await tester.tap(find.widgetWithText(ChoiceChip, 'Food court'));
+      await tester.pump();
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
@@ -130,8 +134,6 @@ void main() {
       await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
       await tester.enterText(_field('Meal Name'), 'Laksa');
       await tester.enterText(_field('Qty'), '2');
-      await tester.tap(find.text('More'));
-      await tester.pumpAndSettle();
       await tester.enterText(_field('Calories (optional)'), '1100');
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
@@ -150,7 +152,6 @@ void main() {
       ));
       await tester.pumpAndSettle();
       await tester.enterText(_field('Meal Name'), 'Maggi');
-      await tester.tap(find.text('More'));
       await tester.pumpAndSettle();
       expect(find.text('≈ 380 from Maggi'), findsOneWidget);
 
@@ -216,6 +217,20 @@ void main() {
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect((await SpendingRepository(db).forDay(pastDay)).single.category, SpendingEntry.gift);
+    });
+
+    testWidgets('a new food starts with an estimate, which typing replaces', (tester) async {
+      await CatalogRepository(db).saveFood(FoodItem(name: 'Laksa', kcal: 590, kcalSource: 'user'));
+      await db.createMealEntry(MealEntry(date: DateTime(2026, 10, 1), time: DateTime(2026, 10, 1, 12), name: 'Laksa'));
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Meal Name'), 'Spicy laksa');
+      await tester.pump();
+      expect(find.text('An estimate, like your Laksa. Type your own to change it.'), findsOneWidget);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final food = (await CatalogRepository(db).findFood('Spicy laksa'))!;
+      expect((food.kcal, food.kcalSource), (590.0, 'estimate'));
     });
 
     testWidgets('a new food joins the catalog with its price', (tester) async {
