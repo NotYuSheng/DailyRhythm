@@ -25,6 +25,9 @@ class Profile {
   final double? weightKg;
   final Sex? sex;
 
+  Profile copyWith({double? weightKg}) =>
+      Profile(birthYear: birthYear, heightCm: heightCm, weightKg: weightKg ?? this.weightKg, sex: sex);
+
   bool get isEmpty => birthYear == null && heightCm == null && weightKg == null && sex == null;
 
   /// Age this year (a year of precision is plenty for these ranges).

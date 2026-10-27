@@ -61,6 +61,10 @@ How the plant is picked when the user doesn't choose:
   outside the user's typical range (sleep by age; calories by Mifflin–St Jeor times
   an activity factor from the period's average steps). Every day with meals logged
   counts toward calories (the user often eats two meals a day).
+- **Weight log:** weight is the `weight_kg` health metric (manual source). Log it from
+  Metrics (Weight section) or by changing it in the profile; the latest weight is the
+  profile's, so the calorie range follows it. The trend is the real check on whether
+  logged calories undercount.
 
 Still to do: year/month recap (#13) and stickers from the warm B row, real
 illustrations with Rive animation (#14).

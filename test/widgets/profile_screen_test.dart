@@ -1,5 +1,6 @@
 import 'package:daily_rhythm/core/theme/app_theme.dart';
 import 'package:daily_rhythm/features/profile/data/profile_repository.dart';
+import 'package:daily_rhythm/features/profile/data/weight_repository.dart';
 import 'package:daily_rhythm/features/profile/domain/profile.dart';
 import 'package:daily_rhythm/features/profile/presentation/profile_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,8 +8,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../helpers/test_database.dart';
+
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await openTestDatabase();
+  });
+  tearDown(closeTestDatabase);
 
   testWidgets('the profile shows its ranges as you type, and saves', (tester) async {
     tester.view.physicalSize = const Size(1080, 2600);
@@ -45,5 +52,6 @@ void main() {
     await tester.pumpAndSettle();
     final saved = await ProfileRepository().load();
     expect((saved.birthYear, saved.heightCm, saved.weightKg, saved.sex), (year, 170.0, 60.0, Sex.female));
+    expect((await WeightRepository().latest())?.value, 60.0, reason: 'a new weight is logged for today too');
   });
 }
