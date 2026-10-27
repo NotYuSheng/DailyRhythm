@@ -100,6 +100,26 @@ void main() {
     expect((march.group.label, march.days, march.sleep, march.food, march.events), ('Mar', 20, 7.0, 9.5, 60.0));
   });
 
+  test('average steps over the period, for the calorie range', () {
+    final o = PeriodOverview.build(
+      scale: OverviewScale.week,
+      start: d(3, 3),
+      end: d(3, 9),
+      today: DateTime(2026),
+      logged: const {},
+      sleepHours: const {},
+      steps: {d(3, 3): 6000, d(3, 4): 8000, d(3, 20): 20000},
+      kcal: const {},
+      moods: const {},
+      energy: const {},
+      nights: const [],
+      tagDays: const {},
+      foodSpend: const {},
+      eventSpend: const {},
+    );
+    expect(o.averageSteps, 7000);
+  });
+
   test('calendar periods for stepping', () {
     final today = DateTime(2026, 10, 27);
     final week = DateRange.week(DateTime(2026, 10, 22), today: today);

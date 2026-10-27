@@ -38,7 +38,7 @@ Every logged day grows a plant in a pot:
 - Screens: Today's plant (with a "today was mostly…" override), the month as a garden,
   and the warm B row's calendar, rhythm zone, recap and sticker ideas where they fit.
 - Look: warm pastels on a soft green ground, rounded Nunito type, gentle neutral
-  wording with no advice, subtle sway animation (off with reduced motion).
+  wording with no advice (typical ranges are shown as reference bands, not advice), subtle sway animation (off with reduced motion).
 - The prototype draws plants in code. Production plants need real illustration
   (commissioned or licence-checked asset set), animated with Rive.
 
@@ -56,6 +56,11 @@ How the plant is picked when the user doesn't choose:
   sleep and a table grouped to fit (a week by day, a month by week, a year by month,
   all time by year), and days that stood out. Garden has a year of
   gardens: each month's plants, tapping through to its review.
+- **Profile and ranges (2026-10-28):** an optional profile (year of birth, height,
+  weight, sex) in Settings, kept on the device. Metrics marks sleep and calories
+  outside the user's typical range (sleep by age; calories by Mifflin–St Jeor times
+  an activity factor from the period's average steps). Calories count only on days
+  with 3+ meals logged, as partial days read as eating little.
 
 Still to do: year/month recap (#13) and stickers from the warm B row, real
 illustrations with Rive animation (#14).
