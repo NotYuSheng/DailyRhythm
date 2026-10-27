@@ -33,9 +33,6 @@ class DateRange {
   final DateTime end;
   final String label;
 
-  /// A few characters, for the range selector on narrow phones.
-  final String shortLabel;
-
   /// Everything logged: starts at the first entry, with nothing before it
   /// to compare against.
   final bool isAllTime;
@@ -44,57 +41,8 @@ class DateRange {
     required this.start,
     required this.end,
     required this.label,
-    String? shortLabel,
     this.isAllTime = false,
-  }) : shortLabel = shortLabel ?? label;
-
-  factory DateRange.last7Days() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final start = DateTime(today.year, today.month, today.day - 6);
-    return DateRange(
-      start: start,
-      end: today,
-      label: 'Last 7 Days',
-      shortLabel: '7D',
-    );
-  }
-
-  factory DateRange.last30Days() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final start = DateTime(today.year, today.month, today.day - 29);
-    return DateRange(
-      start: start,
-      end: today,
-      label: 'Last 30 Days',
-      shortLabel: '30D',
-    );
-  }
-
-  factory DateRange.thisMonth() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final start = DateTime(now.year, now.month, 1);
-    return DateRange(
-      start: start,
-      end: today,
-      label: 'This Month',
-      shortLabel: 'Month',
-    );
-  }
-
-  factory DateRange.thisYear() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final start = DateTime(now.year, 1, 1);
-    return DateRange(
-      start: start,
-      end: today,
-      label: 'This Year',
-      shortLabel: 'Year',
-    );
-  }
+  });
 
   /// The calendar week (Monday to Sunday) holding [day], up to [today].
   factory DateRange.week(DateTime day, {DateTime? today}) {
@@ -130,7 +78,6 @@ class DateRange {
       start: start,
       end: today,
       label: 'All Time',
-      shortLabel: 'All',
       isAllTime: true,
     );
   }

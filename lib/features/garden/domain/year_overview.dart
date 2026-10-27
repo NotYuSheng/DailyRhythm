@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../../../shared/utils/date_utils.dart';
+import '../../metrics/data/models/metric_data.dart';
 
 /// What one day of the year held, for the year in pixels.
 class DayValues {
@@ -14,8 +15,9 @@ class DayValues {
   int? energy;
 }
 
-/// A night: when sleep started and ended, as hours after 20:00 the evening
-/// before (00:30 is 4.5, 07:00 is 11), on the day it ended.
+/// A night: when sleep started and ended, as hours after 18:00 the evening
+/// before (00:30 is 6.5, 07:00 is 13), on the day it ended. From 18:00 to
+/// 14:00 the next day holds early nights and late lie-ins alike.
 class NightSpan {
   const NightSpan(this.day, this.bed, this.wake);
 
@@ -23,8 +25,11 @@ class NightSpan {
   final double bed;
   final double wake;
 
-  /// Clock time as hours after 20:00, for the schedule chart's axis.
-  static double fromClock(DateTime time) => (time.hour + time.minute / 60 - 20 + 24) % 24;
+  /// Hours after 18:00 the axis spans.
+  static const span = 20.0;
+
+  /// Clock time as hours after 18:00, for the schedule chart's axis.
+  static double fromClock(DateTime time) => (time.hour + time.minute / 60 - 18 + 24) % 24;
 }
 
 /// A month's usual sleep: the median bedtime and wake time, the middle
@@ -106,8 +111,10 @@ class YearOverview {
   final List<String> everydayTags;
   final List<MonthRow> months;
 
-  static const everydayShare = 0.8;
   static const maxRareTags = 5;
+
+  /// Anything to show: logged days, or watch data alone.
+  bool get hasData => loggedDays > 0 || months.isNotEmpty;
 
   double? get averageSleep => _mean([for (final d in days) ?d.sleepHours]);
   double? get averageSteps => _mean([for (final d in days) ?d.steps]);
@@ -138,10 +145,20 @@ class YearOverview {
     ];
     final inYear = {for (final d in logged) if (d.year == year && !d.isAfter(end)) d};
 
-    final moodByMonth = [
-      for (var m = 1; m <= 12; m++)
-        [for (var level = 1; level <= 5; level++) moods.entries.where((e) => e.key.year == year && e.key.month == m && e.value == level).length],
-    ];
+    // One pass over each map, bucketed by month.
+    final moodByMonth = [for (var m = 0; m < 12; m++) List.filled(5, 0)];
+    for (final MapEntry(key: day, value: level) in moods.entries) {
+      if (day.year == year && level >= 1 && level <= 5) moodByMonth[day.month - 1][level - 1]++;
+    }
+    List<List<double>> byMonth(Map<DateTime, double> values) {
+      final out = [for (var m = 0; m < 12; m++) <double>[]];
+      for (final MapEntry(key: day, value: v) in values.entries) {
+        if (day.year == year) out[day.month - 1].add(v);
+      }
+      return out;
+    }
+
+    final sleepMonths = byMonth(sleepHours);
 
     final sleepByMonth = <MonthSleep>[];
     for (var m = 1; m <= 12; m++) {
@@ -157,7 +174,7 @@ class YearOverview {
         bedHigh: _quantile(beds, 0.75),
         wakeLow: _quantile(wakes, 0.25),
         wakeHigh: _quantile(wakes, 0.75),
-        hours: _mean([for (final e in sleepHours.entries) if (e.key.year == year && e.key.month == m) e.value]),
+        hours: _mean(sleepMonths[m - 1]),
       ));
     }
 
@@ -166,7 +183,8 @@ class YearOverview {
     for (final MapEntry(key: name, value: dates) in tagDays.entries) {
       final used = [for (final d in dates) if (inYear.contains(d)) d]..sort();
       if (used.isEmpty) continue;
-      if (inYear.length >= 14 && used.length >= inYear.length * everydayShare) {
+      // The same rule as Metrics' "Most days".
+      if (inYear.length >= ActivityMetrics.everydayMinDays && used.length >= inYear.length * ActivityMetrics.everydayShare) {
         everyday.add(name);
       } else {
         rare.add(RareTag(name, used));
@@ -175,21 +193,27 @@ class YearOverview {
     rare.sort((a, b) => b.days.length.compareTo(a.days.length));
     everyday.sort();
 
-    double sumIn(Map<DateTime, double> values, int m) =>
-        values.entries.where((e) => e.key.year == year && e.key.month == m).fold(0.0, (s, e) => s + e.value);
-    double? meanIn(Map<DateTime, double> values, int m) =>
-        _mean([for (final e in values.entries) if (e.key.year == year && e.key.month == m) e.value]);
+    final stepMonths = byMonth(steps);
+    final kcalMonths = byMonth(kcal);
+    final foodMonths = byMonth(foodSpend);
+    final eventMonths = byMonth(eventSpend);
+    final loggedPerMonth = List.filled(12, 0);
+    for (final d in inYear) {
+      loggedPerMonth[d.month - 1]++;
+    }
+    final hasValues = List.generate(12, (i) => sleepMonths[i].isNotEmpty || stepMonths[i].isNotEmpty);
     final months = [
       for (var m = 1; m <= 12; m++)
-        if (inYear.any((d) => d.month == m))
+        // Months with logs, or watch data alone.
+        if (loggedPerMonth[m - 1] > 0 || hasValues[m - 1])
           MonthRow(
             month: m,
-            days: inYear.where((d) => d.month == m).length,
-            sleep: meanIn(sleepHours, m),
-            steps: meanIn(steps, m),
-            kcal: meanIn(kcal, m),
-            food: sumIn(foodSpend, m),
-            events: sumIn(eventSpend, m),
+            days: loggedPerMonth[m - 1],
+            sleep: _mean(sleepMonths[m - 1]),
+            steps: _mean(stepMonths[m - 1]),
+            kcal: _mean(kcalMonths[m - 1]),
+            food: foodMonths[m - 1].fold(0.0, (s, v) => s + v),
+            events: eventMonths[m - 1].fold(0.0, (s, v) => s + v),
           ),
     ];
 

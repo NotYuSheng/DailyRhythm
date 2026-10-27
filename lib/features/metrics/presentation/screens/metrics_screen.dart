@@ -20,24 +20,31 @@ class MetricsScreen extends ConsumerStatefulWidget {
 class _MetricsScreenState extends ConsumerState<MetricsScreen> {
   _Period _period = _Period.month;
 
-  /// Any day in the period shown; arrows move it back and forward.
-  DateTime _anchor = DateTime.now();
+  /// Any day in the period shown; arrows move it back and forward. Null
+  /// follows today, so a screen left open shows the new month when it comes.
+  DateTime? _anchor;
 
-  DateRange get _selectedRange => switch (_period) {
-        _Period.week => DateRange.week(_anchor),
-        _Period.month => DateRange.month(_anchor),
-        _Period.year => DateRange.year(_anchor),
-        _Period.all => DateRange.allTime(),
-      };
+  DateRange get _selectedRange => _selectedRangeFor(_anchor ?? DateTime.now());
 
   void _step(int delta) => setState(() {
-        _anchor = switch (_period) {
-          _Period.week => DateTime(_anchor.year, _anchor.month, _anchor.day + 7 * delta),
-          _Period.month => DateTime(_anchor.year, _anchor.month + delta),
-          _Period.year => DateTime(_anchor.year + delta),
-          _Period.all => _anchor,
+        final day = _anchor ?? DateTime.now();
+        final next = switch (_period) {
+          _Period.week => DateTime(day.year, day.month, day.day + 7 * delta),
+          _Period.month => DateTime(day.year, day.month + delta),
+          _Period.year => DateTime(day.year + delta),
+          _Period.all => day,
         };
+        // Back at the period holding today: follow it again.
+        final today = DateTime.now();
+        _anchor = _selectedRangeFor(next).end.isBefore(DateTime(today.year, today.month, today.day)) ? next : null;
       });
+
+  DateRange _selectedRangeFor(DateTime day) => switch (_period) {
+        _Period.week => DateRange.week(day),
+        _Period.month => DateRange.month(day),
+        _Period.year => DateRange.year(day),
+        _Period.all => DateRange.allTime(),
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +119,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
             // Each kind opens on the period holding today.
             onSelectionChanged: (selection) => setState(() {
               _period = selection.first;
-              _anchor = DateTime.now();
+              _anchor = null;
             }),
           ),
         ),

@@ -113,7 +113,7 @@ class _YearOverviewScreenState extends ConsumerState<YearOverviewScreen> {
       ?summaryPart(o.averageSleep, (v) => '${v.toStringAsFixed(1)} h sleep'),
       ?summaryPart(o.averageSteps, (v) => '${number.format(v.round())} steps a day'),
     ].join(' · ');
-    if (o.loggedDays == 0) {
+    if (!o.hasData) {
       return [
         const SizedBox(height: 24),
         Text('Nothing logged in ${o.year}.', textAlign: TextAlign.center, style: nunito(16, FontWeight.w700, colors.muted)),
@@ -349,8 +349,8 @@ class _SleepByMonth extends StatelessWidget {
   final YearOverview overview;
   final GardenColors colors;
 
-  static String clock(double hoursAfter8pm) {
-    final minutes = ((hoursAfter8pm + 20) * 60 / 5).round() * 5 % (24 * 60);
+  static String clock(double hoursAfter6pm) {
+    final minutes = ((hoursAfter6pm + 18) * 60 / 5).round() * 5 % (24 * 60);
     return '${(minutes ~/ 60).toString().padLeft(2, '0')}:${(minutes % 60).toString().padLeft(2, '0')}';
   }
 
@@ -370,7 +370,7 @@ class _SleepByMonth extends StatelessWidget {
                   height: 14,
                   child: Stack(
                     children: [
-                      for (final (i, label) in ['20:00', '00:00', '04:00', '08:00', '12:00'].indexed)
+                      for (final (i, label) in ['18:00', '23:00', '04:00', '09:00', '14:00'].indexed)
                         Positioned(
                           left: (box.maxWidth * i / 4 - (i == 0 ? 0 : i == 4 ? 30 : 15)).clamp(0, box.maxWidth - 30),
                           child: Text(label, style: nunito(10, FontWeight.w800, colors.muted)),
@@ -397,7 +397,7 @@ class _SleepByMonth extends StatelessWidget {
                   Expanded(
                     child: LayoutBuilder(
                       builder: (context, box) {
-                        double x(double h) => box.maxWidth * h.clamp(0, 16) / 16;
+                        double x(double h) => box.maxWidth * h.clamp(0, NightSpan.span) / NightSpan.span;
                         Widget bar(double from, double to, Color color, double height) => Positioned(
                               left: x(from),
                               width: (x(to) - x(from)).clamp(2, box.maxWidth),
@@ -507,7 +507,9 @@ class _MonthTable extends StatelessWidget {
     double? best(double? Function(MonthRow) f) => [for (final r in rows) ?f(r)].fold<double?>(null, (a, b) => a == null || b > a ? b : a);
     final bestSleep = best((r) => r.sleep);
     final bestSteps = best((r) => r.steps);
-    final money = NumberFormat.compactSimpleCurrency(decimalDigits: 0);
+    // Spending is SGD, shown as dollars like everywhere else in the app.
+    final whole = NumberFormat('#,##0');
+    String money(double v) => '\$${whole.format(v.round())}';
     Widget cell(String text, {bool bold = false, bool header = false}) => Expanded(
           child: Text(
             text,
@@ -529,8 +531,8 @@ class _MonthTable extends StatelessWidget {
                 cell(r.sleep == null ? '–' : '${r.sleep!.toStringAsFixed(1)}h', bold: r.sleep != null && r.sleep == bestSleep),
                 cell(k(r.steps), bold: r.steps != null && r.steps == bestSteps),
                 cell(k(r.kcal)),
-                cell(r.food == 0 ? '–' : money.format(r.food)),
-                cell(r.events == 0 ? '–' : money.format(r.events)),
+                cell(r.food == 0 ? '–' : money(r.food)),
+                cell(r.events == 0 ? '–' : money(r.events)),
               ],
             ),
           ),

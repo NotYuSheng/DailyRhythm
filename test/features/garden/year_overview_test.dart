@@ -43,12 +43,13 @@ void main() {
 
   test('sleep by month: median bedtime and wake, and the middle half of each', () {
     final nights = [
-      for (final (day, bed, wake) in [(1, 4.0, 11.0), (2, 4.5, 11.5), (3, 5.0, 12.0), (4, 3.0, 10.0)]) NightSpan(d(3, day), bed, wake),
+      for (final (day, bed, wake) in [(1, 6.0, 13.0), (2, 6.5, 13.5), (3, 7.0, 14.0), (4, 5.0, 12.0)]) NightSpan(d(3, day), bed, wake),
     ];
     final m = build(nights: nights, sleep: {d(3, 1): 7, d(3, 2): 7}).sleepByMonth.single;
-    expect((m.month, m.bed, m.wake, m.bedLow, m.bedHigh, m.hours), (3, 4.5, 11.5, 4.0, 5.0, 7.0));
-    expect(NightSpan.fromClock(DateTime(2025, 1, 1, 0, 30)), 4.5);
-    expect(NightSpan.fromClock(DateTime(2025, 1, 1, 23)), 3);
+    expect((m.month, m.bed, m.wake, m.bedLow, m.bedHigh, m.hours), (3, 6.5, 13.5, 6.0, 7.0, 7.0));
+    expect(NightSpan.fromClock(DateTime(2025, 1, 1, 0, 30)), 6.5);
+    expect(NightSpan.fromClock(DateTime(2025, 1, 1, 19, 30)), 1.5, reason: 'an early night fits');
+    expect(NightSpan.fromClock(DateTime(2025, 1, 1, 12, 30)), 18.5, reason: 'so does a late lie-in');
   });
 
   test('everyday tags are named, not listed; rare tags most used first', () {
@@ -56,6 +57,11 @@ void main() {
     final o = build(tags: {'Work': everyDay, 'Hike': {d(3, 2), d(3, 9)}, 'Party': {d(3, 5)}});
     expect(o.everydayTags, ['Work']);
     expect(o.rareTags.map((t) => (t.name, t.days.length)), [('Hike', 2), ('Party', 1)]);
+  });
+
+  test('a year with only watch data still has its months', () {
+    final o = build(logged: const {}, sleep: {d(2, 1): 6.5});
+    expect((o.loggedDays, o.hasData, o.months.single.month), (0, true, 2));
   });
 
   test('a row only for months with logs, with spending and averages', () {

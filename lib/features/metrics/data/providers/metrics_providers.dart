@@ -67,6 +67,7 @@ void invalidateMetrics(WidgetRef ref) {
     metricsInsightsProvider,
     funFactsProvider,
     dayRatingsProvider,
+    firstLoggedDayProvider,
   ]) {
     ref.invalidate(provider);
   }

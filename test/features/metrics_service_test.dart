@@ -23,9 +23,10 @@ void main() {
 
   group('DateRange', () {
     test('equal ranges are equal, so provider caches are reused', () {
-      expect(DateRange.last7Days(), DateRange.last7Days());
-      expect(DateRange.last7Days().hashCode, DateRange.last7Days().hashCode);
-      expect(DateRange.last7Days(), isNot(DateRange.last30Days()));
+      final today = DateTime(2026, 10, 27);
+      expect(DateRange.week(today, today: today), DateRange.week(today, today: today));
+      expect(DateRange.week(today, today: today).hashCode, DateRange.week(today, today: today).hashCode);
+      expect(DateRange.week(today, today: today), isNot(DateRange.month(today, today: today)));
     });
 
     test('daysCount is inclusive', () {
