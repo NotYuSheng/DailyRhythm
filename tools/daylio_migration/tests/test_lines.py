@@ -38,6 +38,7 @@ def test_vouchers_free_meals_and_rations_cost_nothing_and_leave_the_name():
     # Only part of the meal was free; and "celebration" isn't a ration.
     assert parsed("Fillet o fish meal with free latte 6.65") == ("Fillet o fish meal with free latte", 6.65, None)
     assert parsed("Nov birthday celebration red bean cake")[1:] == (None, None)
+    assert parse_meal("Bought Soy milk X2 drank 2, 2.40", []).quantity is None, "other names are left as they were"
 
 
 def test_meal_currency_and_comment():
