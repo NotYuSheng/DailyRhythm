@@ -1,10 +1,13 @@
-import 'package:daily_rhythm/features/metrics/data/models/year_overview.dart';
+import 'package:daily_rhythm/features/metrics/data/models/period_overview.dart';
 import 'package:daily_rhythm/features/metrics/data/models/metric_data.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 DateTime d(int month, int day) => DateTime(2025, month, day);
 
-YearOverview build({
+PeriodOverview build({
+  OverviewScale scale = OverviewScale.year,
+  DateTime? start,
+  DateTime? end,
   Set<DateTime>? logged,
   Map<DateTime, int> moods = const {},
   Map<DateTime, double> sleep = const {},
@@ -14,8 +17,10 @@ YearOverview build({
   Map<DateTime, double> events = const {},
   DateTime? today,
 }) =>
-    YearOverview.build(
-      year: 2025,
+    PeriodOverview.build(
+      scale: scale,
+      start: start ?? DateTime(2025),
+      end: end ?? DateTime(2025, 12, 31),
       today: today ?? DateTime(2026, 1, 10),
       logged: logged ?? {for (var i = 1; i <= 20; i++) d(3, i)},
       sleepHours: sleep,
@@ -30,23 +35,48 @@ YearOverview build({
     );
 
 void main() {
+  int cells(PeriodOverview o) => o.grid.fold(0, (n, r) => n + r.cells.whereType<DayValues>().length);
+
   test('a past year has every day; this year stops at today', () {
-    expect(build().days.length, 365);
-    expect(build(today: DateTime(2025, 3, 10)).days.length, 69);
+    expect(cells(build()), 365);
+    expect(cells(build(today: DateTime(2025, 3, 10))), 69);
+    final o = build();
+    expect(o.grid.map((r) => r.label).join(), 'JFMAMJJASOND');
+    expect(o.grid[1].cells.whereType<DayValues>().length, 28, reason: 'no March days in February’s row');
   });
 
   test('mood by month counts days per level', () {
     final o = build(moods: {d(3, 1): 3, d(3, 2): 3, d(3, 3): 2, d(4, 1): 5});
-    expect(o.moodByMonth[2], [0, 1, 2, 0, 0]);
-    expect(o.moodByMonth[3], [0, 0, 0, 0, 1]);
+    expect(o.moodByGroup[2], [0, 1, 2, 0, 0]);
+    expect(o.moodByGroup[3], [0, 0, 0, 0, 1]);
+  });
+
+  test('a week groups by day, a month by week, all time by year', () {
+    final week = build(scale: OverviewScale.week, start: d(3, 3), end: d(3, 9), moods: {d(3, 4): 4});
+    expect(week.groups.map((g) => g.label), ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+    expect(week.moodByGroup[1], [0, 0, 0, 1, 0]);
+    expect((week.grid.single.cells.length, week.columnLabels.length), (7, 7));
+
+    // March 2025 starts on a Saturday.
+    final month = build(scale: OverviewScale.month, start: d(3, 1), end: d(3, 31));
+    expect(month.groups.map((g) => g.label), ['1–2', '3–9', '10–16', '17–23', '24–30', '31']);
+    expect(month.grid.length, 6, reason: 'calendar weeks');
+    expect(month.grid.first.cells.whereType<DayValues>().length, 2, reason: 'Monday to Friday are February');
+    expect(cells(month), 31);
+
+    final all = build(scale: OverviewScale.all, start: DateTime(2024), end: DateTime(2025, 12, 31), sleep: {DateTime(2024, 1, 2): 6, DateTime(2024, 1, 4): 8});
+    expect(all.groups.map((g) => g.label), ['2024', '2025']);
+    expect(all.grid.map((r) => r.label), ["'24", "'25"]);
+    expect(all.grid.first.cells.first!.sleepHours, 7, reason: 'a week’s cell averages its days');
+    expect(all.rows.map((r) => r.group.label), ['2024', '2025']);
   });
 
   test('sleep by month: median bedtime and wake, and the middle half of each', () {
     final nights = [
       for (final (day, bed, wake) in [(1, 6.0, 13.0), (2, 6.5, 13.5), (3, 7.0, 14.0), (4, 5.0, 12.0)]) NightSpan(d(3, day), bed, wake),
     ];
-    final m = build(nights: nights, sleep: {d(3, 1): 7, d(3, 2): 7}).sleepByMonth.single;
-    expect((m.month, m.bed, m.wake, m.bedLow, m.bedHigh, m.hours), (3, 6.5, 13.5, 6.0, 7.0, 7.0));
+    final m = build(nights: nights, sleep: {d(3, 1): 7, d(3, 2): 7}).sleepByGroup.single;
+    expect((m.group.start.month, m.bed, m.wake, m.bedLow, m.bedHigh, m.hours), (3, 6.5, 13.5, 6.0, 7.0, 7.0));
     expect(NightSpan.fromClock(DateTime(2025, 1, 1, 0, 30)), 6.5);
     expect(NightSpan.fromClock(DateTime(2025, 1, 1, 19, 30)), 1.5, reason: 'an early night fits');
     expect(NightSpan.fromClock(DateTime(2025, 1, 1, 12, 30)), 18.5, reason: 'so does a late lie-in');
@@ -61,13 +91,13 @@ void main() {
 
   test('a year with only watch data still has its months', () {
     final o = build(logged: const {}, sleep: {d(2, 1): 6.5});
-    expect((o.loggedDays, o.hasData, o.months.single.month), (0, true, 2));
+    expect((o.loggedDays, o.hasData, o.rows.single.group.label), (0, true, 'Feb'));
   });
 
   test('a row only for months with logs, with spending and averages', () {
     final o = build(sleep: {d(3, 1): 6, d(3, 2): 8}, food: {d(3, 1): 4.5, d(3, 2): 5}, events: {d(3, 9): 60});
-    final march = o.months.single;
-    expect((march.month, march.days, march.sleep, march.food, march.events), (3, 20, 7.0, 9.5, 60.0));
+    final march = o.rows.single;
+    expect((march.group.label, march.days, march.sleep, march.food, march.events), ('Mar', 20, 7.0, 9.5, 60.0));
   });
 
   test('calendar periods for stepping', () {

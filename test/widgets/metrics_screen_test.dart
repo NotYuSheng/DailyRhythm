@@ -57,4 +57,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('${lastYear + 1}'), findsOneWidget);
   });
+
+  testWidgets('every period has its overview, grouped to fit', (tester) async {
+    final db = await openTestDatabase();
+    final today = DateTime.now();
+    final day = DateTime(today.year, today.month, today.day);
+    await db.upsertMoodEntry(MoodEntry(date: day, timestamp: day, moodLevel: 4, emoji: ''));
+    await tester.pumpWidget(ProviderScope(child: MaterialApp(theme: AppTheme.lightTheme, home: const MetricsScreen())));
+    await tester.pumpAndSettle();
+
+    final scrollable = find.byType(Scrollable).first;
+    for (final (period, grid, mood, table) in [
+      ('Week', 'Every day of the week', 'Mood by day', 'Day by day'),
+      ('Month', 'Every day of the month', 'Mood by week', 'Week by week'),
+      ('Year', 'Every day of the year', 'Mood by month', 'Month by month'),
+      ('All', 'Every week since you started', 'Mood by year', 'Year by year'),
+    ]) {
+      await tester.scrollUntilVisible(find.text(period), -300, scrollable: scrollable);
+      await tester.tap(find.text(period));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text(grid), 300, scrollable: scrollable);
+      await tester.scrollUntilVisible(find.text(mood), 300, scrollable: scrollable);
+      await tester.scrollUntilVisible(find.text(table), 300, scrollable: scrollable);
+    }
+  });
 }
