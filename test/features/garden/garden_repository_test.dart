@@ -38,12 +38,14 @@ void main() {
     final g = (await GardenRepository(db).daysInRange(day, day)).single;
     expect(g.plant.species, PlantSpecies.sprout, reason: 'study and exercise: a bit of everything');
     expect(g.detail, 'A mix: Study, Class and exercise.');
+    expect(g.effort, 1, reason: 'three sets with no reps: light');
   });
 
   test('watch data fills sleep and movement; a pick overrides the plant', () async {
     await HealthRepository(db).saveMetrics([
       HealthMetric(date: day, metric: 'sleep_minutes', value: 330, source: HealthSource.garminExport),
       HealthMetric(date: day, metric: 'steps', value: 13000, source: HealthSource.garminExport),
+      HealthMetric(date: day, metric: 'intensity_minutes', value: 30, source: HealthSource.garminExport),
     ]);
     await HealthRepository(db).saveWorkouts([
       HealthWorkout(start: DateTime(2026, 10, 20, 18), type: 'running', source: HealthSource.garminExport),
@@ -52,6 +54,7 @@ void main() {
 
     final g = (await GardenRepository(db).daysInRange(day, day)).single;
     expect(g.detail, 'You picked this plant.');
+    expect(g.effort, 4, reason: 'a watch workout with 30 intensity minutes');
     expect((g.plant.species, g.chosen, g.plant.logged), (PlantSpecies.tulip, true, true));
   });
 

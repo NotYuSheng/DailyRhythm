@@ -1,6 +1,7 @@
 import '../../../shared/services/database/database_service.dart';
 import '../../../shared/utils/date_utils.dart';
 import '../../health/data/models/health_metric.dart';
+import '../../exercise/domain/effort.dart';
 import '../domain/garden_day.dart';
 import '../domain/plant.dart';
 
@@ -61,6 +62,25 @@ class GardenRepository {
       ))
         day(r['date']): r['n'] as int,
     };
+    // How hard each day's exercise was, from what was logged.
+    final logged = <DateTime, double>{};
+    for (final r in await db.query(
+      'exercise_entries',
+      columns: ['date', 'type', 'exerciseName', 'reps', 'sets', 'distance', 'duration', 'notes'],
+      where: inRange,
+      whereArgs: args,
+    )) {
+      final points = Effort.entryPoints(
+        run: (r['type'] as String).endsWith('run'),
+        name: r['exerciseName'] as String?,
+        reps: r['reps'] as int?,
+        sets: r['sets'] as int?,
+        km: (r['distance'] as num?)?.toDouble(),
+        notes: r['notes'] as String?,
+        duration: r['duration'] == null ? null : Duration(seconds: r['duration'] as int),
+      );
+      logged[day(r['date'])] = (logged[day(r['date'])] ?? 0) + points;
+    }
     final meals = {
       for (final r in await db.rawQuery('SELECT date, COUNT(*) AS n FROM meal_entries WHERE $inRange GROUP BY date', args))
         day(r['date']): r['n'] as int,
@@ -92,7 +112,7 @@ class GardenRepository {
     final metrics = <(DateTime, String), (double, String)>{};
     for (final r in await db.query(
       'health_metrics',
-      where: "$inRange AND metric IN ('steps', 'sleep_minutes')",
+      where: "$inRange AND metric IN ('steps', 'sleep_minutes', 'intensity_minutes')",
       whereArgs: args,
     )) {
       final key = (day(r['date']), r['metric'] as String);
@@ -131,6 +151,11 @@ class GardenRepository {
           mealCount: meals[d] ?? 0,
           hasCheckin: checkins.containsKey(d),
           plantOverride: PlantSpecies.byName(checkins[d]),
+          effort: Effort.levelFor(Effort.dayPoints(
+            logged[d] ?? 0,
+            intensityMinutes: metrics[(d, 'intensity_minutes')]?.$1,
+            watchWorkout: (workouts[d] ?? 0) > 0,
+          )),
           routineTags: routineFor(d),
         ),
     ];

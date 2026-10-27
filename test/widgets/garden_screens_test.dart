@@ -1,3 +1,4 @@
+import 'package:daily_rhythm/features/exercise/data/models/exercise_entry.dart';
 import 'package:daily_rhythm/features/journal/data/models/journal_entry.dart';
 import 'package:daily_rhythm/features/garden/presentation/widgets/day_log_card.dart';
 import 'package:daily_rhythm/features/garden/presentation/screens/garden_month_screen.dart';
@@ -141,6 +142,12 @@ void main() {
     expect(find.text('Social Event'), findsOneWidget);
     // The plant follows what the day held (the caption is back at the top).
     await tester.scrollUntilVisible(find.text('A tulip for time with people. From Social Event.'), -300, scrollable: scrollable);
+  });
+
+  testWidgets('the exercise row shows how hard the day was', (tester) async {
+    await db.createExerciseEntry(ExerciseEntry(date: today, timestamp: today, type: ExerciseType.run, distance: 5));
+    await pump(tester, const GardenTodayScreen());
+    await tester.scrollUntilVisible(find.text('1 logged · Hard effort'), 200, scrollable: find.byType(Scrollable).first);
   });
 
   testWidgets('meals are listed and open the meal editor', (tester) async {

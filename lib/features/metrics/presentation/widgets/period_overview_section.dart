@@ -10,6 +10,7 @@ import '../../../garden/presentation/screens/garden_today_screen.dart';
 import '../../data/models/metric_data.dart';
 import '../../data/models/period_overview.dart';
 import '../../data/providers/metrics_providers.dart';
+import '../../../exercise/domain/effort.dart';
 import '../../../profile/data/profile_providers.dart';
 import '../../../profile/domain/profile.dart';
 
@@ -19,7 +20,8 @@ enum YearMetric {
   steps('Steps', ['Under 3k', '3–6k', '6–9k', '9–12k', '12k+'], [0xFFDDF1E4, 0xFFA9DDB8, 0xFF6CC08A, 0xFF3F9A62, 0xFF1F6B45]),
   calories('Calories', ['Under 1.6k', '1.6–1.9k', '1.9–2.2k', '2.2–2.5k', '2.5k+'], [0xFFFFF4D6, 0xFFFCE1A4, 0xFFF6C063, 0xFFE59A2F, 0xFFB86E12]),
   mood('Mood', ['Awful', 'Bad', 'Okay', 'Good', 'Great'], [0xFFC2410C, 0xFFF59E0B, 0xFFDCE6E0, 0xFF7FCB96, 0xFF1F6B45]),
-  energy('Energy', ['Much lower', 'Lower', 'Usual', 'Higher', 'Much higher'], [0xFFF59E0B, 0xFFFBD38D, 0xFFDCE6E0, 0xFF8EC9F0, 0xFF2B6CB0]);
+  energy('Energy', ['Much lower', 'Lower', 'Usual', 'Higher', 'Much higher'], [0xFFF59E0B, 0xFFFBD38D, 0xFFDCE6E0, 0xFF8EC9F0, 0xFF2B6CB0]),
+  effort('Effort', Effort.levels, [0xFFFDE7D4, 0xFFF9C08F, 0xFFF29452, 0xFFD9661F, 0xFF9C3D0E]);
 
   const YearMetric(this.label, this.levels, this.colors);
 
@@ -41,6 +43,7 @@ enum YearMetric {
         calories => _band(d.kcal, const [1600, 1900, 2200, 2500]),
         mood => d.mood == null ? null : (d.mood! - 1).clamp(0, 4),
         energy => d.energy == null ? null : (d.energy! + 2).clamp(0, 4),
+        effort => d.effort == null ? null : (d.effort! - 1).clamp(0, 4),
       };
 
   List<String> levelsFor(ValueRange? kcal) {
@@ -256,9 +259,19 @@ class _Pixels extends StatelessWidget {
           const SizedBox(height: 4),
           Text('Each square is a week’s average.', style: nunito(12, FontWeight.w700, colors.muted)),
         ],
+        if (metric == YearMetric.effort) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Effort is worked out from the exercise you logged (sets, reps, runs) and your watch’s intensity minutes.',
+            style: nunito(12, FontWeight.w700, colors.muted),
+          ),
+        ],
         if (withValue == 0) ...[
           const SizedBox(height: 6),
-          Text('No ${metric.label.toLowerCase()} logged this $unit.', style: nunito(13, FontWeight.w700, colors.muted)),
+          Text(
+            '${metric == YearMetric.effort ? 'No exercise' : 'No ${metric.label.toLowerCase()}'} logged this $unit.',
+            style: nunito(13, FontWeight.w700, colors.muted),
+          ),
         ],
       ],
     );
@@ -293,8 +306,10 @@ class _CellState extends State<_Cell> {
       YearMetric.calories => d.kcal == null ? null : '${_number.format(d.kcal!.round())} kcal',
       YearMetric.mood => d.mood == null ? null : metric.levels[(d.mood! - 1).clamp(0, 4)],
       YearMetric.energy => d.energy == null ? null : metric.levels[(d.energy! + 2).clamp(0, 4)],
+      YearMetric.effort => d.effort == null ? null : Effort.labelFor(d.effort!),
     };
-    return value == null ? 'No ${metric.label.toLowerCase()} logged' : '${metric.label}: $value';
+    if (value == null) return metric == YearMetric.effort ? 'No exercise logged' : 'No ${metric.label.toLowerCase()} logged';
+    return '${metric.label}: $value';
   }
 
   @override
@@ -583,11 +598,10 @@ class _Table extends StatelessWidget {
         );
     String k(double? v) => v == null ? '–' : '${(v / 1000).toStringAsFixed(1)}k';
     const labelWidth = 44.0;
-    final perDay = overview.scale == OverviewScale.week ? 'Kcal' : 'Kcal/day';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(children: [const SizedBox(width: labelWidth), cell('Sleep', header: true), cell('Steps', header: true), cell(perDay, header: true), cell('Food', header: true), cell('Events', header: true)]),
+        Row(children: [const SizedBox(width: labelWidth), cell('Sleep', header: true), cell('Steps', header: true), cell('Kcal', header: true), cell('Effort', header: true), cell('Food', header: true), cell('Events', header: true)]),
         const Divider(height: 10),
         for (final r in rows)
           Semantics(
@@ -604,6 +618,7 @@ class _Table extends StatelessWidget {
                   ),
                   cell(k(r.steps), bold: r.steps != null && r.steps == bestSteps),
                   cell(k(r.kcal), side: _side(r.kcal, kcalRange)),
+                  cell(r.effort == null ? '–' : r.effort!.toStringAsFixed(1)),
                   cell(r.food == 0 ? '–' : money(r.food)),
                   cell(r.events == 0 ? '–' : money(r.events)),
                 ],
@@ -623,7 +638,7 @@ class _Table extends StatelessWidget {
             const TextSpan(text: ' under, '),
             _arrow(1, outside, 12),
             const TextSpan(text: ' over. '),
-            const TextSpan(text: 'Calories are estimates.'),
+            const TextSpan(text: 'Kcal: a day, on average, estimated. Effort: 1 light to 5 very hard, worked out from the exercise you logged.'),
             if (kcalRange == null) const TextSpan(text: ' Add your profile in Settings to see your calorie range.'),
           ]),
           style: nunito(12, FontWeight.w700, colors.muted),

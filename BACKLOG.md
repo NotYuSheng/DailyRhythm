@@ -61,6 +61,12 @@ How the plant is picked when the user doesn't choose:
   outside the user's typical range (sleep by age; calories by Mifflin–St Jeor times
   an activity factor from the period's average steps). Every day with meals logged
   counts toward calories (the user often eats two meals a day).
+- **Exercise effort (2026-10-28):** each day with exercise gets an effort level, Light
+  to Very hard, worked out (not rated) from what was logged: sets, or reps over 10,
+  weighted by how hard the exercise is; runs by distance; or the watch's intensity
+  minutes when higher (`exercise/domain/effort.dart`). Shown on Today's exercise row,
+  as Effort in the Metrics heatmap and tables; a Hard day grows a sunflower even when
+  exercise is routine.
 - **Weight log:** weight is the `weight_kg` health metric (manual source). Log it from
   Metrics (Weight section) or by changing it in the profile; the latest weight is the
   profile's, so the calorie range follows it. The trend is the real check on whether

@@ -37,7 +37,8 @@ class DayValues {
       ..steps = mean(days.map((d) => d.steps))
       ..kcal = mean(days.map((d) => d.kcal))
       ..mood = mean(days.map((d) => d.mood))?.round()
-      ..energy = mean(days.map((d) => d.energy))?.round();
+      ..energy = mean(days.map((d) => d.energy))?.round()
+      ..effort = mean(days.map((d) => d.effort))?.round();
   }
 
   final DateTime date;
@@ -46,6 +47,9 @@ class DayValues {
   double? kcal;
   int? mood;
   int? energy;
+
+  /// How hard the day's exercise was, 1–5; null without any.
+  int? effort;
 }
 
 /// A night: when sleep started and ended, as hours after 18:00 the evening
@@ -108,7 +112,7 @@ class GroupSleep {
 
 /// A group's averages and spending, for the table.
 class GroupRow {
-  const GroupRow({required this.group, required this.days, this.sleep, this.steps, this.kcal, required this.food, required this.events});
+  const GroupRow({required this.group, required this.days, this.sleep, this.steps, this.kcal, this.effort, required this.food, required this.events});
 
   final OverviewGroup group;
 
@@ -117,6 +121,9 @@ class GroupRow {
   final double? sleep;
   final double? steps;
   final double? kcal;
+
+  /// Average effort (1–5) on the days with exercise.
+  final double? effort;
   final double food;
   final double events;
 }
@@ -235,6 +242,7 @@ class PeriodOverview {
     required Map<DateTime, double> kcal,
     required Map<DateTime, int> moods,
     required Map<DateTime, int> energy,
+    Map<DateTime, int> effort = const {},
     required List<NightSpan> nights,
     required Map<String, Set<DateTime>> tagDays,
     required Map<DateTime, double> foodSpend,
@@ -250,7 +258,8 @@ class PeriodOverview {
           ..steps = steps[d]
           ..kcal = kcal[d]
           ..mood = moods[d]
-          ..energy = energy[d],
+          ..energy = energy[d]
+          ..effort = effort[d],
     };
     bool inRange(DateTime d) => !d.isBefore(first) && !d.isAfter(last);
     final inPeriod = {for (final d in logged) if (inRange(d)) d};
@@ -316,6 +325,7 @@ class PeriodOverview {
 
     final stepGroups = byGroup(steps);
     final kcalGroups = byGroup(kcal);
+    final effortGroups = byGroup({for (final MapEntry(key: d, value: v) in effort.entries) d: v.toDouble()});
     final foodGroups = byGroup(foodSpend);
     final eventGroups = byGroup(eventSpend);
     final loggedPerGroup = List.filled(groups.length, 0);
@@ -332,6 +342,7 @@ class PeriodOverview {
             sleep: _mean(sleepGroups[i]),
             steps: _mean(stepGroups[i]),
             kcal: _mean(kcalGroups[i]),
+            effort: _mean(effortGroups[i]),
             food: foodGroups[i].fold(0.0, (s, v) => s + v),
             events: eventGroups[i].fold(0.0, (s, v) => s + v),
           ),

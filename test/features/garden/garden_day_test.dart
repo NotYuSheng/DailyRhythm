@@ -13,6 +13,7 @@ DayLog log({
   List<int> moments = const [],
   PlantSpecies? override,
   Set<String> routine = const {},
+  int? effort,
 }) =>
     DayLog(
       date: DateTime(2026, 10, 20),
@@ -23,6 +24,7 @@ DayLog log({
       sleepHours: sleep,
       sleepLogged: sleepLogged,
       dayMood: mood,
+      effort: effort,
       momentMoods: moments,
       momentCount: moments.length,
       plantOverride: override,
@@ -91,6 +93,15 @@ void main() {
       final day = GardenDay.from(log(tags: ['Work'], override: PlantSpecies.tulip));
       expect((day.plant.species, day.chosen), (PlantSpecies.tulip, true));
     });
+  });
+
+  test('a hard workout grows a sunflower even when exercise is routine', () {
+    const routine = {'Exercise', 'Work'};
+    final easy = log(tags: ['Exercise', 'Work'], exercises: 1, routine: routine, effort: 1);
+    final hard = log(tags: ['Exercise', 'Work'], exercises: 3, routine: routine, effort: 4);
+    expect(GardenDay.speciesFor(easy), isNot(PlantSpecies.sunflower));
+    expect(GardenDay.speciesFor(hard), PlantSpecies.sunflower);
+    expect(GardenDay.from(hard).detail, 'From a hard workout.');
   });
 
   test('the detail says why the day grew its plant', () {
