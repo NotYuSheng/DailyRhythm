@@ -43,9 +43,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.chevron_right)).onPressed, isNull, reason: 'nothing after today');
+    expect(find.text('Every day of the year'), findsNothing, reason: 'nothing logged this year');
     await tester.tap(find.byTooltip('Previous year'));
     await tester.pumpAndSettle();
     expect(find.text('$lastYear'), findsOneWidget);
+    // A year's own view: every day, mood and sleep by month, a row per month.
+    expect(find.text('Every day of the year'), findsOneWidget);
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('Month by month'), 300, scrollable: scrollable);
+    await tester.scrollUntilVisible(find.byTooltip('Next year'), -300, scrollable: scrollable);
     expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.chevron_left)).onPressed, isNull, reason: 'nothing before the first entry');
     await tester.tap(find.byTooltip('Next year'));
     await tester.pumpAndSettle();

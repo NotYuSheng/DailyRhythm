@@ -3,6 +3,8 @@ import '../../../../shared/services/database/database_provider.dart';
 import '../services/day_ratings_service.dart';
 import '../services/fun_facts_service.dart';
 import '../services/metrics_service.dart';
+import '../services/year_overview_repository.dart';
+import '../models/year_overview.dart';
 import '../models/metric_data.dart';
 
 /// Metrics service provider
@@ -58,6 +60,12 @@ final dayRatingsProvider = FutureProvider.autoDispose.family<DayRatingsReport, D
 
 /// Recomputes every metric, for when entries may have changed since the
 /// Metrics tab was last built (it stays alive when switching tabs).
+/// The year at a glance: every day, mood and sleep by month, tags that
+/// stood out and a row per month.
+final yearOverviewProvider = FutureProvider.autoDispose.family<YearOverview, int>((ref, year) {
+  return YearOverviewRepository(ref.watch(databaseProvider)).load(year);
+});
+
 void invalidateMetrics(WidgetRef ref) {
   for (final provider in [
     sleepMetricsProvider,
@@ -68,6 +76,7 @@ void invalidateMetrics(WidgetRef ref) {
     funFactsProvider,
     dayRatingsProvider,
     firstLoggedDayProvider,
+    yearOverviewProvider,
   ]) {
     ref.invalidate(provider);
   }

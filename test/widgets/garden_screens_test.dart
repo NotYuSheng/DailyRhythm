@@ -1,4 +1,5 @@
 import 'package:daily_rhythm/features/journal/data/models/journal_entry.dart';
+import 'package:daily_rhythm/features/garden/presentation/widgets/day_log_card.dart';
 import 'package:daily_rhythm/features/garden/presentation/screens/garden_month_screen.dart';
 import 'package:daily_rhythm/features/garden/presentation/screens/garden_today_screen.dart';
 import 'package:daily_rhythm/features/garden/presentation/widgets/moment_sheet.dart';
@@ -85,7 +86,7 @@ void main() {
     expect((checkin?.energy, checkin?.stress, checkin?.focus), (1, -2, null));
   });
 
-  testWidgets('a good moment is saved and blooms the plant', (tester) async {
+  testWidgets('a good moment is saved and shown on the day', (tester) async {
     await pump(tester, const GardenTodayScreen());
     await tester.scrollUntilVisible(find.text('Log a moment'), 200, scrollable: find.byType(Scrollable).first);
     await tapVisible(tester, find.text('Log a moment'));
@@ -101,7 +102,6 @@ void main() {
     expect((saved.text, saved.mood, saved.time != null), ('Coffee with an old friend', 5, true));
     final scrollable = find.byType(Scrollable).first;
     await tester.scrollUntilVisible(find.text('Coffee with an old friend'), 200, scrollable: scrollable);
-    await tester.scrollUntilVisible(find.textContaining('is in bloom'), -300, scrollable: scrollable);
   });
 
   testWidgets('mood and activities are set for the day, and the plant follows', (tester) async {
@@ -111,9 +111,6 @@ void main() {
     await tester.scrollUntilVisible(find.bySemanticsLabel('Mood good'), 200, scrollable: scrollable);
     await tapVisible(tester, find.bySemanticsLabel('Mood good'));
     expect((await db.getMoodEntryByDate(today))?.moodLevel, 4);
-    // A good day mood blooms (the caption is back at the top).
-    await tester.scrollUntilVisible(find.textContaining('is in bloom'), -300, scrollable: scrollable);
-
     await tester.scrollUntilVisible(find.text('Activities'), 200, scrollable: scrollable);
     await tapVisible(tester, find.text('Activities'));
     await tester.tap(find.widgetWithText(FilterChip, 'Work'));
@@ -128,7 +125,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Social Event'), findsOneWidget);
-    await tester.scrollUntilVisible(find.textContaining('Your tulip is in bloom'), -300, scrollable: scrollable);
+    // The plant follows what the day held (the caption is back at the top).
+    await tester.scrollUntilVisible(find.text('A tulip for time with people. From Social Event.'), -300, scrollable: scrollable);
   });
 
   testWidgets('meals are listed and open the meal editor', (tester) async {
@@ -189,9 +187,10 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Exercise'));
+    final exercise = find.descendant(of: find.byType(DayLogCard), matching: find.text('Exercise'));
+    await tester.ensureVisible(exercise);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Exercise'));
+    await tester.tap(exercise);
     await tester.pumpAndSettle();
     expect(tester.widget<AddExerciseScreen>(find.byType(AddExerciseScreen)).date, yesterday);
     await tester.pageBack();
@@ -203,12 +202,12 @@ void main() {
     await tester.scrollUntilVisible(find.text('Today\u2019s plant'), -300, scrollable: scrollable);
   });
 
-  testWidgets('the month garden counts plants and flowers and shows a picked day', (tester) async {
+  testWidgets('the month garden counts plants and shows a picked day', (tester) async {
     await db.upsertMoodEntry(MoodEntry(date: DateTime(2025, 6, 3), timestamp: DateTime(2025, 6, 3), moodLevel: 4, emoji: ''));
     await db.upsertMoodEntry(MoodEntry(date: DateTime(2025, 6, 4), timestamp: DateTime(2025, 6, 4), moodLevel: 3, emoji: ''));
     await pump(tester, GardenMonthScreen(month: DateTime(2025, 6, 4)));
 
-    expect(find.text('2 plants, 1 flower'), findsOneWidget);
+    expect(find.text('2 plants'), findsOneWidget);
     expect(find.byType(PlantView), findsNWidgets(30));
     expect(find.text('A sprout: a bit of everything'), findsOneWidget);
 
@@ -219,27 +218,27 @@ void main() {
     await tester.tap(find.byTooltip('Previous month'));
     await tester.pumpAndSettle();
     expect(find.text('May 2025 garden'), findsOneWidget);
-    expect(find.text('0 plants, 0 flowers'), findsOneWidget);
+    expect(find.text('0 plants'), findsOneWidget);
   });
 
-  testWidgets('the month and year in review open from the Garden tab', (tester) async {
+  testWidgets('the month in review and the year of gardens open from the Garden tab', (tester) async {
     await db.upsertMoodEntry(MoodEntry(date: DateTime(2025, 6, 3), timestamp: DateTime(2025, 6, 3), moodLevel: 4, emoji: ''));
     await JournalRepository(db).save(JournalEntry(date: DateTime(2025, 6, 3), text: 'Picnic at the reservoir', mood: 5));
     await pump(tester, GardenMonthScreen(month: DateTime(2025, 6, 4)));
 
     await tapVisible(tester, find.text('June in review'));
     expect(find.text('Month in review'), findsOneWidget);
-    expect(find.text('1 plant, 1 flower'), findsOneWidget);
+    expect(find.text('1 plant'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('“Picnic at the reservoir”'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.text('Tue 3 Jun · Great'), findsOneWidget);
 
-    await tapVisible(tester, find.text('2025 in review'));
-    expect(find.text('Year in review'), findsOneWidget);
+    await tapVisible(tester, find.text('2025’s gardens'));
+    expect(find.text('A year of gardens'), findsOneWidget);
     expect(find.text('2025'), findsOneWidget);
-    expect(find.text('1 day logged'), findsOneWidget);
-    expect(find.text('Every day of the year'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('1 plant'), 300, scrollable: find.byType(Scrollable).first);
-    await tapVisible(tester, find.text('1 plant'));
+    expect(find.text('1 plant'), findsOneWidget);
+    expect(find.text('Every day of the year'), findsNothing, reason: 'the year’s numbers are in Metrics');
+    await tester.scrollUntilVisible(find.bySemanticsLabel('June: 1 plant'), 300, scrollable: find.byType(Scrollable).first);
+    await tapVisible(tester, find.bySemanticsLabel('June: 1 plant'));
     expect(find.text('Month in review'), findsOneWidget, reason: 'a month tile opens its review');
   });
 }

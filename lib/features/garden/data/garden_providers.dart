@@ -8,9 +8,7 @@ import '../../journal/data/models/journal_entry.dart';
 import '../../tags/data/models/tag.dart';
 import '../domain/garden_day.dart';
 import '../domain/recap.dart';
-import '../domain/year_overview.dart';
 import 'garden_repository.dart';
-import 'year_overview_repository.dart';
 
 /// Every day of the month containing the given date.
 final gardenMonthProvider = FutureProvider.family<List<GardenDay>, DateTime>((ref, month) {
@@ -56,15 +54,11 @@ final monthRecapProvider = FutureProvider.autoDispose.family<MonthRecap, DateTim
   return (await _recaps(ref, start, start)).single;
 });
 
-/// The year at a glance: every day, mood and sleep by month, tags that
-/// stood out and a row per month.
-final yearOverviewProvider = FutureProvider.autoDispose.family<YearOverview, int>((ref, year) {
-  return YearOverviewRepository(ref.watch(databaseProvider)).load(year);
-});
-
-/// The years with anything logged, oldest first.
-final loggedYearsProvider = FutureProvider.autoDispose<List<int>>((ref) {
-  return YearOverviewRepository(ref.watch(databaseProvider)).years();
+/// Every day of the year, up to today for this year, for the year of gardens.
+final gardenYearProvider = FutureProvider.autoDispose.family<List<GardenDay>, int>((ref, year) {
+  final db = ref.watch(databaseProvider);
+  final today = DateTime.now();
+  return GardenRepository(db).daysInRange(DateTime(year), year == today.year ? today : DateTime(year, 12, 31));
 });
 
 /// Refreshes everything the garden shows after a change on [day].
@@ -74,7 +68,7 @@ void invalidateGardenDay(WidgetRef ref, DateTime day) {
   ref.invalidate(gardenDayProvider);
   ref.invalidate(gardenMonthProvider);
   ref.invalidate(monthRecapProvider);
-  ref.invalidate(yearOverviewProvider);
+  ref.invalidate(gardenYearProvider);
   ref.invalidate(checkinProvider(day));
   ref.invalidate(momentsProvider(day));
 }

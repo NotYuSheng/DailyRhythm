@@ -251,13 +251,11 @@ class FunFactsService {
         counts[p.species] = (counts[p.species] ?? 0) + 1;
       }
       final mix = counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-      final flowers = grown.where((p) => p.flower).length;
       facts.add(FunFact(
         kind: FactKind.garden,
         title: 'The garden grew',
         value: '${grown.length} ${grown.length == 1 ? 'plant' : 'plants'}',
-        detail: '${mix.take(3).map((e) => '${e.value} ${e.value == 1 ? e.key.plantName : e.key.pluralName}').join(', ')}'
-            '${flowers > 0 ? ', $flowers in bloom' : ''}',
+        detail: mix.take(3).map((e) => '${e.value} ${e.value == 1 ? e.key.plantName : e.key.pluralName}').join(', '),
       ));
     }
 

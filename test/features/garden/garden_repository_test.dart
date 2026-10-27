@@ -37,10 +37,7 @@ void main() {
 
     final g = (await GardenRepository(db).daysInRange(day, day)).single;
     expect(g.plant.species, PlantSpecies.sprout, reason: 'study and exercise: a bit of everything');
-    expect(g.sleepHours, 8.5);
-    expect(g.plant.sleep, 4);
-    expect(g.moveCount, 2, reason: 'distinct exercises');
-    expect(g.plant.flower, isTrue);
+    expect(g.detail, 'A mix: Study, Class and exercise.');
   });
 
   test('watch data fills sleep and movement; a pick overrides the plant', () async {
@@ -54,8 +51,7 @@ void main() {
     await CheckinRepository(db).save(DayCheckin(date: day, plantOverride: 'tulip'));
 
     final g = (await GardenRepository(db).daysInRange(day, day)).single;
-    expect(g.sleepHours, 5.5);
-    expect(g.moveCount, 3);
+    expect(g.detail, 'You picked this plant.');
     expect((g.plant.species, g.chosen, g.plant.logged), (PlantSpecies.tulip, true, true));
   });
 

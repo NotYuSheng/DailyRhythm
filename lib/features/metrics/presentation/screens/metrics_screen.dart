@@ -9,6 +9,7 @@ import '../../../garden/presentation/garden_style.dart';
 import '../widgets/day_ratings_section.dart';
 import '../widgets/fun_facts_section.dart';
 import '../widgets/quick_stat_card.dart';
+import '../widgets/year_overview_section.dart';
 
 class MetricsScreen extends ConsumerStatefulWidget {
   const MetricsScreen({super.key});
@@ -74,8 +75,12 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
             _buildQuickStats(),
             const SizedBox(height: AppTheme.spacePulse4),
 
-            // Sleep Chart
-            _buildSleepChart(),
+            // A year: every day, mood and sleep by month, tags that stood
+            // out, a row per month. Shorter periods: the nightly chart.
+            if (_period == _Period.year)
+              YearOverviewSection(year: _selectedRange.start.year)
+            else
+              _buildSleepChart(),
             const SizedBox(height: AppTheme.spacePulse3),
 
             // Mood, energy, stress and focus; tag comparisons; watch

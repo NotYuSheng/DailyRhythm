@@ -28,47 +28,23 @@ enum PlantSpecies {
   }
 }
 
-/// Everything that shapes one day's plant.
+/// One day's plant. It says only what kind of day it was; the numbers
+/// (sleep, steps, mood) live in Metrics.
 class PlantSpec {
-  const PlantSpec({
-    required this.species,
-    this.sleep = 2,
-    this.move = 0,
-    this.flower = false,
-    this.logged = true,
-  });
+  const PlantSpec({required this.species, this.logged = true});
 
   final PlantSpecies species;
-
-  /// 0–4: sets the plant's size. It reflects the night, not a grade.
-  final int sleep;
-
-  /// 0–4: adds leaves (or cactus arms, fronds, petals).
-  final int move;
-
-  /// A good moment that day adds a bloom.
-  final bool flower;
 
   /// False draws an empty pot.
   final bool logged;
 
   @override
-  bool operator ==(Object other) =>
-      other is PlantSpec &&
-      other.species == species &&
-      other.sleep == sleep &&
-      other.move == move &&
-      other.flower == flower &&
-      other.logged == logged;
+  bool operator ==(Object other) => other is PlantSpec && other.species == species && other.logged == logged;
 
   @override
-  int get hashCode => Object.hash(species, sleep, move, flower, logged);
+  int get hashCode => Object.hash(species, logged);
 
-  String get semanticLabel {
-    if (!logged) return 'Empty pot: nothing logged that day';
-    return 'A ${species.plantName}, grown from sleep $sleep of 4 and $move movement'
-        '${flower ? ', blooming for a good moment' : ''}';
-  }
+  String get semanticLabel => logged ? 'A ${species.plantName}: ${species.dayWord}' : 'Empty pot: nothing logged that day';
 }
 
 const potColors = ['#F2A27E', '#B7A8F2', '#8CC8FF', '#9FDCB9'];
@@ -101,11 +77,16 @@ class PlantSvg {
     );
   }
 
+  /// Leaves, arms and fronds every plant grows: the same for each day, so
+  /// a plant's look is its species and nothing else.
+  static const _growth = 3;
+  static const _scale = 0.88;
+
   /// The plant itself, or null for an empty pot.
   static String? plant(PlantSpec spec) {
     if (!spec.logged) return null;
-    final move = spec.move.clamp(0, 4);
-    final g = 0.72 + spec.sleep.clamp(0, 4) * 0.08;
+    const move = _growth;
+    const g = _scale;
     final b = StringBuffer();
     const greens = ['#5BB884', '#7CCB9A'];
 
@@ -207,12 +188,7 @@ class PlantSvg {
     }
 
     final top = _tops[spec.species]!;
-    if (spec.flower) {
-      b.write('<g transform="translate(${top.$1} ${top.$2})">${_bloom(spec.species)}</g>');
-    } else if (const [PlantSpecies.sprout, PlantSpecies.tulip, PlantSpecies.sunflower, PlantSpecies.cactus].contains(spec.species)) {
-      final sun = spec.species == PlantSpecies.sunflower;
-      b.write('<ellipse cx="${top.$1}" cy="${top.$2 + (sun ? 2 : 4)}" rx="${sun ? 10 : 6.5}" ry="9" fill="#7CCB9A"/>');
-    }
+    b.write('<g transform="translate(${top.$1} ${top.$2})">${_bloom(spec.species)}</g>');
 
     return _wrap('<g transform="translate(100 176) scale(${g.toStringAsFixed(2)}) translate(-100 -176)">$b</g>');
   }

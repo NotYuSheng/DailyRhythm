@@ -4,16 +4,10 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../data/garden_providers.dart';
 import '../../domain/plant.dart';
-import '../../domain/recap.dart';
 import '../garden_style.dart';
 import '../widgets/moment_sheet.dart';
-import '../widgets/plant_view.dart';
-import 'year_overview_screen.dart';
-
-String _hours(double h) {
-  final minutes = (h * 60).round();
-  return minutes % 60 == 0 ? '${minutes ~/ 60}h' : '${minutes ~/ 60}h ${minutes % 60}m';
-}
+import '../widgets/mini_garden.dart';
+import 'year_gardens_screen.dart';
 
 String _count(int n, String one, [String? many]) => '$n ${n == 1 ? one : many ?? '${one}s'}';
 
@@ -43,12 +37,12 @@ class MonthRecapScreen extends ConsumerWidget {
             Semantics(
               header: true,
               child: Text(
-                '${_count(r.plants, 'plant')}, ${_count(r.flowers, 'flower')}',
+                _count(r.plants, 'plant'),
                 style: nunito(26, FontWeight.w900, colors.ink),
               ),
             ),
             const SizedBox(height: 12),
-            _RecapCard(colors: colors, child: _MiniGarden(recap: r)),
+            _RecapCard(colors: colors, child: MiniGarden(month: r.month, days: r.days)),
             if (r.isEmpty) ...[
               const SizedBox(height: 16),
               Text('Nothing was logged this month. Quiet months are fine too.', style: nunito(15, FontWeight.w600, colors.muted)),
@@ -64,20 +58,6 @@ class MonthRecapScreen extends ConsumerWidget {
                   colors: colors,
                   title: 'What the days held',
                   body: [for (final (name, n) in r.topActivities) '$name (${_count(n, 'day')})'].join(', '),
-                ),
-              if (r.sleepAverage != null)
-                _Fact(
-                  colors: colors,
-                  title: 'Sleep',
-                  body: r.sleepShortest == r.sleepLongest
-                      ? 'About ${_hours(r.sleepAverage!)} a night'
-                      : 'From ${_hours(r.sleepShortest!)} to ${_hours(r.sleepLongest!)}, about ${_hours(r.sleepAverage!)} on average',
-                ),
-              if (r.moveSessions > 0)
-                _Fact(
-                  colors: colors,
-                  title: 'Movement',
-                  body: '${_count(r.moveSessions, 'session')} over ${_count(r.movingDays, 'day')}',
                 ),
               if (r.momentCount > 0)
                 _RecapCard(
@@ -106,10 +86,10 @@ class MonthRecapScreen extends ConsumerWidget {
                 style: TextButton.styleFrom(minimumSize: const Size(0, 44), foregroundColor: colors.accent),
                 onPressed: () => Navigator.push(
                   context,
-                  MaterialPageRoute<void>(builder: (_) => YearOverviewScreen(year: month.year)),
+                  MaterialPageRoute<void>(builder: (_) => YearGardensScreen(year: month.year)),
                 ),
                 icon: const Icon(Icons.calendar_view_month),
-                label: Text('${month.year} in review', style: nunito(14, FontWeight.w800, colors.accent)),
+                label: Text('${month.year}’s gardens', style: nunito(14, FontWeight.w800, colors.accent)),
               ),
             ),
           ],
@@ -161,30 +141,3 @@ class _Fact extends StatelessWidget {
 
 /// The month's days as small pots, in weeks from Monday like the month
 /// garden.
-class _MiniGarden extends StatelessWidget {
-  const _MiniGarden({required this.recap});
-
-  final MonthRecap recap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ExcludeSemantics(
-      child: LayoutBuilder(
-        builder: (context, box) {
-          final cell = box.maxWidth / 7;
-          final lead = recap.month.weekday - 1;
-          return Wrap(
-            children: [
-              for (var i = 0; i < lead; i++) SizedBox(width: cell, height: 1),
-              for (final d in recap.days)
-                SizedBox(
-                  width: cell,
-                  child: PlantView(spec: d.plant, width: cell, potColor: potColors[d.date.day % potColors.length]),
-                ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}

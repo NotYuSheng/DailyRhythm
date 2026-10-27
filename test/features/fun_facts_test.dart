@@ -81,7 +81,7 @@ void main() {
     }
     final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
     expect((facts['Days logged']!.value, facts['Days logged']!.detail), ('5 of 31', 'Longest run: 4 days in a row'));
-    expect(facts['The garden grew']!.detail, '5 sprouts, 1 in bloom');
+    expect(facts['The garden grew']!.detail, '5 sprouts');
 
     final quiet = await FunFactsService(db).factsFor(
       DateRange(start: DateTime(2026, 4, 1), end: DateTime(2026, 4, 30), label: 'April'), today: DateTime(2026, 4, 30));

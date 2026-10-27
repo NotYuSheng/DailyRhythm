@@ -19,19 +19,21 @@ Other rows on that canvas were explored and not chosen.
 
 Every logged day grows a plant in a pot:
 
-| Day mostly about (from activity tags) | Plant | Good moment adds |
-|---|---|---|
-| Exercise | Sunflower | yellow head |
-| Rest | Succulent | small pink flower |
-| Social / family | Tulip | open tulip |
-| Work | Cactus | flower on top |
-| Study | Fern | a ladybug |
-| Gaming / videos | Monstera | cream spathe |
-| A mix | Sprout | pink flower |
-| Big days (trips, birthdays) | Little tree | blossoms |
+| Day mostly about (from activity tags) | Plant |
+|---|---|
+| Exercise | Sunflower |
+| Rest | Succulent |
+| Social / family | Tulip |
+| Work | Cactus |
+| Study | Fern |
+| Gaming / videos | Monstera |
+| A mix | Sprout |
+| Big days (trips, birthdays) | Little tree |
 
-- Sleep sets the plant's size, movement adds leaves (or cactus arms), a good journal
-  moment adds the bloom.
+- **A memory garden (2026-10-27):** a plant says only what kind of day it was. Size,
+  leaves and blooms carry no data; every number (sleep, steps, mood) is in Metrics.
+  The garden is for looking back: tap a plant to see why it grew ("From Work and
+  Study") and open the day. Today logs, Garden remembers, Metrics finds patterns.
 - Missed days are empty pots. Nothing wilts, dies or loses a streak.
 - Screens: Today's plant (with a "today was mostly…" override), the month as a garden,
   and the warm B row's calendar, rhythm zone, recap and sticker ideas where they fit.
@@ -39,7 +41,6 @@ Every logged day grows a plant in a pot:
   wording with no advice, subtle sway animation (off with reduced motion).
 - The prototype draws plants in code. Production plants need real illustration
   (commissioned or licence-checked asset set), animated with Rive.
-- Must not reward or punish sleep length itself: size reflects the night, not a grade.
 
 **Built (3c, 2026-10-25):** the Today tab (plant, "today was mostly…", stats, check-in,
 moments) and the month garden, in `lib/features/garden/`. The plants are the
@@ -50,9 +51,10 @@ How the plant is picked when the user doesn't choose:
 - Tags logged on 60%+ of the previous 8 weeks are routine and only decide when nothing
   else stands out; several kinds, or none, give a sprout ("a bit of everything").
   With the Daylio history (the same five tags almost daily) most past days are
-  sprouts that vary in size; social days, intense workouts and the like stand out.
-- A good day mood (4+) or a good moment adds the bloom. Daylio days are 85% "meh",
-  so past months have few flowers; moments logged from now on add them.
+  sprouts; social days, intense workouts and the like stand out.
+- The year view is in Metrics (Year): every day coloured by a measure, mood and
+  sleep by month, days that stood out, a row per month. Garden has a year of
+  gardens: each month's plants, tapping through to its review.
 
 Still to do: year/month recap (#13) and stickers from the warm B row, real
 illustrations with Rive animation (#14).

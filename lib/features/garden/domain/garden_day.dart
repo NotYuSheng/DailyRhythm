@@ -64,8 +64,7 @@ class GardenDay {
     required this.date,
     required this.plant,
     required this.chosen,
-    this.sleepHours,
-    this.moveCount = 0,
+    this.reason = '',
     this.usual = false,
   });
 
@@ -74,8 +73,9 @@ class GardenDay {
 
   /// True when the user picked the plant ("today was mostly…").
   final bool chosen;
-  final double? sleepHours;
-  final int moveCount;
+
+  /// Why the day grew this plant: "From Work and Study."
+  final String reason;
 
   /// Only routine tags were logged: an ordinary day rather than a mix.
   final bool usual;
@@ -142,14 +142,33 @@ class GardenDay {
   /// Hours of sleep that make a routine day a rest day.
   static const longNight = 8.5;
 
-  /// 0–4 from the night's length; unknown counts as a medium night.
-  static int sleepLevel(double? hours) {
-    if (hours == null) return 2;
-    if (hours < 5) return 0;
-    if (hours < 6) return 1;
-    if (hours < 7) return 2;
-    if (hours < 8) return 3;
-    return 4;
+  /// What decided [species] for a day the user didn't pick for: the tags
+  /// that point to it, or what the day itself held.
+  static String reasonFor(DayLog log, PlantSpecies species) {
+    if (species == PlantSpecies.tree) return 'From ${_and(log.tagNames.where(_bigDay.hasMatch).toSet())}.';
+    // The same tags speciesFor looked at: routine ones only when nothing else was logged.
+    final routine = _kinds(log, routine: false).isEmpty;
+    bool counts(PlantSpecies? kind) => kind != null && (species == PlantSpecies.sprout || kind == species);
+    final names = {
+      for (final name in log.tagNames)
+        if ((routine || !log.routineTags.contains(name)) && counts(tagSpecies[name])) name,
+    };
+    final exercised = (log.exerciseKinds > 0 || log.workouts > 0) && (routine || !log.routineTags.contains('Exercise'));
+    if (exercised && counts(PlantSpecies.sunflower) && !names.any((n) => tagSpecies[n] == PlantSpecies.sunflower)) {
+      names.add('exercise');
+    }
+    if (species == PlantSpecies.sprout) {
+      if (isUsual(log)) return 'Only the things you do most days.';
+      return names.length > 1 ? 'A mix: ${_and(names)}.' : 'No one thing stood out.';
+    }
+    if (names.isNotEmpty) return 'From ${_and(names)}.';
+    // A routine day the day itself decided (see speciesFor).
+    return species == PlantSpecies.sunflower ? 'Lots of moving.' : 'A long night’s sleep.';
+  }
+
+  static String _and(Iterable<String> names) {
+    final list = names.toList();
+    return list.length <= 1 ? list.join() : '${list.take(list.length - 1).join(', ')} and ${list.last}';
   }
 
   /// Exercises or workouts (whichever is more, since a watch workout and a
@@ -175,25 +194,15 @@ class GardenDay {
   }
 
   factory GardenDay.from(DayLog log) {
-    final move = moveCountFor(log);
-    final good = (log.dayMood ?? 0) >= 4 || log.momentMoods.any((m) => m >= 4);
+    final species = log.plantOverride ?? speciesFor(log);
     return GardenDay(
       date: log.date,
       chosen: log.plantOverride != null,
       usual: isUsual(log),
-      sleepHours: log.sleepHours,
-      moveCount: move,
-      plant: PlantSpec(
-        species: log.plantOverride ?? speciesFor(log),
-        sleep: sleepLevel(log.sleepHours),
-        move: math.min(4, move),
-        flower: good,
-        logged: log.logged,
-      ),
+      reason: log.plantOverride != null ? 'You picked this plant.' : reasonFor(log, species),
+      plant: PlantSpec(species: species, logged: log.logged),
     );
   }
-
-  static const _nightWords = ['a very short night', 'a short night', 'a medium night', 'a full night', 'a long night'];
 
   /// "A sunflower: an exercise day"
   String get title => !plant.logged
@@ -202,11 +211,6 @@ class GardenDay {
           ? 'A sprout: a usual day'
           : 'A ${plant.species.plantName}: ${plant.species.dayWord}';
 
-  /// "Grew from a full night, 2 movement sessions, and bloomed for a good moment."
-  String get detail {
-    if (!plant.logged) return 'Nothing logged. That’s okay.';
-    final night = sleepHours == null ? 'a night of unknown length' : _nightWords[plant.sleep];
-    final moves = '$moveCount movement ${moveCount == 1 ? 'session' : 'sessions'}';
-    return 'Grew from $night, $moves${plant.flower ? ', and bloomed for a good moment.' : '.'}';
-  }
+  /// "From Work and Study."
+  String get detail => plant.logged ? reason : 'Nothing logged. That’s okay.';
 }

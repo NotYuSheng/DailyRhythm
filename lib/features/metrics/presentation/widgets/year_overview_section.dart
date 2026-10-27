@@ -2,10 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../data/garden_providers.dart';
-import '../../domain/year_overview.dart';
-import '../garden_style.dart';
-import 'recap_screen.dart';
+import '../../../garden/presentation/garden_style.dart';
+import '../../data/models/year_overview.dart';
+import '../../data/providers/metrics_providers.dart';
 
 /// What colours the year in pixels.
 enum YearMetric {
@@ -42,145 +41,61 @@ enum YearMetric {
 
 const _letters = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
-/// A year at a glance, any year with logs: every day coloured by a chosen
-/// measure, mood and sleep by month, the tags that stood out, a row per
-/// month, and the month gardens.
-class YearOverviewScreen extends ConsumerStatefulWidget {
-  const YearOverviewScreen({super.key, required this.year});
+/// Metrics for a year: every day coloured by a chosen measure, mood and
+/// sleep by month, the tags that stood out, and a row per month.
+class YearOverviewSection extends ConsumerStatefulWidget {
+  const YearOverviewSection({super.key, required this.year});
 
   final int year;
 
   @override
-  ConsumerState<YearOverviewScreen> createState() => _YearOverviewScreenState();
+  ConsumerState<YearOverviewSection> createState() => _YearOverviewSectionState();
 }
 
-class _YearOverviewScreenState extends ConsumerState<YearOverviewScreen> {
-  late int _year = widget.year;
+class _YearOverviewSectionState extends ConsumerState<YearOverviewSection> {
   YearMetric _metric = YearMetric.sleep;
 
   @override
   Widget build(BuildContext context) {
     final colors = GardenColors.of(context);
-    final years = ref.watch(loggedYearsProvider).value ?? [_year];
-    final overview = ref.watch(yearOverviewProvider(_year));
-    final now = DateTime.now();
-
-    return Scaffold(
-      backgroundColor: colors.ground,
-      appBar: AppBar(backgroundColor: colors.ground, title: const Text('Year in review')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 4, 18, 28),
-        children: [
-          Row(
-            children: [
-              _Arrow(
-                icon: Icons.chevron_left,
-                label: 'Previous year',
-                onPressed: _year > years.first ? () => setState(() => _year--) : null,
-              ),
-              Expanded(
-                child: Semantics(
-                  header: true,
-                  child: Text(
-                    _year == now.year ? '$_year so far' : '$_year',
-                    textAlign: TextAlign.center,
-                    style: nunito(28, FontWeight.w900, colors.ink),
-                  ),
+    return ref.watch(yearOverviewProvider(widget.year)).when(
+          loading: () => const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator())),
+          error: (e, _) => Text('Couldn’t load the year: $e'),
+          data: (o) => !o.hasData
+              ? const SizedBox.shrink()
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    GardenSection(
+                      title: 'Every day of the year',
+                      colors: colors,
+                      child: _Pixels(overview: o, metric: _metric, colors: colors, onMetric: (m) => setState(() => _metric = m)),
+                    ),
+                    const SizedBox(height: 14),
+                    GardenSection(title: 'Mood by month', colors: colors, child: _MoodByMonth(overview: o, colors: colors)),
+                    if (o.sleepByMonth.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      GardenSection(
+                        title: 'Your sleep, month by month',
+                        subtitle: 'Bar: usual bedtime to usual waking. Pale ends: how much that moved.',
+                        colors: colors,
+                        child: _SleepByMonth(overview: o, colors: colors),
+                      ),
+                    ],
+                    if (o.rareTags.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      GardenSection(
+                        title: 'Days that stood out',
+                        subtitle: o.everydayTags.isEmpty ? null : 'Left out, as they were on almost every day: ${o.everydayTags.join(', ')}.',
+                        colors: colors,
+                        child: _RareTags(overview: o, colors: colors),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    GardenSection(title: 'Month by month', colors: colors, child: _MonthTable(overview: o, colors: colors)),
+                  ],
                 ),
-              ),
-              _Arrow(
-                icon: Icons.chevron_right,
-                label: 'Next year',
-                onPressed: _year < now.year ? () => setState(() => _year++) : null,
-              ),
-            ],
-          ),
-          ...overview.when(
-            loading: () => [const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))],
-            error: (e, _) => [Text('Couldn’t load the year: $e')],
-            data: (o) => _sections(context, o, colors),
-          ),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _sections(BuildContext context, YearOverview o, GardenColors colors) {
-    final number = NumberFormat.decimalPattern();
-    String? summaryPart(double? v, String Function(double) f) => v == null ? null : f(v);
-    final summary = [
-      '${o.loggedDays} ${o.loggedDays == 1 ? 'day' : 'days'} logged',
-      ?summaryPart(o.averageSleep, (v) => '${v.toStringAsFixed(1)} h sleep'),
-      ?summaryPart(o.averageSteps, (v) => '${number.format(v.round())} steps a day'),
-    ].join(' · ');
-    if (!o.hasData) {
-      return [
-        const SizedBox(height: 24),
-        Text('Nothing logged in ${o.year}.', textAlign: TextAlign.center, style: nunito(16, FontWeight.w700, colors.muted)),
-      ];
-    }
-    return [
-      Text(summary, textAlign: TextAlign.center, style: nunito(14, FontWeight.w700, colors.muted)),
-      const SizedBox(height: 14),
-      GardenSection(
-        title: 'Every day of the year',
-        colors: colors,
-        child: _Pixels(overview: o, metric: _metric, colors: colors, onMetric: (m) => setState(() => _metric = m)),
-      ),
-      const SizedBox(height: 14),
-      GardenSection(title: 'Mood by month', colors: colors, child: _MoodByMonth(overview: o, colors: colors)),
-      if (o.sleepByMonth.isNotEmpty) ...[
-        const SizedBox(height: 14),
-        GardenSection(
-          title: 'Your sleep, month by month',
-          subtitle: 'Bar: usual bedtime to usual waking. Pale ends: how much that moved.',
-          colors: colors,
-          child: _SleepByMonth(overview: o, colors: colors),
-        ),
-      ],
-      if (o.rareTags.isNotEmpty) ...[
-        const SizedBox(height: 14),
-        GardenSection(
-          title: 'Days that stood out',
-          subtitle: o.everydayTags.isEmpty ? null : 'Left out, as they were on almost every day: ${o.everydayTags.join(', ')}.',
-          colors: colors,
-          child: _RareTags(overview: o, colors: colors),
-        ),
-      ],
-      const SizedBox(height: 14),
-      GardenSection(title: 'Month by month', colors: colors, child: _MonthTable(overview: o, colors: colors)),
-      const SizedBox(height: 14),
-      GardenSection(
-        title: 'The gardens',
-        subtitle: 'Tap a month for its garden and review.',
-        colors: colors,
-        child: _Gardens(overview: o, colors: colors),
-      ),
-    ];
-  }
-}
-
-class _Arrow extends StatelessWidget {
-  const _Arrow({required this.icon, required this.label, required this.onPressed});
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = GardenColors.of(context);
-    return IconButton(
-      onPressed: onPressed,
-      tooltip: label,
-      icon: Icon(icon),
-      style: IconButton.styleFrom(
-        minimumSize: const Size(44, 44),
-        backgroundColor: colors.card,
-        foregroundColor: colors.ink,
-        disabledBackgroundColor: colors.card.withValues(alpha: 0.5),
-      ),
-    );
+        );
   }
 }
 
@@ -539,59 +454,6 @@ class _MonthTable extends StatelessWidget {
         const SizedBox(height: 6),
         Text('Bold: the year’s best month. Calories are estimates.', style: nunito(12, FontWeight.w700, colors.muted)),
       ],
-    );
-  }
-}
-
-class _Gardens extends StatelessWidget {
-  const _Gardens({required this.overview, required this.colors});
-
-  final YearOverview overview;
-  final GardenColors colors;
-
-  @override
-  Widget build(BuildContext context) {
-    final plants = {for (final r in overview.months) r.month: r.days};
-    return LayoutBuilder(
-      builder: (context, box) {
-        final width = (box.maxWidth - 18) / 4;
-        return Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            for (var m = 1; m <= 12; m++)
-              SizedBox(
-                width: width,
-                child: Material(
-                  color: colors.ground,
-                  borderRadius: BorderRadius.circular(14),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: plants.containsKey(m)
-                        ? () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => MonthRecapScreen(month: DateTime(overview.year, m))))
-                        : null,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(minHeight: 48),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(DateFormat('MMM').format(DateTime(2000, m)), style: nunito(13, FontWeight.w900, colors.ink)),
-                            Text(
-                              switch (plants[m]) { null => '–', 1 => '1 plant', final n => '$n plants' },
-                              style: nunito(11, FontWeight.w700, colors.muted),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
     );
   }
 }
