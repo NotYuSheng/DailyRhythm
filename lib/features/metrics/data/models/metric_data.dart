@@ -3,31 +3,6 @@ import 'package:intl/intl.dart';
 import '../../../../shared/utils/date_utils.dart';
 
 /// Data models for metrics and statistics
-class MetricData {
-  final double value;
-  final double? previousValue;
-  final String label;
-  final TrendDirection trend;
-
-  MetricData({
-    required this.value,
-    this.previousValue,
-    required this.label,
-    required this.trend,
-  });
-
-  double get trendPercentage {
-    if (previousValue == null || previousValue == 0) return 0.0;
-    return ((value - previousValue!) / previousValue!) * 100;
-  }
-}
-
-enum TrendDirection {
-  up,
-  down,
-  neutral,
-}
-
 class DateRange {
   final DateTime start;
   final DateTime end;

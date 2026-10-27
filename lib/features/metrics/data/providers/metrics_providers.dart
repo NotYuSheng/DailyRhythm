@@ -13,24 +13,6 @@ final metricsServiceProvider = Provider<MetricsService>((ref) {
   return MetricsService(db);
 });
 
-/// Sleep metrics provider
-final sleepMetricsProvider = FutureProvider.autoDispose.family<SleepMetrics, DateRange>((ref, range) async {
-  final service = ref.watch(metricsServiceProvider);
-  return service.calculateSleepMetrics(range);
-});
-
-/// Mood metrics provider
-final moodMetricsProvider = FutureProvider.autoDispose.family<MoodMetrics, DateRange>((ref, range) async {
-  final service = ref.watch(metricsServiceProvider);
-  return service.calculateMoodMetrics(range);
-});
-
-/// Exercise metrics provider
-final exerciseMetricsProvider = FutureProvider.autoDispose.family<ExerciseMetrics, DateRange>((ref, range) async {
-  final service = ref.watch(metricsServiceProvider);
-  return service.calculateExerciseMetrics(range);
-});
-
 /// Activity metrics provider
 final activityMetricsProvider = FutureProvider.autoDispose.family<ActivityMetrics, DateRange>((ref, range) async {
   final service = ref.watch(metricsServiceProvider);
@@ -70,9 +52,6 @@ final periodOverviewProvider = FutureProvider.autoDispose.family<PeriodOverview,
 
 void invalidateMetrics(WidgetRef ref) {
   for (final provider in [
-    sleepMetricsProvider,
-    moodMetricsProvider,
-    exerciseMetricsProvider,
     activityMetricsProvider,
     metricsInsightsProvider,
     funFactsProvider,

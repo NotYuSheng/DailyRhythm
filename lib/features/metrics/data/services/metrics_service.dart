@@ -288,17 +288,4 @@ class MetricsService {
       label: 'Previous Period',
     );
   }
-
-  // ==================== Helper Methods ====================
-
-  TrendDirection calculateTrend(double current, double? previous) {
-    if (previous == null || current == 0) return TrendDirection.neutral;
-
-    final diff = current - previous;
-    final percentChange = (diff / previous).abs();
-
-    if (percentChange < 0.05) return TrendDirection.neutral; // Less than 5% change
-    if (diff > 0) return TrendDirection.up;
-    return TrendDirection.down;
-  }
 }
