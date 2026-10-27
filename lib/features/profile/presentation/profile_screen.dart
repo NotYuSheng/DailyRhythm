@@ -151,8 +151,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   style: nunito(15, FontWeight.w800, colors.ink),
                 ),
                 Text(
-                  'Metrics narrows this using your average steps for the period shown, and compares it only with days '
-                  'with 3 or more meals logged.',
+                  'Metrics narrows this using your average steps for the period shown.',
                   style: nunito(13, FontWeight.w600, colors.muted),
                 ),
               ],

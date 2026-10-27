@@ -59,8 +59,8 @@ How the plant is picked when the user doesn't choose:
 - **Profile and ranges (2026-10-28):** an optional profile (year of birth, height,
   weight, sex) in Settings, kept on the device. Metrics marks sleep and calories
   outside the user's typical range (sleep by age; calories by Mifflin–St Jeor times
-  an activity factor from the period's average steps). Calories count only on days
-  with 3+ meals logged, as partial days read as eating little.
+  an activity factor from the period's average steps). Every day with meals logged
+  counts toward calories (the user often eats two meals a day).
 
 Still to do: year/month recap (#13) and stickers from the warm B row, real
 illustrations with Rive animation (#14).
