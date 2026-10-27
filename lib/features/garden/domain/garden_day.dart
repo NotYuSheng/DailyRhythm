@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import '../../exercise/domain/effort.dart';
 import 'plant.dart';
 
 /// What was logged on one day, gathered for the garden.
@@ -19,6 +20,7 @@ class DayLog {
     this.hasCheckin = false,
     this.plantOverride,
     this.routineTags = const {},
+    this.effort,
   });
 
   final DateTime date;
@@ -48,6 +50,12 @@ class DayLog {
   /// Tags logged on most recent days, which say little about this one.
   final Set<String> routineTags;
 
+  /// How hard the day's exercise was, 1–5 ([Effort]); null without any.
+  final int? effort;
+
+  /// A hard workout stands out even when exercise is routine.
+  bool get hardWorkout => (effort ?? 0) >= Effort.hard;
+
   bool get logged =>
       dayMood != null ||
       sleepLogged ||
@@ -66,6 +74,7 @@ class GardenDay {
     required this.chosen,
     this.reason = '',
     this.usual = false,
+    this.effort,
   });
 
   final DateTime date;
@@ -79,6 +88,9 @@ class GardenDay {
 
   /// Only routine tags were logged: an ordinary day rather than a mix.
   final bool usual;
+
+  /// How hard the day's exercise was, 1–5; null without any.
+  final int? effort;
 
   /// Activity tags for each plant. Food sources and symptoms don't pick a
   /// plant: they say nothing about what the day was about.
@@ -132,7 +144,7 @@ class GardenDay {
     return {
       for (final name in log.tagNames)
         if (keep(name) && tagSpecies[name] != null) tagSpecies[name]!,
-      if ((log.exerciseKinds > 0 || log.workouts > 0) && keep('Exercise')) PlantSpecies.sunflower,
+      if ((log.exerciseKinds > 0 || log.workouts > 0) && (keep('Exercise') || log.hardWorkout)) PlantSpecies.sunflower,
     };
   }
 
@@ -153,9 +165,9 @@ class GardenDay {
       for (final name in log.tagNames)
         if ((routine || !log.routineTags.contains(name)) && counts(tagSpecies[name])) name,
     };
-    final exercised = (log.exerciseKinds > 0 || log.workouts > 0) && (routine || !log.routineTags.contains('Exercise'));
+    final exercised = (log.exerciseKinds > 0 || log.workouts > 0) && (routine || log.hardWorkout || !log.routineTags.contains('Exercise'));
     if (exercised && counts(PlantSpecies.sunflower) && !names.any((n) => tagSpecies[n] == PlantSpecies.sunflower)) {
-      names.add('exercise');
+      names.add(log.hardWorkout ? 'a hard workout' : 'exercise');
     }
     if (species == PlantSpecies.sprout) {
       if (isUsual(log)) return 'Only the things you do most days.';
@@ -200,6 +212,7 @@ class GardenDay {
       chosen: log.plantOverride != null,
       usual: isUsual(log),
       reason: log.plantOverride != null ? 'You picked this plant.' : reasonFor(log, species),
+      effort: log.effort,
       plant: PlantSpec(species: species, logged: log.logged),
     );
   }

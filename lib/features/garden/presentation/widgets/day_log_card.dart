@@ -7,6 +7,7 @@ import '../../../../shared/providers/common_providers.dart';
 import '../../../../shared/services/database/database_provider.dart';
 import '../../../exercise/data/models/exercise_entry.dart';
 import '../../../exercise/data/providers/exercise_providers.dart';
+import '../../../exercise/domain/effort.dart';
 import '../../../exercise/presentation/screens/add_exercise_screen.dart';
 import '../../../meals/data/models/meal_entry.dart';
 import '../../../meals/data/providers/meal_providers.dart';
@@ -64,6 +65,7 @@ class DayLogCard extends ConsumerWidget {
     final sleep = ref.watch(sleepEntriesProvider(day)).value ?? const [];
     final meals = ref.watch(mealEntriesProvider(day)).value ?? const <MealEntry>[];
     final exercises = ref.watch(exerciseEntriesProvider(day)).value ?? const <ExerciseEntry>[];
+    final effort = ref.watch(gardenDayProvider(day)).value?.effort;
     final activities = ref.watch(activityEntriesProvider(day)).value ?? const <ActivityEntry>[];
     final spending = ref.watch(spendingProvider(day)).value ?? const <SpendingEntry>[];
     final tags = {for (final t in ref.watch(allTagsProvider).value ?? const <Tag>[]) t.id: t};
@@ -123,7 +125,9 @@ class DayLogCard extends ConsumerWidget {
           _Row(
             icon: Icons.fitness_center_outlined,
             title: 'Exercise',
-            summary: exercises.isEmpty ? 'Add exercise' : '${exercises.length} logged',
+            summary: exercises.isEmpty
+                ? 'Add exercise'
+                : '${exercises.length} logged${effort == null ? '' : ' · ${Effort.labelFor(effort)} effort'}',
             colors: colors,
             action: 'Add',
             onTap: () => open(AddExerciseScreen(date: day)),

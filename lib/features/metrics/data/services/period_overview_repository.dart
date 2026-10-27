@@ -34,6 +34,7 @@ class PeriodOverviewRepository {
     final sleepHours = {for (final l in logs) if (l.sleepHours != null) l.date: l.sleepHours!};
     final steps = {for (final l in logs) if (l.steps != null) l.date: l.steps!};
     final moods = {for (final l in logs) if (l.dayMood != null) l.date: l.dayMood!};
+    final effort = {for (final l in logs) if (l.effort != null) l.date: l.effort!};
 
     // Each night's bedtime is the evening before its day.
     final entries = await _db.getSleepEntriesInRange(DateTime(start.year, start.month, start.day - 1), end);
@@ -87,6 +88,7 @@ class PeriodOverviewRepository {
       kcal: kcal,
       moods: moods,
       energy: energy,
+      effort: effort,
       nights: nights,
       tagDays: tagDays,
       foodSpend: foodSpend,
@@ -105,6 +107,7 @@ class PeriodOverviewRepository {
     Map<DateTime, double> kcal = const {},
     Map<DateTime, int> moods = const {},
     Map<DateTime, int> energy = const {},
+    Map<DateTime, int> effort = const {},
     List<NightSpan> nights = const [],
     Map<String, Set<DateTime>> tagDays = const {},
     Map<DateTime, double> foodSpend = const {},
@@ -121,6 +124,7 @@ class PeriodOverviewRepository {
         kcal: kcal,
         moods: moods,
         energy: energy,
+        effort: effort,
         nights: nights,
         tagDays: tagDays,
         foodSpend: foodSpend,
