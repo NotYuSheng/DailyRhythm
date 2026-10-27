@@ -33,6 +33,18 @@ Output in `data/migration/`:
 | `review.csv` | Every flagged item with a blank `correction` column |
 | `summary.txt` | Counts by parse method and flag |
 
+Read from the same folder if present: `aliases.csv` (agreed spellings) and
+`free_meals.csv` (`date,name`: meals you confirm were free, kept out of the repo
+as they name people and places).
+
+**Free meals.** Meals paid with CDC vouchers, free ones and army rations cost
+nothing of your own: the parser takes "cdc", "$10 cdc voucher", "free" and
+"ration" out of the name, notes them, and sets the price to 0 (a voucher's value
+stays in the note). Unlabelled meals count as free when they have no price and come
+from a canteen that's never paid for (SAFTI, NSC, HVC, cookhouse, catering), are a
+buffet, bento or banquet, or are the only unpriced meal on a day tagged Free Food
+(`free_food.py`).
+
 ## How notes are parsed
 
 1. **Day.** An entry's date is the day it describes. An entry logged after midnight

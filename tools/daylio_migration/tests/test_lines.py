@@ -20,6 +20,26 @@ def test_meal_prices():
     assert parse_meal("Us pizza pepperoni 9 inch 13.90", []).price == 13.9
 
 
+def test_vouchers_free_meals_and_rations_cost_nothing_and_leave_the_name():
+    def parsed(text):
+        m = parse_meal(text, [])
+        return (m.name, m.price, m.comment)
+
+    assert parsed("Carrot cake white $5 CDC") == ("Carrot cake white", 0, "CDC voucher ($5)")
+    assert parsed("Giant sushi $10 cdc voucher") == ("Giant sushi", 0, "CDC voucher ($10)")
+    assert parsed("Chicken chop aglio olio CDC voucher 7.80") == ("Chicken chop aglio olio", 0, "CDC voucher ($7.80)")
+    assert parsed("Kuey tiao (CDC) $4") == ("Kuey tiao", 0, "CDC voucher ($4)")
+    assert parsed("Sushi, milk, cdc") == ("Sushi, milk", 0, "CDC voucher")
+    assert parsed("Free whopper saf day") == ("Whopper saf day", 0, "free")
+    assert parsed("Pc nuggets free") == ("Pc nuggets", 0, "free")
+    assert parsed("Old chung kee (free)") == ("Old chung kee", 0, "free")
+    assert parsed("Rations") == ("Rations", 0, "rations")
+    assert parsed("Cookhouse out ration western") == ("Western", 0, "rations")
+    # Only part of the meal was free; and "celebration" isn't a ration.
+    assert parsed("Fillet o fish meal with free latte 6.65") == ("Fillet o fish meal with free latte", 6.65, None)
+    assert parsed("Nov birthday celebration red bean cake")[1:] == (None, None)
+
+
 def test_meal_currency_and_comment():
     flags = []
     meal = parse_meal("Ihop 22 usd", flags)
