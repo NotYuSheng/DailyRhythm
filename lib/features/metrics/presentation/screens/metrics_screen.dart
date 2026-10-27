@@ -1,7 +1,5 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/metric_data.dart';
 import '../../data/providers/metrics_providers.dart';
@@ -9,7 +7,8 @@ import '../../../garden/presentation/garden_style.dart';
 import '../widgets/day_ratings_section.dart';
 import '../widgets/fun_facts_section.dart';
 import '../widgets/quick_stat_card.dart';
-import '../widgets/year_overview_section.dart';
+import '../../data/models/period_overview.dart';
+import '../widgets/period_overview_section.dart';
 
 class MetricsScreen extends ConsumerStatefulWidget {
   const MetricsScreen({super.key});
@@ -75,12 +74,9 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
             _buildQuickStats(),
             const SizedBox(height: AppTheme.spacePulse4),
 
-            // A year: every day, mood and sleep by month, tags that stood
-            // out, a row per month. Shorter periods: the nightly chart.
-            if (_period == _Period.year)
-              YearOverviewSection(year: _selectedRange.start.year)
-            else
-              _buildSleepChart(),
+            // Every day, mood and sleep by group, tags that stood out, and
+            // a row per group: a week by day up to all time by year.
+            PeriodOverviewSection(scale: _period.scale, range: _selectedRange),
             const SizedBox(height: AppTheme.spacePulse3),
 
             // Mood, energy, stress and focus; tag comparisons; watch
@@ -249,137 +245,6 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
     );
   }
 
-  Widget _buildSleepChart() {
-    final sleepAsync = ref.watch(sleepMetricsProvider(_selectedRange));
-
-    return GardenSection(
-      title: 'Sleep',
-      colors: GardenColors.of(context),
-      child: sleepAsync.when(
-        data: (metrics) {
-          if (metrics.dailyData.isEmpty) {
-            return _buildEmptyState('No sleep data for this period');
-          }
-          return SizedBox(
-            height: 200,
-            child: _buildSleepLineChart(metrics),
-          );
-        },
-        loading: () => const SizedBox(
-          height: 200,
-          child: Center(child: CircularProgressIndicator()),
-        ),
-        error: (_, _) => _buildEmptyState('Error loading sleep data'),
-      ),
-    );
-  }
-
-  Widget _buildSleepLineChart(SleepMetrics metrics) {
-
-    final spots = metrics.dailyData
-        .asMap()
-        .entries
-        .map((entry) => FlSpot(entry.key.toDouble(), entry.value.value))
-        .toList();
-
-    if (spots.isEmpty) {
-      return _buildEmptyState('No data available');
-    }
-
-    // Calculate max Y value based on data, with a minimum of 12
-    final maxDataValue = spots.map((spot) => spot.y).reduce((a, b) => a > b ? a : b);
-    final maxY = (maxDataValue > 12 ? (maxDataValue + 2).ceilToDouble() : 12.0);
-    final interval = maxY > 12 ? (maxY / 6).ceilToDouble() : 2.0;
-
-    return LineChart(
-      LineChartData(
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: interval,
-          getDrawingHorizontalLine: (value) {
-            return FlLine(
-              color: AppTheme.getChartGridColor(context),
-              strokeWidth: 1,
-            );
-          },
-        ),
-        titlesData: FlTitlesData(
-          show: true,
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 30,
-              interval: metrics.dailyData.length > 7 ? (metrics.dailyData.length / 5).ceilToDouble() : 1,
-              getTitlesWidget: (value, meta) {
-                if (value.toInt() >= 0 && value.toInt() < metrics.dailyData.length) {
-                  final date = metrics.dailyData[value.toInt()].date;
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      DateFormat('M/d').format(date),
-                      style: TextStyle(
-                        color: AppTheme.getSubtleTextColor(context),
-                        fontSize: 10,
-                      ),
-                    ),
-                  );
-                }
-                return const Text('');
-              },
-            ),
-          ),
-          leftTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              interval: interval,
-              reservedSize: 40,
-              getTitlesWidget: (value, meta) {
-                return Text(
-                  '${value.toInt()}h',
-                  style: TextStyle(
-                    color: AppTheme.getSubtleTextColor(context),
-                    fontSize: 10,
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-        minX: 0,
-        maxX: (metrics.dailyData.length - 1).toDouble(),
-        minY: 0,
-        maxY: maxY,
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            isCurved: true,
-            color: AppTheme.getChartLineColor(context),
-            barWidth: 2,
-            isStrokeCapRound: true,
-            dotData: FlDotData(
-              show: true,
-              getDotPainter: (spot, percent, barData, index) {
-                return FlDotCirclePainter(
-                  radius: 3,
-                  color: AppTheme.getChartLineColor(context),
-                  strokeWidth: 0,
-                );
-              },
-            ),
-            belowBarData: BarAreaData(
-              show: true,
-              color: AppTheme.getChartLineColor(context).withValues(alpha: 0.1),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildActivityBreakdown() {
     final activityAsync = ref.watch(activityMetricsProvider(_selectedRange));
     final colors = GardenColors.of(context);
@@ -545,12 +410,13 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
 
 /// The kinds of period Metrics shows; all but [all] step with arrows.
 enum _Period {
-  week('Week'),
-  month('Month'),
-  year('Year'),
-  all('All');
+  week('Week', OverviewScale.week),
+  month('Month', OverviewScale.month),
+  year('Year', OverviewScale.year),
+  all('All', OverviewScale.all);
 
-  const _Period(this.label);
+  const _Period(this.label, this.scale);
 
   final String label;
+  final OverviewScale scale;
 }

@@ -1,12 +1,16 @@
+import 'dart:math' as math;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../shared/utils/date_utils.dart';
 import '../../../garden/presentation/garden_style.dart';
-import '../../data/models/year_overview.dart';
+import '../../data/models/metric_data.dart';
+import '../../data/models/period_overview.dart';
 import '../../data/providers/metrics_providers.dart';
 
-/// What colours the year in pixels.
+/// What colours the days in the overview's grid.
 enum YearMetric {
   sleep('Sleep', ['Under 5h', '5–6h', '6–7h', '7–8h', '8h+'], [0xFFE3E1FA, 0xFFB9B3F2, 0xFF8A80E3, 0xFF5B4FC9, 0xFF372C9A]),
   steps('Steps', ['Under 3k', '3–6k', '6–9k', '9–12k', '12k+'], [0xFFDDF1E4, 0xFFA9DDB8, 0xFF6CC08A, 0xFF3F9A62, 0xFF1F6B45]),
@@ -39,62 +43,71 @@ enum YearMetric {
   }
 }
 
-const _letters = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+/// Metrics for a period: every day coloured by a chosen measure, mood and
+/// sleep by group (a week by day, a month by week, a year by month, all
+/// time by year), the tags that stood out, and a row per group.
+class PeriodOverviewSection extends ConsumerStatefulWidget {
+  const PeriodOverviewSection({super.key, required this.scale, required this.range});
 
-/// Metrics for a year: every day coloured by a chosen measure, mood and
-/// sleep by month, the tags that stood out, and a row per month.
-class YearOverviewSection extends ConsumerStatefulWidget {
-  const YearOverviewSection({super.key, required this.year});
-
-  final int year;
+  final OverviewScale scale;
+  final DateRange range;
 
   @override
-  ConsumerState<YearOverviewSection> createState() => _YearOverviewSectionState();
+  ConsumerState<PeriodOverviewSection> createState() => _PeriodOverviewSectionState();
 }
 
-class _YearOverviewSectionState extends ConsumerState<YearOverviewSection> {
+class _PeriodOverviewSectionState extends ConsumerState<PeriodOverviewSection> {
   YearMetric _metric = YearMetric.sleep;
 
   @override
   Widget build(BuildContext context) {
     final colors = GardenColors.of(context);
-    return ref.watch(yearOverviewProvider(widget.year)).when(
+    return ref.watch(periodOverviewProvider((widget.scale, widget.range))).when(
           loading: () => const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator())),
-          error: (e, _) => Text('Couldn’t load the year: $e'),
-          data: (o) => !o.hasData
-              ? const SizedBox.shrink()
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    GardenSection(
-                      title: 'Every day of the year',
-                      colors: colors,
-                      child: _Pixels(overview: o, metric: _metric, colors: colors, onMetric: (m) => setState(() => _metric = m)),
-                    ),
-                    const SizedBox(height: 14),
-                    GardenSection(title: 'Mood by month', colors: colors, child: _MoodByMonth(overview: o, colors: colors)),
-                    if (o.sleepByMonth.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      GardenSection(
-                        title: 'Your sleep, month by month',
-                        subtitle: 'Bar: usual bedtime to usual waking. Pale ends: how much that moved.',
-                        colors: colors,
-                        child: _SleepByMonth(overview: o, colors: colors),
-                      ),
-                    ],
-                    if (o.rareTags.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      GardenSection(
-                        title: 'Days that stood out',
-                        subtitle: o.everydayTags.isEmpty ? null : 'Left out, as they were on almost every day: ${o.everydayTags.join(', ')}.',
-                        colors: colors,
-                        child: _RareTags(overview: o, colors: colors),
-                      ),
-                    ],
-                    const SizedBox(height: 14),
-                    GardenSection(title: 'Month by month', colors: colors, child: _MonthTable(overview: o, colors: colors)),
-                  ],
+          error: (e, _) => Text('Couldn’t load the overview: $e'),
+          data: (o) {
+            if (!o.hasData) return const SizedBox.shrink();
+            final scale = o.scale;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                GardenSection(
+                  title: switch (scale) {
+                    OverviewScale.week => 'Every day of the week',
+                    OverviewScale.month => 'Every day of the month',
+                    OverviewScale.year => 'Every day of the year',
+                    OverviewScale.all => 'Every week since you started',
+                  },
+                  colors: colors,
+                  child: _Pixels(overview: o, metric: _metric, colors: colors, onMetric: (m) => setState(() => _metric = m)),
                 ),
+                const SizedBox(height: 14),
+                GardenSection(title: 'Mood by ${scale.groupNoun}', colors: colors, child: _MoodByGroup(overview: o, colors: colors)),
+                if (o.sleepByGroup.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  GardenSection(
+                    title: 'Your sleep, ${scale.sleepTitle}',
+                    subtitle: scale == OverviewScale.week
+                        ? 'Bar: asleep to awake.'
+                        : 'Bar: usual bedtime to usual waking. Pale ends: how much that moved.',
+                    colors: colors,
+                    child: _SleepByGroup(overview: o, colors: colors),
+                  ),
+                ],
+                if (o.rareTags.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  GardenSection(
+                    title: scale == OverviewScale.week ? 'What the days held' : 'Days that stood out',
+                    subtitle: o.everydayTags.isEmpty ? null : 'Left out, as they were on almost every day: ${o.everydayTags.join(', ')}.',
+                    colors: colors,
+                    child: _RareTags(overview: o, colors: colors),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                GardenSection(title: scale.tableTitle, colors: colors, child: _Table(overview: o, colors: colors)),
+              ],
+            );
+          },
         );
   }
 }
@@ -120,19 +133,34 @@ class _Swatch extends StatelessWidget {
 class _Pixels extends StatelessWidget {
   const _Pixels({required this.overview, required this.metric, required this.colors, required this.onMetric});
 
-  final YearOverview overview;
+  final PeriodOverview overview;
   final YearMetric metric;
   final GardenColors colors;
   final ValueChanged<YearMetric> onMetric;
 
   @override
   Widget build(BuildContext context) {
-    final byMonth = <int, Map<int, DayValues>>{};
-    for (final d in overview.days) {
-      (byMonth[d.date.month] ??= {})[d.date.day] = d;
-    }
-    final withValue = overview.days.where((d) => metric.levelOf(d) != null).length;
-    final empty = colors.bed;
+    final withValue = overview.cellsWith(metric.levelOf);
+    final columns = overview.grid.first.cells.length;
+    // Dense grids (a year, all time) get thinner gaps and a row label.
+    final gap = columns > 31 ? 1.0 : columns > 7 ? 2.0 : 4.0;
+    final labelWidth = overview.grid.first.label.isEmpty ? 0.0 : (overview.scale == OverviewScale.all ? 22.0 : 14.0);
+    final radius = columns > 7 ? 2.0 : 6.0;
+    final unit = switch (overview.scale) {
+      OverviewScale.week => 'week',
+      OverviewScale.month => 'month',
+      OverviewScale.year => 'year',
+      OverviewScale.all => 'time',
+    };
+    Widget row(String label, List<Widget> cells) => Padding(
+          padding: EdgeInsets.only(bottom: gap),
+          child: Row(
+            children: [
+              if (labelWidth > 0) SizedBox(width: labelWidth, child: Text(label, style: nunito(10, FontWeight.w800, colors.muted))),
+              for (final c in cells) Expanded(child: Padding(padding: EdgeInsets.only(right: gap), child: c)),
+            ],
+          ),
+        );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -146,40 +174,34 @@ class _Pixels extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Semantics(
-          label: 'Each day of ${overview.year} coloured by ${metric.label.toLowerCase()}; $withValue days have a value.',
+          label: '${overview.scale == OverviewScale.all ? 'Each week' : 'Each day'} coloured by ${metric.label.toLowerCase()}; $withValue have a value.',
           excludeSemantics: true,
           child: Column(
             children: [
-              for (var m = 1; m <= 12; m++)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: Row(
-                    children: [
-                      SizedBox(width: 14, child: Text(_letters[m - 1], style: nunito(10, FontWeight.w800, colors.muted))),
-                      for (var day = 1; day <= 31; day++)
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(right: 2),
-                            child: AspectRatio(
-                              aspectRatio: 1,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(2),
-                                  color: switch (byMonth[m]?[day]) {
-                                    null => Colors.transparent,
-                                    final d => switch (metric.levelOf(d)) {
-                                        final level? => Color(metric.colors[level]),
-                                        null => empty,
-                                      },
-                                  },
-                                ),
-                              ),
-                            ),
-                          ),
+              if (overview.columnLabels.isNotEmpty)
+                row('', [
+                  for (final l in overview.columnLabels) Text(l, textAlign: TextAlign.center, style: nunito(10, FontWeight.w800, colors.muted)),
+                ]),
+              for (final r in overview.grid)
+                row(r.label, [
+                  for (final cell in r.cells)
+                    AspectRatio(
+                      // 53 weeks a row are narrow: taller so they're seen.
+                      aspectRatio: columns > 31 ? 0.4 : 1,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(radius),
+                          color: switch (cell) {
+                            null => Colors.transparent,
+                            final d => switch (metric.levelOf(d)) {
+                                final level? => Color(metric.colors[level]),
+                                null => colors.bed,
+                              },
+                          },
                         ),
-                    ],
-                  ),
-                ),
+                      ),
+                    ),
+                ]),
             ],
           ),
         ),
@@ -189,24 +211,31 @@ class _Pixels extends StatelessWidget {
           runSpacing: 4,
           children: [for (var i = 0; i < 5; i++) _Swatch(Color(metric.colors[i]), metric.levels[i], colors)],
         ),
+        if (overview.scale == OverviewScale.all) ...[
+          const SizedBox(height: 4),
+          Text('Each square is a week’s average.', style: nunito(12, FontWeight.w700, colors.muted)),
+        ],
         if (withValue == 0) ...[
           const SizedBox(height: 6),
-          Text('No ${metric.label.toLowerCase()} logged this year.', style: nunito(13, FontWeight.w700, colors.muted)),
+          Text('No ${metric.label.toLowerCase()} logged this $unit.', style: nunito(13, FontWeight.w700, colors.muted)),
         ],
       ],
     );
   }
 }
 
-class _MoodByMonth extends StatelessWidget {
-  const _MoodByMonth({required this.overview, required this.colors});
+class _MoodByGroup extends StatelessWidget {
+  const _MoodByGroup({required this.overview, required this.colors});
 
-  final YearOverview overview;
+  final PeriodOverview overview;
   final GardenColors colors;
 
   @override
   Widget build(BuildContext context) {
     final palette = YearMetric.mood.colors;
+    final groups = overview.groups;
+    // Week labels ("6–12") need room; keep at most a dozen or so readable.
+    final labelSize = groups.length > 8 ? 10.0 : 11.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -215,11 +244,11 @@ class _MoodByMonth extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (var m = 0; m < 12; m++)
+              for (final (i, g) in groups.indexed)
                 Expanded(
                   child: Semantics(
-                    label: '${DateFormat('MMMM').format(DateTime(2000, m + 1))}: '
-                        '${[for (var l = 0; l < 5; l++) if (overview.moodByMonth[m][l] > 0) '${YearMetric.mood.levels[l]} ${overview.moodByMonth[m][l]}'].join(', ')}',
+                    label: '${g.name}: '
+                        '${[for (var l = 0; l < 5; l++) if (overview.moodByGroup[i][l] > 0) '${YearMetric.mood.levels[l]} ${overview.moodByGroup[i][l]}'].join(', ')}',
                     excludeSemantics: true,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 3),
@@ -234,15 +263,18 @@ class _MoodByMonth extends StatelessWidget {
                                   verticalDirection: VerticalDirection.up,
                                   children: [
                                     for (var l = 0; l < 5; l++)
-                                      if (overview.moodByMonth[m][l] > 0)
-                                        Expanded(flex: overview.moodByMonth[m][l], child: ColoredBox(color: Color(palette[l]), child: const SizedBox.expand())),
+                                      if (overview.moodByGroup[i][l] > 0)
+                                        Expanded(flex: overview.moodByGroup[i][l], child: ColoredBox(color: Color(palette[l]), child: const SizedBox.expand())),
                                   ],
                                 ),
                               ),
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(_letters[m], style: nunito(10, FontWeight.w800, colors.muted)),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(g.short, maxLines: 1, style: nunito(labelSize, FontWeight.w800, colors.muted)),
+                          ),
                         ],
                       ),
                     ),
@@ -258,10 +290,10 @@ class _MoodByMonth extends StatelessWidget {
   }
 }
 
-class _SleepByMonth extends StatelessWidget {
-  const _SleepByMonth({required this.overview, required this.colors});
+class _SleepByGroup extends StatelessWidget {
+  const _SleepByGroup({required this.overview, required this.colors});
 
-  final YearOverview overview;
+  final PeriodOverview overview;
   final GardenColors colors;
 
   static String clock(double hoursAfter6pm) {
@@ -271,14 +303,15 @@ class _SleepByMonth extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final shortest = [for (final m in overview.sleepByMonth) ?m.hours].fold<double?>(null, (a, b) => a == null || b < a ? b : a);
+    final shortest = [for (final g in overview.sleepByGroup) ?g.hours].fold<double?>(null, (a, b) => a == null || b < a ? b : a);
     const night = Color(0xFF5B4FC9);
     const spread = Color(0xFFC9C3F5);
+    const labelWidth = 44.0;
     return Column(
       children: [
         Row(
           children: [
-            const SizedBox(width: 34),
+            const SizedBox(width: labelWidth),
             Expanded(
               child: LayoutBuilder(
                 builder: (context, box) => SizedBox(
@@ -299,16 +332,16 @@ class _SleepByMonth extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 4),
-        for (final m in overview.sleepByMonth)
+        for (final g in overview.sleepByGroup)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
             child: Semantics(
-              label: '${DateFormat('MMMM').format(DateTime(2000, m.month))}: usually asleep ${clock(m.bed)} to ${clock(m.wake)}'
-                  '${m.hours == null ? '' : ', ${m.hours!.toStringAsFixed(1)} hours on average'}',
+              label: '${g.group.name}: ${overview.scale == OverviewScale.week ? 'asleep' : 'usually asleep'} ${clock(g.bed)} to ${clock(g.wake)}'
+                  '${g.hours == null ? '' : ', ${g.hours!.toStringAsFixed(1)} hours${overview.scale == OverviewScale.week ? '' : ' on average'}'}',
               excludeSemantics: true,
               child: Row(
                 children: [
-                  SizedBox(width: 34, child: Text(DateFormat('MMM').format(DateTime(2000, m.month)), style: nunito(12, FontWeight.w900, colors.ink))),
+                  SizedBox(width: labelWidth, child: Text(g.group.label, maxLines: 1, style: nunito(12, FontWeight.w900, colors.ink))),
                   Expanded(
                     child: LayoutBuilder(
                       builder: (context, box) {
@@ -325,9 +358,9 @@ class _SleepByMonth extends StatelessWidget {
                           decoration: BoxDecoration(color: colors.ground, borderRadius: BorderRadius.circular(6)),
                           child: Stack(
                             children: [
-                              bar(m.bedLow, m.bedHigh, spread, 10),
-                              bar(m.wakeLow, m.wakeHigh, spread, 10),
-                              bar(m.bed, m.wake, night, 12),
+                              if (g.bedHigh > g.bedLow) bar(g.bedLow, g.bedHigh, spread, 10),
+                              if (g.wakeHigh > g.wakeLow) bar(g.wakeLow, g.wakeHigh, spread, 10),
+                              bar(g.bed, g.wake, night, 12),
                             ],
                           ),
                         );
@@ -337,9 +370,9 @@ class _SleepByMonth extends StatelessWidget {
                   SizedBox(
                     width: 44,
                     child: Text(
-                      m.hours == null ? '' : '${m.hours!.toStringAsFixed(1)}h',
+                      g.hours == null ? '' : '${g.hours!.toStringAsFixed(1)}h',
                       textAlign: TextAlign.right,
-                      style: nunito(12, m.hours == shortest ? FontWeight.w900 : FontWeight.w700, colors.ink),
+                      style: nunito(12, g.hours == shortest ? FontWeight.w900 : FontWeight.w700, colors.ink),
                     ),
                   ),
                 ],
@@ -354,22 +387,22 @@ class _SleepByMonth extends StatelessWidget {
 class _RareTags extends StatelessWidget {
   const _RareTags({required this.overview, required this.colors});
 
-  final YearOverview overview;
+  final PeriodOverview overview;
   final GardenColors colors;
 
   static const _palette = [Color(0xFF2F7D4C), Color(0xFFD9467A), Color(0xFFB7791F), Color(0xFF6B46C1), Color(0xFF2B6CB0)];
 
   @override
   Widget build(BuildContext context) {
-    final start = DateTime(overview.year);
-    final length = DateTime(overview.year + 1).difference(start).inDays;
+    final start = overview.start;
+    final length = math.max(1, daysBetween(start, overview.end));
     return Column(
       children: [
         for (final (i, tag) in overview.rareTags.indexed)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Semantics(
-              label: '${tag.name} on ${tag.days.length} days',
+              label: '${tag.name} on ${tag.days.length} ${tag.days.length == 1 ? 'day' : 'days'}',
               excludeSemantics: true,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -389,7 +422,7 @@ class _RareTags extends StatelessWidget {
                         children: [
                           for (final d in tag.days)
                             Positioned(
-                              left: ((box.maxWidth - 8) * d.difference(start).inDays / length),
+                              left: (box.maxWidth - 8) * daysBetween(start, d) / length,
                               top: 3,
                               child: Container(
                                 width: 8,
@@ -410,18 +443,18 @@ class _RareTags extends StatelessWidget {
   }
 }
 
-class _MonthTable extends StatelessWidget {
-  const _MonthTable({required this.overview, required this.colors});
+class _Table extends StatelessWidget {
+  const _Table({required this.overview, required this.colors});
 
-  final YearOverview overview;
+  final PeriodOverview overview;
   final GardenColors colors;
 
   @override
   Widget build(BuildContext context) {
-    final rows = overview.months;
-    double? best(double? Function(MonthRow) f) => [for (final r in rows) ?f(r)].fold<double?>(null, (a, b) => a == null || b > a ? b : a);
-    final bestSleep = best((r) => r.sleep);
-    final bestSteps = best((r) => r.steps);
+    final rows = overview.rows;
+    double? best(double? Function(GroupRow) f) => [for (final r in rows) ?f(r)].fold<double?>(null, (a, b) => a == null || b > a ? b : a);
+    final bestSleep = rows.length > 1 ? best((r) => r.sleep) : null;
+    final bestSteps = rows.length > 1 ? best((r) => r.steps) : null;
     // Spending is SGD, shown as dollars like everywhere else in the app.
     final whole = NumberFormat('#,##0');
     String money(double v) => '\$${whole.format(v.round())}';
@@ -432,27 +465,35 @@ class _MonthTable extends StatelessWidget {
           ),
         );
     String k(double? v) => v == null ? '–' : '${(v / 1000).toStringAsFixed(1)}k';
+    const labelWidth = 44.0;
+    final perDay = overview.scale == OverviewScale.week ? 'Kcal' : 'Kcal/day';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(children: [const SizedBox(width: 38), cell('Sleep', header: true), cell('Steps', header: true), cell('Kcal/day', header: true), cell('Food', header: true), cell('Events', header: true)]),
+        Row(children: [const SizedBox(width: labelWidth), cell('Sleep', header: true), cell('Steps', header: true), cell(perDay, header: true), cell('Food', header: true), cell('Events', header: true)]),
         const Divider(height: 10),
         for (final r in rows)
-          ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 30),
-            child: Row(
-              children: [
-                SizedBox(width: 38, child: Text(DateFormat('MMM').format(DateTime(2000, r.month)), style: nunito(13, FontWeight.w900, colors.ink))),
-                cell(r.sleep == null ? '–' : '${r.sleep!.toStringAsFixed(1)}h', bold: r.sleep != null && r.sleep == bestSleep),
-                cell(k(r.steps), bold: r.steps != null && r.steps == bestSteps),
-                cell(k(r.kcal)),
-                cell(r.food == 0 ? '–' : money(r.food)),
-                cell(r.events == 0 ? '–' : money(r.events)),
-              ],
+          Semantics(
+            label: r.group.name,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 30),
+              child: Row(
+                children: [
+                  SizedBox(width: labelWidth, child: Text(r.group.label, maxLines: 1, style: nunito(13, FontWeight.w900, colors.ink))),
+                  cell(r.sleep == null ? '–' : '${r.sleep!.toStringAsFixed(1)}h', bold: r.sleep != null && r.sleep == bestSleep),
+                  cell(k(r.steps), bold: r.steps != null && r.steps == bestSteps),
+                  cell(k(r.kcal)),
+                  cell(r.food == 0 ? '–' : money(r.food)),
+                  cell(r.events == 0 ? '–' : money(r.events)),
+                ],
+              ),
             ),
           ),
         const SizedBox(height: 6),
-        Text('Bold: the year’s best month. Calories are estimates.', style: nunito(12, FontWeight.w700, colors.muted)),
+        Text(
+          '${rows.length > 1 ? 'Bold: the best ${overview.scale.groupNoun}. ' : ''}Calories are estimates.',
+          style: nunito(12, FontWeight.w700, colors.muted),
+        ),
       ],
     );
   }

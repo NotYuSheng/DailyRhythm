@@ -6,20 +6,25 @@ import '../../../../shared/utils/date_utils.dart';
 import '../../../garden/data/garden_repository.dart';
 import '../../../garden/domain/garden_day.dart';
 import '../../../tags/data/models/tag.dart';
-import '../models/year_overview.dart';
+import '../models/period_overview.dart';
 
-/// Reads one year from every table for [YearOverview].
-class YearOverviewRepository {
-  YearOverviewRepository([DatabaseService? db]) : _db = db ?? DatabaseService.instance;
+/// Reads a period from every table for [PeriodOverview].
+class PeriodOverviewRepository {
+  PeriodOverviewRepository([DatabaseService? db]) : _db = db ?? DatabaseService.instance;
 
   final DatabaseService _db;
 
-  Future<YearOverview> load(int year, {DateTime? today}) async {
+  /// [scale]'s overview from [from] to [to]. All time starts on 1 January
+  /// of the first logged year, not the range's placeholder start.
+  Future<PeriodOverview> load(OverviewScale scale, DateTime from, DateTime to, {DateTime? today}) async {
     final now = dayOf(today ?? DateTime.now());
-    final start = DateTime(year);
-    final end = year == now.year ? now : DateTime(year, 12, 31);
+    var start = dayOf(from);
+    if (scale == OverviewScale.all) {
+      start = DateTime((await _db.firstLoggedDay())?.year ?? now.year);
+    }
+    final end = dayOf(to).isAfter(now) ? now : dayOf(to);
     if (start.isAfter(now)) {
-      return _build(year, now, logged: const {});
+      return _build(scale, start, end, now, logged: const {});
     }
 
     // The garden's own day logs: plants, sleep (the app's log first, the
@@ -31,11 +36,11 @@ class YearOverviewRepository {
     final moods = {for (final l in logs) if (l.dayMood != null) l.date: l.dayMood!};
 
     // Each night's bedtime is the evening before its day.
-    final entries = await _db.getSleepEntriesInRange(DateTime(year - 1, 12, 31), end);
+    final entries = await _db.getSleepEntriesInRange(DateTime(start.year, start.month, start.day - 1), end);
     final byDay = {for (final e in entries) dayOf(e.date): e};
     final nights = <NightSpan>[];
     for (final MapEntry(key: day, value: e) in byDay.entries) {
-      if (day.year != year) continue;
+      if (day.isBefore(start)) continue;
       final bedtime = byDay[DateTime(day.year, day.month, day.day - 1)]?.sleepTime;
       if (bedtime != null && e.wakeUpTime != null) {
         final bed = NightSpan.fromClock(bedtime);
@@ -72,7 +77,9 @@ class YearOverviewRepository {
     }
 
     return _build(
-      year,
+      scale,
+      start,
+      end,
       now,
       logged: logged,
       sleepHours: sleepHours,
@@ -87,8 +94,10 @@ class YearOverviewRepository {
     );
   }
 
-  YearOverview _build(
-    int year,
+  PeriodOverview _build(
+    OverviewScale scale,
+    DateTime start,
+    DateTime end,
     DateTime today, {
     required Set<DateTime> logged,
     Map<DateTime, double> sleepHours = const {},
@@ -101,8 +110,10 @@ class YearOverviewRepository {
     Map<DateTime, double> foodSpend = const {},
     Map<DateTime, double> eventSpend = const {},
   }) =>
-      YearOverview.build(
-        year: year,
+      PeriodOverview.build(
+        scale: scale,
+        start: start,
+        end: end,
         today: today,
         logged: logged,
         sleepHours: sleepHours,

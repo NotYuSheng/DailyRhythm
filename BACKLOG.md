@@ -52,8 +52,9 @@ How the plant is picked when the user doesn't choose:
   else stands out; several kinds, or none, give a sprout ("a bit of everything").
   With the Daylio history (the same five tags almost daily) most past days are
   sprouts; social days, intense workouts and the like stand out.
-- The year view is in Metrics (Year): every day coloured by a measure, mood and
-  sleep by month, days that stood out, a row per month. Garden has a year of
+- Metrics shows an overview for every period: every day coloured by a measure, mood and
+  sleep and a table grouped to fit (a week by day, a month by week, a year by month,
+  all time by year), and days that stood out. Garden has a year of
   gardens: each month's plants, tapping through to its review.
 
 Still to do: year/month recap (#13) and stickers from the warm B row, real
