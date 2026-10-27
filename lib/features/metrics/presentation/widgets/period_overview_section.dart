@@ -9,6 +9,8 @@ import '../../../garden/presentation/garden_style.dart';
 import '../../data/models/metric_data.dart';
 import '../../data/models/period_overview.dart';
 import '../../data/providers/metrics_providers.dart';
+import '../../../profile/data/profile_providers.dart';
+import '../../../profile/domain/profile.dart';
 
 /// What colours the days in the overview's grid.
 enum YearMetric {
@@ -24,14 +26,37 @@ enum YearMetric {
   final List<String> levels;
   final List<int> colors;
 
-  /// The level (0–4) a day falls in, or null without a value.
-  int? levelOf(DayValues d) => switch (this) {
+  /// Calories either side of the user's range that count as well under or
+  /// well over it.
+  static const _kcalMargin = 400.0;
+
+  /// The level (0–4) a day falls in, or null without a value. With the
+  /// user's calorie range, calories are coloured against it: the middle
+  /// level is the range itself.
+  int? levelOf(DayValues d, {ValueRange? kcal}) => switch (this) {
         sleep => _band(d.sleepHours, const [5, 6, 7, 8]),
         steps => _band(d.steps, const [3000, 6000, 9000, 12000]),
+        calories when kcal != null => _band(d.kcal, [kcal.low - _kcalMargin, kcal.low, kcal.high + 0.5, kcal.high + _kcalMargin]),
         calories => _band(d.kcal, const [1600, 1900, 2200, 2500]),
         mood => d.mood == null ? null : (d.mood! - 1).clamp(0, 4),
         energy => d.energy == null ? null : (d.energy! + 2).clamp(0, 4),
       };
+
+  List<String> levelsFor(ValueRange? kcal) {
+    if (this != calories || kcal == null) return levels;
+    String k(double v) => '${(v / 1000).toStringAsFixed(1)}k';
+    return [
+      'Under ${k(kcal.low - _kcalMargin)}',
+      '${k(kcal.low - _kcalMargin)}–${k(kcal.low)}',
+      'Your range',
+      '${k(kcal.high)}–${k(kcal.high + _kcalMargin)}',
+      '${k(kcal.high + _kcalMargin)}+',
+    ];
+  }
+
+  /// Against a range, under and over are different hues around a green middle.
+  List<int> colorsFor(ValueRange? kcal) =>
+      this == calories && kcal != null ? const [0xFFE59A2F, 0xFFFCE1A4, 0xFF7FCB96, 0xFFB5D8F2, 0xFF2B6CB0] : colors;
 
   static int? _band(double? v, List<num> cuts) {
     if (v == null) return null;
@@ -68,6 +93,10 @@ class _PeriodOverviewSectionState extends ConsumerState<PeriodOverviewSection> {
           data: (o) {
             if (!o.hasData) return const SizedBox.shrink();
             final scale = o.scale;
+            final profile = ref.watch(profileProvider).value ?? const Profile();
+            final today = DateTime.now();
+            final sleepRange = PersonalRanges.sleepFor(profile.ageIn(today));
+            final kcalRange = PersonalRanges.kcalFor(profile, today, averageSteps: o.averageSteps);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -79,10 +108,12 @@ class _PeriodOverviewSectionState extends ConsumerState<PeriodOverviewSection> {
                     OverviewScale.all => 'Every week since you started',
                   },
                   colors: colors,
-                  child: _Pixels(overview: o, metric: _metric, colors: colors, onMetric: (m) => setState(() => _metric = m)),
+                  child: _Pixels(overview: o, metric: _metric, kcal: kcalRange, colors: colors, onMetric: (m) => setState(() => _metric = m)),
                 ),
-                const SizedBox(height: 14),
-                GardenSection(title: 'Mood by ${scale.groupNoun}', colors: colors, child: _MoodByGroup(overview: o, colors: colors)),
+                if (o.moodByGroup.any((g) => g.any((n) => n > 0))) ...[
+                  const SizedBox(height: 14),
+                  GardenSection(title: 'Mood by ${scale.groupNoun}', colors: colors, child: _MoodByGroup(overview: o, colors: colors)),
+                ],
                 if (o.sleepByGroup.isNotEmpty) ...[
                   const SizedBox(height: 14),
                   GardenSection(
@@ -104,7 +135,7 @@ class _PeriodOverviewSectionState extends ConsumerState<PeriodOverviewSection> {
                   ),
                 ],
                 const SizedBox(height: 14),
-                GardenSection(title: scale.tableTitle, colors: colors, child: _Table(overview: o, colors: colors)),
+                GardenSection(title: scale.tableTitle, colors: colors, child: _Table(overview: o, sleepRange: sleepRange, kcalRange: kcalRange, profileSet: !profile.isEmpty, colors: colors)),
               ],
             );
           },
@@ -131,16 +162,20 @@ class _Swatch extends StatelessWidget {
 }
 
 class _Pixels extends StatelessWidget {
-  const _Pixels({required this.overview, required this.metric, required this.colors, required this.onMetric});
+  const _Pixels({required this.overview, required this.metric, required this.kcal, required this.colors, required this.onMetric});
 
   final PeriodOverview overview;
   final YearMetric metric;
+  final ValueRange? kcal;
   final GardenColors colors;
   final ValueChanged<YearMetric> onMetric;
 
   @override
   Widget build(BuildContext context) {
-    final withValue = overview.cellsWith(metric.levelOf);
+    int? levelOf(DayValues d) => metric.levelOf(d, kcal: kcal);
+    final withValue = overview.cellsWith(levelOf);
+    final palette = metric.colorsFor(kcal);
+    final levels = metric.levelsFor(kcal);
     final columns = overview.grid.first.cells.length;
     // Dense grids (a year, all time) get thinner gaps and a row label.
     final gap = columns > 31 ? 1.0 : columns > 7 ? 2.0 : 4.0;
@@ -193,8 +228,8 @@ class _Pixels extends StatelessWidget {
                           borderRadius: BorderRadius.circular(radius),
                           color: switch (cell) {
                             null => Colors.transparent,
-                            final d => switch (metric.levelOf(d)) {
-                                final level? => Color(metric.colors[level]),
+                            final d => switch (levelOf(d)) {
+                                final level? => Color(palette[level]),
                                 null => colors.bed,
                               },
                           },
@@ -209,8 +244,15 @@ class _Pixels extends StatelessWidget {
         Wrap(
           spacing: 10,
           runSpacing: 4,
-          children: [for (var i = 0; i < 5; i++) _Swatch(Color(metric.colors[i]), metric.levels[i], colors)],
+          children: [for (var i = 0; i < 5; i++) _Swatch(Color(palette[i]), levels[i], colors)],
         ),
+        if (metric == YearMetric.calories) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Only days with ${PeriodOverview.completeDayMeals}+ meals logged.${kcal == null ? ' Add your profile in Settings to see your range.' : ''}',
+            style: nunito(12, FontWeight.w700, colors.muted),
+          ),
+        ],
         if (overview.scale == OverviewScale.all) ...[
           const SizedBox(height: 4),
           Text('Each square is a week’s average.', style: nunito(12, FontWeight.w700, colors.muted)),
@@ -444,10 +486,26 @@ class _RareTags extends StatelessWidget {
 }
 
 class _Table extends StatelessWidget {
-  const _Table({required this.overview, required this.colors});
+  const _Table({required this.overview, required this.sleepRange, required this.kcalRange, required this.profileSet, required this.colors});
 
   final PeriodOverview overview;
+  final ValueRange sleepRange;
+  final ValueRange? kcalRange;
+  final bool profileSet;
   final GardenColors colors;
+
+  /// -1 under the range, 1 over it, 0 in it or unknown.
+  static int _side(double? v, ValueRange? range) {
+    if (v == null || range == null || range.contains(v)) return 0;
+    return v < range.low ? -1 : 1;
+  }
+
+  /// An arrow beside a value outside the range: a mark, not a colour alone.
+  /// Drawn as an icon, as Nunito has no arrows.
+  static InlineSpan _arrow(int side, Color color, double size) => WidgetSpan(
+        alignment: PlaceholderAlignment.middle,
+        child: Icon(side < 0 ? Icons.arrow_downward : Icons.arrow_upward, size: size, color: color),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -458,10 +516,11 @@ class _Table extends StatelessWidget {
     // Spending is SGD, shown as dollars like everywhere else in the app.
     final whole = NumberFormat('#,##0');
     String money(double v) => '\$${whole.format(v.round())}';
-    Widget cell(String text, {bool bold = false, bool header = false}) => Expanded(
-          child: Text(
-            text,
-            style: nunito(header ? 11 : 13, header || bold ? FontWeight.w900 : FontWeight.w700, header ? colors.muted : colors.ink),
+    const outside = Color(0xFFB86E12);
+    Widget cell(String text, {bool bold = false, bool header = false, int side = 0}) => Expanded(
+          child: Text.rich(
+            TextSpan(text: text, children: [if (side != 0) _arrow(side, outside, 13)]),
+            style: nunito(header ? 11 : 13, header || bold ? FontWeight.w900 : FontWeight.w700, header ? colors.muted : side != 0 ? outside : colors.ink),
           ),
         );
     String k(double? v) => v == null ? '–' : '${(v / 1000).toStringAsFixed(1)}k';
@@ -480,9 +539,13 @@ class _Table extends StatelessWidget {
               child: Row(
                 children: [
                   SizedBox(width: labelWidth, child: Text(r.group.label, maxLines: 1, style: nunito(13, FontWeight.w900, colors.ink))),
-                  cell(r.sleep == null ? '–' : '${r.sleep!.toStringAsFixed(1)}h', bold: r.sleep != null && r.sleep == bestSleep),
+                  cell(
+                    r.sleep == null ? '–' : '${r.sleep!.toStringAsFixed(1)}h',
+                    bold: r.sleep != null && r.sleep == bestSleep,
+                    side: _side(r.sleep, sleepRange),
+                  ),
                   cell(k(r.steps), bold: r.steps != null && r.steps == bestSteps),
-                  cell(k(r.kcal)),
+                  cell(k(r.kcal), side: _side(r.kcal, kcalRange)),
                   cell(r.food == 0 ? '–' : money(r.food)),
                   cell(r.events == 0 ? '–' : money(r.events)),
                 ],
@@ -490,11 +553,26 @@ class _Table extends StatelessWidget {
             ),
           ),
         const SizedBox(height: 6),
-        Text(
-          '${rows.length > 1 ? 'Bold: the best ${overview.scale.groupNoun}. ' : ''}Calories are estimates.',
+        Text.rich(
+          TextSpan(children: [
+            if (rows.length > 1) TextSpan(text: 'Bold: the best ${overview.scale.groupNoun}. '),
+            TextSpan(
+              text: 'Your range: ${_hours(sleepRange)} sleep'
+                  '${kcalRange == null ? '' : ', ${NumberFormat('#,##0').format(kcalRange!.low)}–${NumberFormat('#,##0').format(kcalRange!.high)} kcal'}'
+                  '${profileSet ? '' : ' (adults)'}. ',
+            ),
+            _arrow(-1, outside, 12),
+            const TextSpan(text: ' under, '),
+            _arrow(1, outside, 12),
+            const TextSpan(text: ' over. '),
+            TextSpan(text: 'Calories are estimates, from days with ${PeriodOverview.completeDayMeals}+ meals logged.'),
+            if (kcalRange == null) const TextSpan(text: ' Add your profile in Settings to see your calorie range.'),
+          ]),
           style: nunito(12, FontWeight.w700, colors.muted),
         ),
       ],
     );
   }
+
+  static String _hours(ValueRange r) => '${r.low.round()}–${r.high.round()}h';
 }

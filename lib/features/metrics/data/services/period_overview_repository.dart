@@ -50,13 +50,21 @@ class PeriodOverviewRepository {
     }
 
     final foodKcal = await CatalogRepository(_db).foodCalories();
-    final kcal = <DateTime, double>{};
+    final dayKcal = <DateTime, double>{};
+    final meals = <DateTime, int>{};
     final foodSpend = <DateTime, double>{};
     for (final m in await _db.getMealEntriesInRange(start, end)) {
       final day = dayOf(m.date);
-      if (m.caloriesWith(foodKcal) case final c?) kcal[day] = (kcal[day] ?? 0) + c;
+      meals[day] = (meals[day] ?? 0) + 1;
+      if (m.caloriesWith(foodKcal) case final c?) dayKcal[day] = (dayKcal[day] ?? 0) + c;
       if (m.price != null && m.currency == 'SGD') foodSpend[day] = (foodSpend[day] ?? 0) + m.price!;
     }
+    // A day's calories only once its meals are all there, roughly: a day
+    // with one meal logged isn't a day of eating little.
+    final kcal = {
+      for (final MapEntry(key: day, value: c) in dayKcal.entries)
+        if ((meals[day] ?? 0) >= PeriodOverview.completeDayMeals) day: c,
+    };
     final eventSpend = <DateTime, double>{};
     for (final e in await SpendingRepository(_db).inRange(start, end)) {
       if (e.currency == 'SGD') eventSpend[dayOf(e.date)] = (eventSpend[dayOf(e.date)] ?? 0) + e.amount;

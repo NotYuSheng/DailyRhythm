@@ -14,6 +14,7 @@ import '../../../health/presentation/health_settings_card.dart';
 import '../../../garden/data/garden_providers.dart';
 import '../../../spending/data/spending_providers.dart';
 import '../../../metrics/data/providers/metrics_providers.dart';
+import '../../../profile/presentation/profile_screen.dart';
 import 'backup_settings_screen.dart';
 import 'debug_database_screen.dart';
 
@@ -39,6 +40,16 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: const Text('Activities, symptoms and food sources'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const TagsScreen())),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacePulse3),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('Your profile'),
+              subtitle: const Text('Age, height and weight for typical ranges'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const ProfileScreen())),
             ),
           ),
           const SizedBox(height: AppTheme.spacePulse3),

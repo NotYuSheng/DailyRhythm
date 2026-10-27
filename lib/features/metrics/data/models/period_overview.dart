@@ -154,6 +154,7 @@ class PeriodOverview {
     required this.rareTags,
     required this.everydayTags,
     required this.rows,
+    required this.averageSteps,
   });
 
   final OverviewScale scale;
@@ -184,6 +185,13 @@ class PeriodOverview {
   final List<GroupRow> rows;
 
   static const maxRareTags = 5;
+
+  /// Meals that make a day's calories count: fewer usually means some
+  /// weren't logged.
+  static const completeDayMeals = 3;
+
+  /// Average daily steps over the period, for the calorie range.
+  final double? averageSteps;
 
   /// Anything to show: logged days, or watch data alone.
   bool get hasData => loggedDays > 0 || rows.isNotEmpty;
@@ -346,6 +354,7 @@ class PeriodOverview {
       rareTags: rare.take(maxRareTags).toList(),
       everydayTags: everyday,
       rows: rows,
+      averageSteps: _mean([for (final MapEntry(key: d, value: v) in steps.entries) if (inRange(d)) v]),
     );
   }
 
