@@ -183,7 +183,8 @@ def parse_meal(line: str, flags: list[Flag]) -> Meal:
         body = (body[: inner.start()] + " " + body[inner.end():]).strip()
         flags.append(Flag("price_in_name", f"{price:.2f} taken from inside the name", text))
 
-    body = re.sub(r"\s+", " ", body).strip(" ,")
+    if paid:  # only tidy what removing "cdc" left behind
+        body = re.sub(r"\s+", " ", body).strip(" ,")
     if FREE.search(body):
         paid = paid or "free"
         body = FREE.sub(" ", body).strip()
