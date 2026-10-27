@@ -106,44 +106,6 @@ class MonthRecap {
   }
 }
 
-/// A year in review: twelve small gardens and a few facts across them.
-class YearRecap {
-  YearRecap(this.year, this.months);
-
-  final int year;
-
-  /// Every month of the year up to now, in order.
-  final List<MonthRecap> months;
-
-  int get plants => months.fold(0, (sum, m) => sum + m.plants);
-  int get flowers => months.fold(0, (sum, m) => sum + m.flowers);
-
-  MonthRecap? _most(int Function(MonthRecap m) value) {
-    final ranked = [for (final m in months) if (value(m) > 0) m]..sort((a, b) => value(b).compareTo(value(a)));
-    return ranked.firstOrNull;
-  }
-
-  /// The month with the most movement sessions.
-  MonthRecap? get mostActive => _most((m) => m.moveSessions);
-
-  /// The month with the most moments written.
-  MonthRecap? get mostMoments => _most((m) => m.momentCount);
-
-  /// The month with the most flowers.
-  MonthRecap? get mostFlowers => _most((m) => m.flowers);
-
-  /// The plant grown most across the year.
-  (PlantSpecies, int)? get topSpecies {
-    final counts = <PlantSpecies, int>{};
-    for (final m in months) {
-      for (final (s, n) in m.species) {
-        counts[s] = (counts[s] ?? 0) + n;
-      }
-    }
-    return rankByCount(counts).firstOrNull;
-  }
-}
-
 /// Entries of [counts] as pairs, largest count first.
 List<(K, int)> rankByCount<K>(Map<K, int> counts) =>
     [for (final e in counts.entries) (e.key, e.value)]..sort((a, b) => b.$2.compareTo(a.$2));

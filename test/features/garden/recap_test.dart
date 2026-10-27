@@ -87,24 +87,4 @@ void main() {
     ]);
     expect((r.moveSessions, r.movingDays), (1, 1));
   });
-
-  test('year facts pick the months with the most', () {
-    MonthRecap month(int m, List<DayLog> logs, [int moments = 0]) => MonthRecap.from(
-          month: DateTime(2026, m),
-          logs: logs,
-          moments: [for (var i = 0; i < moments; i++) JournalEntry(date: DateTime(2026, m, 1), text: 'x')],
-          activityTags: const {},
-          today: DateTime(2027),
-        );
-    final year = YearRecap(2026, [
-      month(1, [log(1, month: 1, exercises: 1)], 4),
-      month(2, [log(1, month: 2, exercises: 2), log(2, month: 2, exercises: 1, mood: 5)]),
-      month(3, []),
-    ]);
-    expect((year.plants, year.flowers), (3, 1));
-    expect(year.mostActive!.month, DateTime(2026, 2));
-    expect(year.mostMoments!.month, DateTime(2026, 1));
-    expect(year.mostFlowers!.month, DateTime(2026, 2));
-    expect(year.topSpecies, (PlantSpecies.sunflower, 3));
-  });
 }

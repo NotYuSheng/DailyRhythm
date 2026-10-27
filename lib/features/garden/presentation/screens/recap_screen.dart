@@ -8,6 +8,7 @@ import '../../domain/recap.dart';
 import '../garden_style.dart';
 import '../widgets/moment_sheet.dart';
 import '../widgets/plant_view.dart';
+import 'year_overview_screen.dart';
 
 String _hours(double h) {
   final minutes = (h * 60).round();
@@ -105,7 +106,7 @@ class MonthRecapScreen extends ConsumerWidget {
                 style: TextButton.styleFrom(minimumSize: const Size(0, 44), foregroundColor: colors.accent),
                 onPressed: () => Navigator.push(
                   context,
-                  MaterialPageRoute<void>(builder: (_) => YearRecapScreen(year: month.year)),
+                  MaterialPageRoute<void>(builder: (_) => YearOverviewScreen(year: month.year)),
                 ),
                 icon: const Icon(Icons.calendar_view_month),
                 label: Text('${month.year} in review', style: nunito(14, FontWeight.w800, colors.accent)),
@@ -118,108 +119,16 @@ class MonthRecapScreen extends ConsumerWidget {
   }
 }
 
-/// A year in review: twelve small gardens and a few facts across them.
-class YearRecapScreen extends ConsumerWidget {
-  const YearRecapScreen({super.key, required this.year});
-
-  final int year;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = GardenColors.of(context);
-    final recap = ref.watch(yearRecapProvider(year));
-    return Scaffold(
-      backgroundColor: colors.ground,
-      appBar: AppBar(backgroundColor: colors.ground, title: Text('$year')),
-      body: recap.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Couldn’t load the year: $e')),
-        data: (r) {
-          final month = DateFormat('MMMM');
-          final top = r.topSpecies;
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
-            children: [
-              Text('Year in review', style: nunito(14, FontWeight.w700, colors.muted)),
-              Semantics(
-                header: true,
-                child: Text('${_count(r.plants, 'plant')}, ${_count(r.flowers, 'flower')}', style: nunito(26, FontWeight.w900, colors.ink)),
-              ),
-              const SizedBox(height: 12),
-              LayoutBuilder(
-                builder: (context, box) {
-                  final columns = box.maxWidth >= 600 ? 4 : 3;
-                  const gap = 10.0;
-                  final width = (box.maxWidth - gap * (columns - 1)) / columns;
-                  return Wrap(
-                    spacing: gap,
-                    runSpacing: gap,
-                    children: [
-                      for (final m in r.months)
-                        SizedBox(
-                          width: width,
-                          child: Semantics(
-                            button: true,
-                            label: '${month.format(m.month)}: ${_count(m.plants, 'plant')}',
-                            excludeSemantics: true,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(20),
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute<void>(builder: (_) => MonthRecapScreen(month: m.month)),
-                              ),
-                              child: _RecapCard(
-                                colors: colors,
-                                padding: const EdgeInsets.all(8),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(DateFormat('MMM').format(m.month), style: nunito(13, FontWeight.w900, colors.ink)),
-                                    Text('${m.plants}', style: nunito(11, FontWeight.w700, colors.muted)),
-                                    const SizedBox(height: 4),
-                                    _MiniGarden(recap: m),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-              if (r.plants == 0)
-                Text('Nothing logged this year yet.', style: nunito(15, FontWeight.w600, colors.muted))
-              else ...[
-                if (top != null)
-                  _Fact(colors: colors, title: 'Grown most', body: _plants([top])),
-                if (r.mostActive case final m?)
-                  _Fact(colors: colors, title: 'Most active month', body: '${month.format(m.month)}, ${_count(m.moveSessions, 'movement session')}'),
-                if (r.mostMoments case final m?)
-                  _Fact(colors: colors, title: 'Most moments', body: '${month.format(m.month)}, ${_count(m.momentCount, 'moment')}'),
-                if (r.mostFlowers case final m?)
-                  _Fact(colors: colors, title: 'Most in bloom', body: '${month.format(m.month)}, ${_count(m.flowers, 'flower')}'),
-              ],
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
 class _RecapCard extends StatelessWidget {
-  const _RecapCard({required this.colors, required this.child, this.padding = const EdgeInsets.fromLTRB(16, 14, 16, 16)});
+  const _RecapCard({required this.colors, required this.child});
 
   final GardenColors colors;
   final Widget child;
-  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: padding,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(20)),
       child: child,

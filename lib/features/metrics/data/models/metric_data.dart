@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 import '../../../../shared/utils/date_utils.dart';
 
 /// Data models for metrics and statistics
@@ -31,9 +33,6 @@ class DateRange {
   final DateTime end;
   final String label;
 
-  /// A few characters, for the range selector on narrow phones.
-  final String shortLabel;
-
   /// Everything logged: starts at the first entry, with nothing before it
   /// to compare against.
   final bool isAllTime;
@@ -42,56 +41,33 @@ class DateRange {
     required this.start,
     required this.end,
     required this.label,
-    String? shortLabel,
     this.isAllTime = false,
-  }) : shortLabel = shortLabel ?? label;
+  });
 
-  factory DateRange.last7Days() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final start = DateTime(today.year, today.month, today.day - 6);
-    return DateRange(
-      start: start,
-      end: today,
-      label: 'Last 7 Days',
-      shortLabel: '7D',
-    );
+  /// The calendar week (Monday to Sunday) holding [day], up to [today].
+  factory DateRange.week(DateTime day, {DateTime? today}) {
+    final d = dayOf(day);
+    final start = DateTime(d.year, d.month, d.day - (d.weekday - 1));
+    final end = DateTime(start.year, start.month, start.day + 6);
+    return DateRange._period(start, end, today, (s, e) => s.month == e.month
+        ? '${s.day}–${e.day} ${DateFormat('MMM').format(s)}'
+        : '${DateFormat('d MMM').format(s)} – ${DateFormat('d MMM').format(e)}');
   }
 
-  factory DateRange.last30Days() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final start = DateTime(today.year, today.month, today.day - 29);
-    return DateRange(
-      start: start,
-      end: today,
-      label: 'Last 30 Days',
-      shortLabel: '30D',
-    );
+  /// The calendar month holding [day], up to [today].
+  factory DateRange.month(DateTime day, {DateTime? today}) {
+    final start = DateTime(day.year, day.month);
+    return DateRange._period(start, DateTime(day.year, day.month + 1, 0), today, (s, _) => DateFormat('MMMM y').format(s));
   }
 
-  factory DateRange.thisMonth() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final start = DateTime(now.year, now.month, 1);
-    return DateRange(
-      start: start,
-      end: today,
-      label: 'This Month',
-      shortLabel: 'Month',
-    );
-  }
+  /// The calendar year holding [day], up to [today].
+  factory DateRange.year(DateTime day, {DateTime? today}) =>
+      DateRange._period(DateTime(day.year), DateTime(day.year, 12, 31), today, (s, _) => '${s.year}');
 
-  factory DateRange.thisYear() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final start = DateTime(now.year, 1, 1);
-    return DateRange(
-      start: start,
-      end: today,
-      label: 'This Year',
-      shortLabel: 'Year',
-    );
+  /// A whole calendar period, cut at today while it's still going.
+  factory DateRange._period(DateTime start, DateTime end, DateTime? today, String Function(DateTime, DateTime) label) {
+    final now = dayOf(today ?? DateTime.now());
+    return DateRange(start: start, end: end.isAfter(now) ? now : end, label: label(start, end));
   }
 
   factory DateRange.allTime() {
@@ -102,7 +78,6 @@ class DateRange {
       start: start,
       end: today,
       label: 'All Time',
-      shortLabel: 'All',
       isAllTime: true,
     );
   }

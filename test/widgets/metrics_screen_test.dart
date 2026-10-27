@@ -2,6 +2,7 @@ import 'package:daily_rhythm/core/theme/app_theme.dart';
 import 'package:daily_rhythm/features/metrics/presentation/screens/metrics_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:daily_rhythm/shared/models/mood_entry.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../helpers/test_database.dart';
@@ -21,7 +22,7 @@ void main() {
     await tester.pumpAndSettle();
 
     const screenWidth = 360.0;
-    for (final label in ['7D', '30D', 'Month', 'Year', 'All']) {
+    for (final label in ['Week', 'Month', 'Year', 'All']) {
       final rect = tester.getRect(find.text(label));
       expect(rect.left, greaterThanOrEqualTo(0), reason: '$label starts off-screen');
       expect(rect.right, lessThanOrEqualTo(screenWidth), reason: '$label runs off-screen');
@@ -29,7 +30,25 @@ void main() {
 
     await tester.tap(find.text('Year'));
     await tester.pumpAndSettle();
-    final selector = tester.widget<SegmentedButton<int>>(find.byType(SegmentedButton<int>));
-    expect(selector.selected, {3});
+    expect(find.text('${DateTime.now().year}'), findsOneWidget);
+  });
+
+  testWidgets('arrows step back to the first entry and forward to today', (tester) async {
+    final db = await openTestDatabase();
+    final lastYear = DateTime.now().year - 1;
+    await db.upsertMoodEntry(MoodEntry(date: DateTime(lastYear, 6, 1), timestamp: DateTime(lastYear, 6, 1), moodLevel: 3, emoji: ''));
+    await tester.pumpWidget(ProviderScope(child: MaterialApp(theme: AppTheme.lightTheme, home: const MetricsScreen())));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Year'));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.chevron_right)).onPressed, isNull, reason: 'nothing after today');
+    await tester.tap(find.byTooltip('Previous year'));
+    await tester.pumpAndSettle();
+    expect(find.text('$lastYear'), findsOneWidget);
+    expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.chevron_left)).onPressed, isNull, reason: 'nothing before the first entry');
+    await tester.tap(find.byTooltip('Next year'));
+    await tester.pumpAndSettle();
+    expect(find.text('${lastYear + 1}'), findsOneWidget);
   });
 }
