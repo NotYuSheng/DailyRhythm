@@ -184,6 +184,19 @@ void main() {
       expect((food.kcal, food.kcalSource), (380.0, 'off'));
     });
 
+    testWidgets('editing an old meal never gives its food an estimate', (tester) async {
+      await CatalogRepository(db).saveFood(FoodItem(name: 'Laksa', kcal: 590, kcalSource: 'user'));
+      final rebus = await CatalogRepository(db).saveFood(FoodItem(name: 'Spicy laksa'));
+      await db.createMealEntry(MealEntry(date: pastDay, time: DateTime(2026, 10, 20, 12), name: 'Spicy laksa', foodItemId: rebus));
+      final meal = (await db.getMealEntriesByDate(pastDay)).single;
+      await tester.pumpWidget(_app(AddMealScreen(entry: meal)));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('An estimate'), findsNothing);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect((await CatalogRepository(db).findFood('Spicy laksa'))!.kcal, isNull);
+    });
+
     testWidgets('a quantity of 0 isn\'t saved', (tester) async {
       await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
       await tester.enterText(_field('Meal Name'), 'Laksa');

@@ -41,6 +41,12 @@ void main() {
     expect(basis('chiken ricee'), 'like your Chicken rice');
   });
 
+  test('a near spelling is as strict as "Did you mean"', () {
+    final drinks = CalorieEstimator(yourFoods: [FoodItem(name: 'Kopi c', kcal: 90), FoodItem(name: 'Hot pot', kcal: 900)], reference: const []);
+    expect(drinks.estimate('Kopi o'), isNull, reason: 'a different drink, one letter apart');
+    expect(drinks.estimate('Hot dog'), isNull);
+  });
+
   test('nothing to go on gives no estimate', () {
     expect(estimator.estimate('Mystery stew'), isNull);
     expect(estimator.estimate('Zzz'), isNull);

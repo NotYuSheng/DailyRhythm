@@ -42,6 +42,25 @@ def test_corrections_survive_a_rerun(tmp_path):
     assert hows == Counter({"estimate": 1, "user": 1})
 
 
+def test_a_number_typed_where_there_was_none_and_a_cleared_row_are_kept(tmp_path):
+    path = tmp_path / "calories.csv"
+    counts = Counter({"Kueh lapis": 2, "Buffet": 1})
+    cache = {"kueh lapis": {"kcal": None, "serving": ""}, "buffet": {"kcal": 2500, "serving": "1 buffet"}}
+    write_calories(path, counts, cache)
+    rows = list(csv.DictReader(open(path)))
+    rows[0]["kcal"] = "150"  # typed where the model said "not food"
+    rows[1]["kcal"] = ""  # a wrong estimate cleared
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+    write_calories(path, counts, cache)
+    write_calories(path, counts, cache)
+    after = {r["food"]: (r["kcal"], r["how"]) for r in csv.DictReader(open(path))}
+    assert after == {"Kueh lapis": ("150", "user"), "Buffet": ("", "user")}
+    assert load_calories(path) == {"kueh lapis": {"kcal": 150.0, "how": "user"}}
+
+
 def test_foods_get_their_calories_and_source_in_the_export():
     day = {"date": "2024-03-05", "mood": 3, "wake": None, "bed": None, "journal": [], "activities": [],
            "food_sources": [], "symptoms": [], "exercises": [], "supplements": [], "entries": [],

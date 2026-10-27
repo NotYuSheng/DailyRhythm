@@ -12,12 +12,9 @@ labels them so and anything the user types replaces them.
 from __future__ import annotations
 
 import json
-import os
-import re
-import urllib.request
 from pathlib import Path
 
-from .llm import load_env
+from .llm import chat, env_settings, extract_array, load_env
 
 GROUPS = [
     "Singapore hawker rice dishes: chicken rice, duck rice, nasi lemak, briyani, claypot rice, char siew rice, mixed rice plates",
@@ -56,19 +53,8 @@ def _prompt(group: str) -> str:
     )
 
 
-def _ask(group: str, base_url: str, api_key: str, model: str) -> list[dict]:
-    # Low reasoning: many times faster on reasoning models, ignored elsewhere.
-    body = json.dumps({"model": model, "temperature": 0, "reasoning_effort": "low",
-                       "messages": [{"role": "user", "content": _prompt(group)}]}).encode()
-    request = urllib.request.Request(
-        f"{base_url.rstrip('/')}/chat/completions",
-        data=body,
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(request, timeout=900) as response:
-        content = json.load(response)["choices"][0]["message"]["content"] or ""
-    match = re.search(r"\[.*\]", content, re.DOTALL)
-    return json.loads(match.group(0)) if match else []
+def _ask(group: str, base_url: str, api_key: str, model: str) -> list:
+    return extract_array(chat(_prompt(group), base_url, api_key, model, timeout=900)) or []
 
 
 def clean(items: list) -> list[dict]:
@@ -93,9 +79,7 @@ def clean(items: list) -> list[dict]:
 def main() -> None:
     root = Path(__file__).resolve().parents[3]
     load_env(root / ".env")
-    missing = [k for k in ("LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL") if not os.environ.get(k)]
-    if missing:
-        raise SystemExit(f"Set {', '.join(missing)} in .env")
+    settings = env_settings()
     partial = root / "data" / "common_foods_partial.json"  # data/ is private and ignored
     done: dict[str, list] = json.loads(partial.read_text()) if partial.exists() else {}
     for i, group in enumerate(GROUPS, 1):
@@ -103,7 +87,7 @@ def main() -> None:
             continue
         for attempt in range(3):
             try:
-                done[group] = _ask(group, os.environ["LLM_BASE_URL"], os.environ["LLM_API_KEY"], os.environ["LLM_MODEL"])
+                done[group] = _ask(group, *settings)
                 break
             except Exception as error:  # timeouts on a busy local model
                 print(f"  group {i}: attempt {attempt + 1} failed: {error}")

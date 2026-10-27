@@ -81,6 +81,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       });
     }
     // The common foods table comes after: suggestions needn't wait for it.
+    if (!mounted) return;
     final reference = await ref.read(referenceFoodsProvider.future);
     if (mounted && reference.isNotEmpty) {
       setState(() => _estimator = CalorieEstimator(yourFoods: [for (final f in foods) f.item], reference: reference));
@@ -121,10 +122,11 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         null => null,
       };
 
-  /// A suggested calories-per-serving for a food that has none yet.
+  /// A suggested calories-per-serving for a food that has none yet. Only
+  /// for a new entry: editing an old meal never sets its food's calories.
   CalorieEstimate? get _estimate {
     final text = _nameController.text.trim();
-    if (text.isEmpty || _inheritedCalories != null) return null;
+    if (widget.entry != null || text.isEmpty || _inheritedCalories != null) return null;
     return _estimator.estimate(text);
   }
 
@@ -339,11 +341,11 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                       suffixText: 'kcal',
                     ),
                     keyboardType: TextInputType.number,
-                    onChanged: (_) {
+                    onChanged: (_) => setState(() {
                       _kcalSource = null;
                       _lookedUpPerServing = null;
                       _caloriesChanged = true;
-                    },
+                    }),
                   ),
                   Align(
                     alignment: Alignment.centerLeft,
@@ -527,14 +529,15 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       // needed, and remember the price for next time.
       final name = _nameController.text.trim();
       final known = _matcher.exact(name)?.item;
+      final estimate = calories == null && known?.kcal == null ? _estimate : null;
       // Typed calories become the food's, per serving, for next time.
       final foodItemId = await CatalogRepository(db).saveFood(
         FoodItem(
           name: known?.name ?? name,
           lastPrice: price,
           // Else a food without calories starts from the estimate.
-          kcal: teach ? calories / quantity : (calories == null && (known?.kcal == null) ? _estimate?.kcal : null),
-          kcalSource: teach ? _kcalSource ?? 'user' : (calories == null && known?.kcal == null && _estimate != null ? 'estimate' : null),
+          kcal: teach ? calories / quantity : estimate?.kcal,
+          kcalSource: teach ? _kcalSource ?? 'user' : (estimate == null ? null : 'estimate'),
         ),
       );
 

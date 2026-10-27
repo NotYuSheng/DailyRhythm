@@ -14,14 +14,12 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import os
 import re
-import urllib.request
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from .llm import load_env
+from .llm import chat, env_settings, extract_array, load_env
 
 FIELDS = ["food", "kcal", "serving", "count", "how"]
 BATCH = 20
@@ -39,17 +37,6 @@ def _prompt(foods: list[str]) -> str:
         '[{"food": "<name exactly as given>", "kcal": <whole number>, "serving": "<the serving you assumed>"}]. '
         'Use "kcal": null if it is not food or drink.'
     )
-
-
-def _extract(content: str) -> list | None:
-    match = re.search(r"\[.*\]", content, re.DOTALL)
-    if not match:
-        return None
-    try:
-        value = json.loads(match.group(0))
-    except json.JSONDecodeError:
-        return None
-    return value if isinstance(value, list) else None
 
 
 def _key(name: str) -> str:
@@ -88,22 +75,7 @@ class CalorieEstimator:
         self.cache: dict[str, dict] = json.loads(cache_path.read_text()) if cache_path.exists() else {}
 
     def _ask(self, foods: list[str]) -> dict[str, dict]:
-        body = json.dumps({
-            "model": self.model,
-            "temperature": 0,
-            # A list of numbers needs little thought; reasoning models are
-            # many times slower without this (servers that don't know it ignore it).
-            "reasoning_effort": "low",
-            "messages": [{"role": "user", "content": _prompt(foods)}],
-        }).encode()
-        request = urllib.request.Request(
-            f"{self.base_url}/chat/completions",
-            data=body,
-            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
-        )
-        with urllib.request.urlopen(request, timeout=300) as response:
-            content = json.load(response)["choices"][0]["message"]["content"] or ""
-        return accept(foods, _extract(content))
+        return accept(foods, extract_array(chat(_prompt(foods), self.base_url, self.api_key, self.model)))
 
     def estimate(self, foods: list[str], progress=print) -> None:
         """Asks about every food not cached yet, in batches; saves as it goes."""
@@ -173,11 +145,13 @@ def write_calories(path: Path, counts: Counter, cache: dict[str, dict]) -> Count
     for food, count in counts.most_common():
         old = previous.get(food.lower())
         estimate = cache.get(food.lower(), {})
+        written = old.get("kcal", "") if old else ""
         if old and old.get("how") == "user":
             row = {**old, "count": count}
-        elif old and old.get("kcal") not in ("", None) and estimate.get("kcal") is not None and \
-                str(old["kcal"]) != str(estimate["kcal"]):
-            row = {**old, "count": count, "how": "user"}  # edited since the last run
+        elif old and str(written) != str(estimate.get("kcal") if estimate.get("kcal") is not None else ""):
+            # Changed since the last run: a number typed (even where there was
+            # no estimate) or one cleared. Either way it's the person's now.
+            row = {**old, "count": count, "how": "user"}
         else:
             kcal = estimate.get("kcal")
             row = {"food": food, "kcal": "" if kcal is None else kcal, "serving": estimate.get("serving", ""),
@@ -204,10 +178,7 @@ def main() -> None:
         estimator = CalorieEstimator(cache_path, "", "", "")
     else:
         load_env(root / ".env")
-        missing = [k for k in ("LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL") if not os.environ.get(k)]
-        if missing:
-            raise SystemExit(f"Set {', '.join(missing)} in .env, or pass --no-llm")
-        estimator = CalorieEstimator(cache_path, os.environ["LLM_BASE_URL"], os.environ["LLM_API_KEY"], os.environ["LLM_MODEL"])
+        estimator = CalorieEstimator(cache_path, *env_settings())
         print(f"Estimating {sum(1 for f in counts if f.lower() not in estimator.cache)} foods...")
         estimator.estimate(list(counts))
     hows = write_calories(args.out / "calories.csv", counts, estimator.cache)
