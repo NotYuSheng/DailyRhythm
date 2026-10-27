@@ -70,7 +70,7 @@ void main() {
     final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
     expect(facts['Most reps']!.value, '100');
     expect(facts['Distance on foot']!.value, '233 km', reason: '310,000 steps at 0.75 m');
-    expect(facts['Distance on foot']!.detail, startsWith('About 4.7 times Singapore from Tuas to Changi'));
+    expect(facts['Distance on foot']!.detail, matches(RegExp(r'^About .* \(310,000 steps\)$')), reason: 'a comparison, then the steps');
     expect(facts['Longest night']!.value, '10h 30m');
     expect(facts['Longest night']!.detail, contains('Earliest start: 06:10 on 5 Mar'));
   });
@@ -95,11 +95,14 @@ void main() {
     expect((memory.value, memory.detail), ('2 years ago', '“Beach day”'));
   });
 
-  test('distances are compared with something familiar', () {
-    expect(distanceComparison(20), 'about 47% of a marathon');
-    expect(distanceComparison(42), 'about a marathon');
-    expect(distanceComparison(150), 'about 3 times Singapore from Tuas to Changi');
-    expect(distanceComparison(330), 'about Singapore to Kuala Lumpur');
+  test('distances are compared with something from around the world, varied by period', () {
+    expect(distanceComparison(42, seed: 5), 'about a marathon');
+    expect(distanceComparison(22, seed: 4), 'about the length of Manhattan');
+    expect(distanceComparison(30, seed: 1), 'about 3.4 times the height of Mount Everest');
+    final picks = {for (var seed = 0; seed < 20; seed++) distanceComparison(150, seed: seed)};
+    expect(picks.length, greaterThan(3), reason: 'not the same comparison every period');
+    expect(distanceComparison(150, seed: 3), distanceComparison(150, seed: 3), reason: 'but the same for the same period');
+    expect(distanceComparison(900000), 'about 22 times a lap around the Earth');
   });
 
   test('a line\'s price is its total, whatever the quantity', () async {

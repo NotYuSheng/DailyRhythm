@@ -25,22 +25,39 @@ class FunFact {
   String toString() => '$title: $value ($detail)';
 }
 
-/// Familiar distances for turning kilometres into something to picture.
+/// Distances from around the world for picturing kilometres, each phrased
+/// to read after "about", "about 3 times" and "about 40% of".
 const distanceLandmarks = [
+  (2.7, 'the Golden Gate Bridge'),
+  (8.849, 'the height of Mount Everest'),
+  (9.8, 'a lap of Central Park'),
+  (10.9, 'the depth of the Mariana Trench'),
+  (21.6, 'the length of Manhattan'),
+  (33.0, 'the width of the English Channel'),
   (42.195, 'a marathon'),
-  (50.0, 'Singapore from Tuas to Changi'),
-  (315.0, 'Singapore to Kuala Lumpur'),
-  (1250.0, 'Singapore to Bangkok'),
-  (2900.0, 'Singapore to Hong Kong'),
-  (5300.0, 'Singapore to Tokyo'),
+  (82.0, 'the length of the Panama Canal'),
+  (100.0, 'the distance to the edge of space'),
+  (117.0, "the length of Hadrian's Wall"),
+  (344.0, 'the distance from London to Paris'),
+  (400.0, 'the distance up to the Space Station'),
+  (446.0, 'the length of the Grand Canyon'),
+  (780.0, 'the Camino de Santiago'),
+  (2300.0, 'the length of the Great Barrier Reef'),
+  (3400.0, 'a Tour de France'),
+  (3500.0, 'the Appalachian Trail'),
+  (3940.0, 'Route 66'),
+  (6650.0, 'the length of the Nile'),
+  (21196.0, 'the Great Wall of China'),
+  (40075.0, 'a lap around the Earth'),
 ];
 
-/// "about 2.4 times a marathon", "about Singapore to Kuala Lumpur".
-String distanceComparison(double km) {
-  var best = distanceLandmarks.first;
-  for (final landmark in distanceLandmarks) {
-    if (km >= landmark.$1 * 0.95) best = landmark;
-  }
+/// "about 2.4 times a marathon", "about the length of Manhattan". [seed]
+/// picks among the landmarks that fit (0.9 to 15 times), so different
+/// periods compare with different things; the same seed, the same one.
+String distanceComparison(double km, {int seed = 0}) {
+  final fitting = [for (final l in distanceLandmarks) if (km >= l.$1 * 0.9 && km <= l.$1 * 15) l];
+  // Nothing fits (a very long way): the largest, as a share or a multiple.
+  final best = fitting.isEmpty ? distanceLandmarks.last : fitting[seed.abs() % fitting.length];
   final times = km / best.$1;
   if (times < 0.8) return 'about ${(times * 100).round()}% of ${best.$2}';
   if (times < 1.25) return 'about ${best.$2}';
@@ -170,7 +187,8 @@ class FunFactsService {
     )).first['km'] as num?;
     final onFoot = hasSteps ? steps * 0.00075 : (runs ?? 0).toDouble();
     if (onFoot >= 10) {
-      final comparison = distanceComparison(onFoot);
+      // Seeded by the period, so each period has its own comparison.
+      final comparison = distanceComparison(onFoot, seed: from.difference(DateTime(2000)).inDays);
       facts.add(FunFact(
         kind: FactKind.distance,
         title: hasSteps ? 'Distance on foot' : 'Distance run',
