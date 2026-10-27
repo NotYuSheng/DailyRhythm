@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../shared/utils/date_utils.dart';
 import '../../../garden/presentation/garden_style.dart';
+import '../../../garden/presentation/screens/garden_today_screen.dart';
 import '../../data/models/metric_data.dart';
 import '../../data/models/period_overview.dart';
 import '../../data/providers/metrics_providers.dart';
@@ -223,17 +224,18 @@ class _Pixels extends StatelessWidget {
                     AspectRatio(
                       // 53 weeks a row are narrow: taller so they're seen.
                       aspectRatio: columns > 31 ? 0.4 : 1,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(radius),
-                          color: switch (cell) {
-                            null => Colors.transparent,
-                            final d => switch (levelOf(d)) {
-                                final level? => Color(palette[level]),
-                                null => colors.bed,
-                              },
-                          },
-                        ),
+                      child: _Cell(
+                        day: cell,
+                        week: overview.scale == OverviewScale.all,
+                        metric: metric,
+                        radius: radius,
+                        color: switch (cell) {
+                          null => Colors.transparent,
+                          final d => switch (levelOf(d)) {
+                              final level? => Color(palette[level]),
+                              null => colors.bed,
+                            },
+                        },
                       ),
                     ),
                 ]),
@@ -262,6 +264,65 @@ class _Pixels extends StatelessWidget {
           Text('No ${metric.label.toLowerCase()} logged this $unit.', style: nunito(13, FontWeight.w700, colors.muted)),
         ],
       ],
+    );
+  }
+}
+
+/// One square of the grid. A tap shows its date and value; a double tap
+/// opens the day on Today (not for all time's week squares).
+class _Cell extends StatefulWidget {
+  const _Cell({required this.day, required this.week, required this.metric, required this.radius, required this.color});
+
+  final DayValues? day;
+  final bool week;
+  final YearMetric metric;
+  final double radius;
+  final Color color;
+
+  @override
+  State<_Cell> createState() => _CellState();
+}
+
+class _CellState extends State<_Cell> {
+  final _tooltip = GlobalKey<TooltipState>();
+
+  static final _number = NumberFormat('#,##0');
+
+  /// "Sleep 7.2 h", "Mood: good", or that nothing was logged.
+  static String valueOf(YearMetric metric, DayValues d) {
+    final value = switch (metric) {
+      YearMetric.sleep => d.sleepHours == null ? null : '${d.sleepHours!.toStringAsFixed(1)} h',
+      YearMetric.steps => d.steps == null ? null : '${_number.format(d.steps!.round())} steps',
+      YearMetric.calories => d.kcal == null ? null : '${_number.format(d.kcal!.round())} kcal',
+      YearMetric.mood => d.mood == null ? null : metric.levels[(d.mood! - 1).clamp(0, 4)],
+      YearMetric.energy => d.energy == null ? null : metric.levels[(d.energy! + 2).clamp(0, 4)],
+    };
+    return value == null ? 'No ${metric.label.toLowerCase()} logged' : '${metric.label}: $value';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final box = DecoratedBox(
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(widget.radius), color: widget.color),
+      child: const SizedBox.expand(),
+    );
+    final d = widget.day;
+    if (d == null) return box;
+    final when = widget.week ? 'Week of ${DateFormat('d MMM y').format(d.date)}' : DateFormat('EEE d MMM y').format(d.date);
+    final average = widget.week ? ' (average)' : '';
+    return Tooltip(
+      key: _tooltip,
+      triggerMode: TooltipTriggerMode.manual,
+      showDuration: const Duration(seconds: 3),
+      message: '$when\n${valueOf(widget.metric, d)}$average${widget.week ? '' : '\nDouble-tap to open the day'}',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _tooltip.currentState?.ensureTooltipVisible(),
+        onDoubleTap: widget.week
+            ? null
+            : () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => GardenTodayScreen(day: d.date))),
+        child: box,
+      ),
     );
   }
 }

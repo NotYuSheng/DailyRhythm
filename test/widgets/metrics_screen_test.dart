@@ -3,6 +3,8 @@ import 'package:daily_rhythm/features/metrics/presentation/screens/metrics_scree
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:daily_rhythm/shared/models/mood_entry.dart';
+import 'package:daily_rhythm/features/garden/presentation/screens/garden_today_screen.dart';
+import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../helpers/test_database.dart';
@@ -83,5 +85,39 @@ void main() {
       await tester.scrollUntilVisible(find.text(mood), 300, scrollable: scrollable);
       await tester.scrollUntilVisible(find.text(table), 300, scrollable: scrollable);
     }
+  });
+
+  testWidgets('a grid square shows its value on tap and opens the day on double-tap', (tester) async {
+    final db = await openTestDatabase();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    await db.upsertMoodEntry(MoodEntry(date: today, timestamp: today, moodLevel: 4, emoji: ''));
+    await tester.pumpWidget(ProviderScope(child: MaterialApp(theme: AppTheme.lightTheme, home: const MetricsScreen())));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Week'));
+    await tester.pumpAndSettle();
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.widgetWithText(ChoiceChip, 'Mood'), 300, scrollable: scrollable);
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Mood'));
+    await tester.pumpAndSettle();
+
+    final label = DateFormat('EEE d MMM y').format(today);
+    final square = find.byWidgetPredicate((w) => w is Tooltip && (w.message ?? '').startsWith(label));
+    await tester.ensureVisible(square);
+    await tester.pumpAndSettle();
+    await tester.tap(square);
+    await tester.pump(const Duration(milliseconds: 400)); // past the double-tap wait
+    await tester.pumpAndSettle();
+    expect(find.text('$label\nMood: Good\nDouble-tap to open the day'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+
+    await tester.tap(square);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(square);
+    // Today's plant sways for ever, so pump the page transition through.
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(GardenTodayScreen), findsOneWidget);
   });
 }
