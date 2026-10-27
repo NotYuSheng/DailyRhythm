@@ -8,6 +8,7 @@ import '../widgets/day_ratings_section.dart';
 import '../widgets/fun_facts_section.dart';
 import '../../data/models/period_overview.dart';
 import '../widgets/period_overview_section.dart';
+import '../widgets/weight_section.dart';
 
 class MetricsScreen extends ConsumerStatefulWidget {
   const MetricsScreen({super.key});
@@ -77,6 +78,10 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
             // Every day, mood and sleep by group, tags that stood out, and
             // a row per group: a week by day up to all time by year.
             PeriodOverviewSection(scale: _period.scale, range: _selectedRange),
+            const SizedBox(height: AppTheme.spacePulse3),
+
+            // Weight over the period, and logging today's.
+            WeightSection(range: _selectedRange),
             const SizedBox(height: AppTheme.spacePulse3),
 
             // Mood, energy, stress and focus; tag comparisons; watch

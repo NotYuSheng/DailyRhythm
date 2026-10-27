@@ -40,7 +40,7 @@ Indexes on `date` for every dated table (import duplicate checks were full scans
 `respiration_waking`, `sleep_minutes`, `sleep_deep_minutes`, `sleep_light_minutes`,
 `sleep_rem_minutes`, `sleep_awake_minutes`, `sleep_score`, `sleep_stress_avg`, `hrv`,
 `hrv_baseline_low`, `hrv_baseline_high`, `sleep_hr`, `sleep_respiration`, `spo2`,
-`skin_temp_c`. Sources: `garmin_export`, `health_connect`, `healthkit`, `manual`; when
+`skin_temp_c`, `weight_kg` (logged in the app, source `manual`). Sources: `garmin_export`, `health_connect`, `healthkit`, `manual`; when
 several exist for a day the app prefers garmin_export > health_connect/healthkit > manual.
 
 ### Not stored

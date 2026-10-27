@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:daily_rhythm/shared/models/mood_entry.dart';
 import 'package:daily_rhythm/features/garden/presentation/screens/garden_today_screen.dart';
+import 'package:daily_rhythm/features/profile/data/weight_repository.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../helpers/test_database.dart';
@@ -119,5 +121,30 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.byType(GardenTodayScreen), findsOneWidget);
+  });
+
+  testWidgets('weight is logged from Metrics and shown with its change', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final db = await openTestDatabase();
+    final now = DateTime.now();
+    final earlier = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 3));
+    await WeightRepository(db).log(earlier, 60);
+    await tester.pumpWidget(ProviderScope(child: MaterialApp(theme: AppTheme.lightTheme, home: const MetricsScreen())));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('All'));
+    await tester.pumpAndSettle();
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('Log weight'), 300, scrollable: scrollable);
+    expect(find.textContaining('60.0 kg on'), findsOneWidget);
+
+    await tester.tap(find.text('Log weight'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextField, '60.0'), findsOneWidget, reason: 'starts from the latest');
+    await tester.enterText(find.byType(TextField), '60.8');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.textContaining('60.8 kg on'), 300, scrollable: scrollable);
+    expect(find.textContaining('+0.8 kg since'), findsOneWidget);
+    expect((await WeightRepository(db).latest())!.value, 60.8);
   });
 }

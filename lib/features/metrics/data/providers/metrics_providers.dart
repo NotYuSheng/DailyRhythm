@@ -6,6 +6,7 @@ import '../services/metrics_service.dart';
 import '../services/period_overview_repository.dart';
 import '../models/period_overview.dart';
 import '../models/metric_data.dart';
+import '../../../profile/data/profile_providers.dart';
 
 /// Metrics service provider
 final metricsServiceProvider = Provider<MetricsService>((ref) {
@@ -58,6 +59,7 @@ void invalidateMetrics(WidgetRef ref) {
     dayRatingsProvider,
     firstLoggedDayProvider,
     periodOverviewProvider,
+    weightsProvider,
   ]) {
     ref.invalidate(provider);
   }

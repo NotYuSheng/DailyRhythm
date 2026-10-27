@@ -6,6 +6,7 @@ import '../../garden/presentation/garden_style.dart';
 import '../../metrics/data/providers/metrics_providers.dart';
 import '../data/profile_providers.dart';
 import '../data/profile_repository.dart';
+import '../data/weight_repository.dart';
 import '../domain/profile.dart';
 
 /// Age, height, weight and sex, for the typical sleep and calorie ranges
@@ -56,7 +57,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _save(Profile p) async {
     await ProfileRepository().save(p);
+    // A new weight is also today's entry in the weight log.
+    final shown = ref.read(profileProvider).value?.weightKg;
+    if (p.weightKg != null && p.weightKg != shown) await WeightRepository().log(DateTime.now(), p.weightKg!);
     ref.invalidate(profileProvider);
+    ref.invalidate(weightsProvider);
     invalidateMetrics(ref);
     if (mounted) Navigator.pop(context);
   }
