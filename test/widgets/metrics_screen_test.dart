@@ -76,6 +76,9 @@ void main() {
       await tester.scrollUntilVisible(find.text(period), -300, scrollable: scrollable);
       await tester.tap(find.text(period));
       await tester.pumpAndSettle();
+      // The summary sits above the overview; All time has nothing before it.
+      expect(find.text(period == 'All' ? 'At a glance' : 'Compared with before'), findsOneWidget);
+      expect(find.text('Avg Sleep'), findsNothing, reason: 'the stat cards repeated the summary');
       await tester.scrollUntilVisible(find.text(grid), 300, scrollable: scrollable);
       await tester.scrollUntilVisible(find.text(mood), 300, scrollable: scrollable);
       await tester.scrollUntilVisible(find.text(table), 300, scrollable: scrollable);

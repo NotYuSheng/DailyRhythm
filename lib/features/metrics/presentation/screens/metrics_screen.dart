@@ -6,7 +6,6 @@ import '../../data/providers/metrics_providers.dart';
 import '../../../garden/presentation/garden_style.dart';
 import '../widgets/day_ratings_section.dart';
 import '../widgets/fun_facts_section.dart';
-import '../widgets/quick_stat_card.dart';
 import '../../data/models/period_overview.dart';
 import '../widgets/period_overview_section.dart';
 
@@ -70,9 +69,10 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
             FunFactsSection(range: _selectedRange),
             const SizedBox(height: AppTheme.spacePulse4),
 
-            // Quick Stats Cards
-            _buildQuickStats(),
-            const SizedBox(height: AppTheme.spacePulse4),
+            // The period in a few lines: sleep, mood and exercise against
+            // the period before.
+            _buildInsights(),
+            const SizedBox(height: AppTheme.spacePulse3),
 
             // Every day, mood and sleep by group, tags that stood out, and
             // a row per group: a week by day up to all time by year.
@@ -85,10 +85,6 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
 
             // Activity Breakdown
             _buildActivityBreakdown(),
-            const SizedBox(height: AppTheme.spacePulse4),
-
-            // Insights
-            _buildInsights(),
           ],
         ),
       ),
@@ -153,98 +149,6 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
     );
   }
 
-  Widget _buildQuickStats() {
-    final sleepAsync = ref.watch(sleepMetricsProvider(_selectedRange));
-    final moodAsync = ref.watch(moodMetricsProvider(_selectedRange));
-    final exerciseAsync = ref.watch(exerciseMetricsProvider(_selectedRange));
-    final activityAsync = ref.watch(activityMetricsProvider(_selectedRange));
-
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: sleepAsync.when(
-                data: (metrics) => QuickStatCard(
-                  icon: Icons.bedtime_outlined,
-                  label: 'Avg Sleep',
-                  value: metrics.dailyData.isEmpty ? '–' : '${metrics.averageHours.toStringAsFixed(1)}h',
-                  // No trend without sleep this period.
-                  trend: metrics.dailyData.isEmpty
-                      ? TrendDirection.neutral
-                      : _calculateTrend(metrics.averageHours, metrics.previousAverageHours),
-                  trendPercentage: metrics.dailyData.isEmpty
-                      ? 0
-                      : _calculateTrendPercentage(metrics.averageHours, metrics.previousAverageHours),
-                ),
-                loading: () => _buildLoadingCard(),
-                error: (_, _) => _buildErrorCard('Sleep'),
-              ),
-            ),
-            const SizedBox(width: AppTheme.spacePulse2),
-            Expanded(
-              child: moodAsync.when(
-                data: (metrics) => QuickStatCard(
-                  icon: Icons.sentiment_satisfied_alt_outlined,
-                  label: 'Avg Mood',
-                  value: metrics.averageMood > 0 ? metrics.averageMood.toStringAsFixed(1) : 'N/A',
-                  trend: _calculateTrend(metrics.averageMood, metrics.previousAverageMood),
-                  trendPercentage: _calculateTrendPercentage(metrics.averageMood, metrics.previousAverageMood),
-                ),
-                loading: () => _buildLoadingCard(),
-                error: (_, _) => _buildErrorCard('Mood'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppTheme.spacePulse2),
-        Row(
-          children: [
-            Expanded(
-              child: exerciseAsync.when(
-                data: (metrics) => QuickStatCard(
-                  icon: Icons.fitness_center_outlined,
-                  label: 'Exercises',
-                  value: '${metrics.totalExercises}',
-                  trend: _calculateTrend(
-                    metrics.totalExercises.toDouble(),
-                    metrics.previousTotalExercises?.toDouble(),
-                  ),
-                  trendPercentage: _calculateTrendPercentage(
-                    metrics.totalExercises.toDouble(),
-                    metrics.previousTotalExercises?.toDouble(),
-                  ),
-                ),
-                loading: () => _buildLoadingCard(),
-                error: (_, _) => _buildErrorCard('Exercise'),
-              ),
-            ),
-            const SizedBox(width: AppTheme.spacePulse2),
-            Expanded(
-              child: activityAsync.when(
-                data: (metrics) => QuickStatCard(
-                  icon: Icons.local_activity_outlined,
-                  label: 'Activities',
-                  value: '${metrics.totalActivities}',
-                  trend: _calculateTrend(
-                    metrics.totalActivities.toDouble(),
-                    metrics.previousTotalActivities?.toDouble(),
-                  ),
-                  trendPercentage: _calculateTrendPercentage(
-                    metrics.totalActivities.toDouble(),
-                    metrics.previousTotalActivities?.toDouble(),
-                  ),
-                ),
-                loading: () => _buildLoadingCard(),
-                error: (_, _) => _buildErrorCard('Activities'),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   Widget _buildActivityBreakdown() {
     final activityAsync = ref.watch(activityMetricsProvider(_selectedRange));
     final colors = GardenColors.of(context);
@@ -297,12 +201,13 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
     final colors = GardenColors.of(context);
 
     return GardenSection(
-      title: 'Compared with before',
+      // All time has nothing before it.
+      title: _selectedRange.isAllTime ? 'At a glance' : 'Compared with before',
       colors: GardenColors.of(context),
       child: insightsAsync.when(
         data: (insights) {
           if (insights.isEmpty) {
-            return _buildEmptyState('Not enough data to generate insights yet');
+            return _buildEmptyState('Not enough logged yet to compare');
           }
 
           return Column(
@@ -350,34 +255,6 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
     }
   }
 
-  Widget _buildLoadingCard() {
-    return const Card(
-      child: Padding(
-        padding: EdgeInsets.all(AppTheme.spacePulse3),
-        child: Center(
-          child: CircularProgressIndicator(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildErrorCard(String label) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.spacePulse3),
-        child: Center(
-          child: Text(
-            'Error loading $label',
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildEmptyState(String message) {
     return Center(
       child: Padding(
@@ -389,22 +266,6 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
         ),
       ),
     );
-  }
-
-  TrendDirection _calculateTrend(double current, double? previous) {
-    if (previous == null || previous == 0) return TrendDirection.neutral;
-
-    final diff = current - previous;
-    final percentChange = (diff / previous).abs();
-
-    if (percentChange < 0.05) return TrendDirection.neutral;
-    if (diff > 0) return TrendDirection.up;
-    return TrendDirection.down;
-  }
-
-  double _calculateTrendPercentage(double current, double? previous) {
-    if (previous == null || previous == 0) return 0.0;
-    return ((current - previous) / previous) * 100;
   }
 }
 
