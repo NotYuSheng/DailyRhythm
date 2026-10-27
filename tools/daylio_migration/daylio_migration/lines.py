@@ -47,6 +47,17 @@ PRICE_END = re.compile(
 )
 # "... USD 11.60"
 CURRENCY_FIRST_END = re.compile(r"\s(?P<cur>usd|us\$|rm|myr|sgd)\s*\$?(?P<price>\d+(?:\.\d{1,2})?)\s*$", re.IGNORECASE)
+# How a meal was paid for, written into its name. None of it is the
+# person's own money: "Sushi $10 cdc voucher", "Carrot cake white $5 CDC".
+CDC = re.compile(
+    r"(?:\$\s?(?P<before>\d+(?:\.\d{1,2})?)\s+)?\bcdc(?:\s+vouchers?)?\b(?:\s+\$\s?(?P<after>\d+(?:\.\d{1,2})?))?",
+    re.IGNORECASE,
+)
+# "Free whopper", "Pc nuggets free"; not "meal with free latte", where only
+# part of it was.
+FREE = re.compile(r"^free\s+|\s+free$", re.IGNORECASE)
+# Army meals: "Rations", "Ration chicken rice", "Cookhouse out ration western".
+RATIONS = re.compile(r"\b(?:cookhouse\s+out\s+)?rations?\b", re.IGNORECASE)
 # Not a size or weight: "Pizza 12.00 inch".
 PRICE_INSIDE = re.compile(r"\s(?P<price>\d+\.\d{2})\s(?!(?:inch|in|cm|mm|kg|g|ml|l|km|pcs?|pieces?)\b)", re.IGNORECASE)
 # Not part of a name: "Set 2", "Meal no 3", "Level 1".
@@ -140,6 +151,18 @@ def parse_meal(line: str, flags: list[Flag]) -> Meal:
     comments = [m["comment"].strip() for m in PAREN.finditer(body)]
     body = PAREN.sub(" ", body).strip()
 
+    # Paid with CDC vouchers, free, or army rations: noted, and $0 spent.
+    paid = None
+    voucher = None
+    if cdc := CDC.search(body):
+        paid = "cdc"
+        voucher = cdc["before"] or cdc["after"]
+        body = (body[: cdc.start()] + " " + body[cdc.end():]).strip(" ,")
+    for c in list(comments):
+        if CDC.fullmatch(c) or c.lower() == "free":
+            paid = paid or ("cdc" if c.lower() != "free" else "free")
+            comments.remove(c)
+
     price = None
     approx = False
     currency = "SGD"
@@ -159,6 +182,23 @@ def parse_meal(line: str, flags: list[Flag]) -> Meal:
         price = float(inner["price"])
         body = (body[: inner.start()] + " " + body[inner.end():]).strip()
         flags.append(Flag("price_in_name", f"{price:.2f} taken from inside the name", text))
+
+    body = re.sub(r"\s+", " ", body).strip(" ,")
+    if FREE.search(body):
+        paid = paid or "free"
+        body = FREE.sub(" ", body).strip()
+    if RATIONS.search(body):
+        paid = paid or "rations"
+        body = RATIONS.sub(" ", body).strip() or "Rations"
+    if paid:
+        body = body[:1].upper() + body[1:]  # "Free whopper" -> "Whopper"
+        if paid == "cdc":
+            value = float(voucher) if voucher else price
+            money = f"{value:.2f}".removesuffix(".00") if value else None
+            comments.append(f"CDC voucher (${money})" if money else "CDC voucher")
+        else:
+            comments.append(paid)
+        price = 0.0
 
     quantity = None
     if COMPOUND.match(body) and not NUMBERED_NAMES.match(body):
