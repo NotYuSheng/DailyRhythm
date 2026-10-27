@@ -145,10 +145,12 @@ def write_calories(path: Path, counts: Counter, cache: dict[str, dict]) -> Count
     for food, count in counts.most_common():
         old = previous.get(food.lower())
         estimate = cache.get(food.lower(), {})
-        written = old.get("kcal", "") if old else ""
+        written = str(old.get("kcal", "")) if old else ""
+        # What the last run wrote: blank for a food it had no answer for.
+        expected = "" if not old or not old.get("how") else str(estimate.get("kcal") if estimate.get("kcal") is not None else "")
         if old and old.get("how") == "user":
             row = {**old, "count": count}
-        elif old and str(written) != str(estimate.get("kcal") if estimate.get("kcal") is not None else ""):
+        elif old and written != expected:
             # Changed since the last run: a number typed (even where there was
             # no estimate) or one cleared. Either way it's the person's now.
             row = {**old, "count": count, "how": "user"}

@@ -58,7 +58,8 @@ def _ask(group: str, base_url: str, api_key: str, model: str) -> list:
 
 
 def clean(items: list) -> list[dict]:
-    """Well-formed entries with a believable number, names de-duplicated."""
+    """Well-formed entries with a believable number, names de-duplicated,
+    and no alias that is another entry's name (Kopi-O isn't Kopi)."""
     out, seen = [], set()
     for item in items:
         if not isinstance(item, dict):
@@ -73,6 +74,8 @@ def clean(items: list) -> list[dict]:
         seen.add(name.lower())
         aliases = [str(a).strip() for a in item.get("aliases") or [] if str(a).strip() and str(a).strip().lower() != name.lower()]
         out.append({"name": name, "aliases": aliases[:3], "kcal": kcal})
+    for item in out:
+        item["aliases"] = [a for a in item["aliases"] if a.lower() not in seen]
     return out
 
 

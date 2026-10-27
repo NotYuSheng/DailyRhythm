@@ -87,3 +87,19 @@ def test_common_foods_table_keeps_only_well_formed_entries():
         {"name": "Laksa", "aliases": ["curry laksa"], "kcal": 590},
         {"name": "Kopi", "aliases": [], "kcal": 120},
     ]
+
+
+def test_a_food_without_an_answer_takes_one_from_a_later_run(tmp_path):
+    path = tmp_path / "calories.csv"
+    counts = Counter({"Mee pok": 3, "Tau huay": 1})
+    write_calories(path, counts, {})  # the model hadn't answered yet
+    hows = write_calories(path, counts, {"mee pok": {"kcal": 420, "serving": "1 bowl"}})
+    assert load_calories(path) == {"mee pok": {"kcal": 420.0, "how": "estimate"}}
+    assert hows == Counter({"estimate": 1, "unknown": 1})
+
+
+def test_an_alias_naming_another_food_is_dropped():
+    from daylio_migration.common_foods import clean
+
+    table = clean([{"name": "Kopi", "aliases": ["Kopi-O", "coffee"], "kcal": 120}, {"name": "Kopi-O", "kcal": 15}])
+    assert table[0]["aliases"] == ["coffee"]
