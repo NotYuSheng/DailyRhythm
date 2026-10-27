@@ -104,6 +104,20 @@ void main() {
     await tester.scrollUntilVisible(find.text('Coffee with an old friend'), 200, scrollable: scrollable);
   });
 
+  testWidgets('a moment’s tags are grouped by category, symptoms last', (tester) async {
+    await pump(tester, const GardenTodayScreen());
+    await tester.scrollUntilVisible(find.text('Log a moment'), 200, scrollable: find.byType(Scrollable).first);
+    await tapVisible(tester, find.text('Log a moment'));
+
+    final sheet = find.byType(MomentSheet);
+    final general = find.descendant(of: sheet, matching: find.text('General'));
+    final health = find.descendant(of: sheet, matching: find.text('Health'));
+    expect(general, findsOneWidget);
+    expect(health, findsOneWidget);
+    expect(tester.getTopLeft(health).dy, greaterThan(tester.getTopLeft(general).dy));
+    expect(find.descendant(of: sheet, matching: find.widgetWithText(FilterChip, 'Work')), findsOneWidget);
+  });
+
   testWidgets('mood and activities are set for the day, and the plant follows', (tester) async {
     await pump(tester, const GardenTodayScreen());
     final scrollable = find.byType(Scrollable).first;
