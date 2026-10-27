@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/food_item.dart';
 import '../../data/models/meal_entry.dart';
 import '../../data/services/calorie_lookup.dart';
+import '../../domain/calorie_estimator.dart';
 import '../../domain/food_matcher.dart';
 import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/services/database/repositories/catalog_repository.dart';
@@ -48,6 +49,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
 
   /// The user's foods, for suggestions; empty until loaded.
   FoodMatcher _matcher = FoodMatcher(const []);
+  CalorieEstimator _estimator = CalorieEstimator(yourFoods: const [], reference: const []);
   List<FoodChoice> _usual = const [];
 
   @override
@@ -74,8 +76,15 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     if (mounted) {
       setState(() {
         _matcher = FoodMatcher(foods);
+        _estimator = CalorieEstimator(yourFoods: [for (final f in foods) f.item], reference: const []);
         _usual = usual;
       });
+    }
+    // The common foods table comes after: suggestions needn't wait for it.
+    if (!mounted) return;
+    final reference = await ref.read(referenceFoodsProvider.future);
+    if (mounted && reference.isNotEmpty) {
+      setState(() => _estimator = CalorieEstimator(yourFoods: [for (final f in foods) f.item], reference: reference));
     }
   }
 
@@ -112,6 +121,14 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         final kcal? => kcal * _quantity,
         null => null,
       };
+
+  /// A suggested calories-per-serving for a food that has none yet. Only
+  /// for a new entry: editing an old meal never sets its food's calories.
+  CalorieEstimate? get _estimate {
+    final text = _nameController.text.trim();
+    if (widget.entry != null || text.isEmpty || _inheritedCalories != null) return null;
+    return _estimator.estimate(text);
+  }
 
   /// Asks Open Food Facts (only when tapped; only the name is sent) and
   /// fills the calories from the match the user picks.
@@ -203,6 +220,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   @override
   Widget build(BuildContext context) {
     final text = _nameController.text;
+    final estimate = _estimate;
 
     return Scaffold(
       appBar: AppBar(
@@ -298,6 +316,52 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
           ),
           const SizedBox(height: AppTheme.spacePulse3),
 
+          // Calories: the food's own, an estimate for a new one, or typed.
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(AppTheme.spacePulse3),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    controller: _caloriesController,
+                    decoration: InputDecoration(
+                      labelText: 'Calories (optional)',
+                      // A known food's calories apply unless one is typed.
+                      hintText: switch ((_inheritedCalories, estimate)) {
+                        (final kcal?, _) => '≈ ${kcal.round()} from ${_matcher.exact(text)!.item.name}',
+                        (_, final e?) => '≈ ${(e.kcal * _quantity).round()} (estimate)',
+                        _ => 'Enter calories',
+                      },
+                      // A new food gets this estimate unless something is typed.
+                      helperText: _inheritedCalories == null && estimate != null && _caloriesController.text.isEmpty
+                          ? 'An estimate, ${estimate.basis}. Type your own to change it.'
+                          : null,
+                      helperMaxLines: 2,
+                      suffixText: 'kcal',
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => setState(() {
+                      _kcalSource = null;
+                      _lookedUpPerServing = null;
+                      _caloriesChanged = true;
+                    }),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+                      onPressed: text.trim().isEmpty ? null : _lookUpCalories,
+                      icon: const Icon(Icons.search, size: 18),
+                      label: const Text('Look up calories'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacePulse3),
+
           // Where it came from (one choice)
           Card(
             child: Padding(
@@ -330,36 +394,11 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
             clipBehavior: Clip.antiAlias,
             child: ExpansionTile(
               title: const Text('More'),
-              subtitle: const Text('Calories, notes'),
-              initiallyExpanded: (widget.entry?.calories != null) || (widget.entry?.notes?.isNotEmpty ?? false),
+              subtitle: const Text('Notes'),
+              initiallyExpanded: widget.entry?.notes?.isNotEmpty ?? false,
               childrenPadding: const EdgeInsets.fromLTRB(
                 AppTheme.spacePulse3, 0, AppTheme.spacePulse3, AppTheme.spacePulse3),
               children: [
-                TextField(
-                  controller: _caloriesController,
-                  decoration: InputDecoration(
-                    labelText: 'Calories (optional)',
-                    // A known food's calories apply unless one is typed.
-                    hintText: _inheritedCalories == null ? 'Enter calories' : '≈ ${_inheritedCalories!.round()} from ${_matcher.exact(text)!.item.name}',
-                    suffixText: 'kcal',
-                  ),
-                  keyboardType: TextInputType.number,
-                  onChanged: (_) {
-                    _kcalSource = null;
-                    _lookedUpPerServing = null;
-                    _caloriesChanged = true;
-                  },
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
-                    onPressed: text.trim().isEmpty ? null : _lookUpCalories,
-                    icon: const Icon(Icons.search, size: 18),
-                    label: const Text('Look up calories'),
-                  ),
-                ),
-                const SizedBox(height: AppTheme.spacePulse3),
                 TextField(
                   controller: _notesController,
                   decoration: const InputDecoration(
@@ -490,13 +529,15 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       // needed, and remember the price for next time.
       final name = _nameController.text.trim();
       final known = _matcher.exact(name)?.item;
+      final estimate = calories == null && known?.kcal == null ? _estimate : null;
       // Typed calories become the food's, per serving, for next time.
       final foodItemId = await CatalogRepository(db).saveFood(
         FoodItem(
           name: known?.name ?? name,
           lastPrice: price,
-          kcal: teach ? calories / quantity : null,
-          kcalSource: teach ? _kcalSource ?? 'user' : null,
+          // Else a food without calories starts from the estimate.
+          kcal: teach ? calories / quantity : estimate?.kcal,
+          kcalSource: teach ? _kcalSource ?? 'user' : (estimate == null ? null : 'estimate'),
         ),
       );
 

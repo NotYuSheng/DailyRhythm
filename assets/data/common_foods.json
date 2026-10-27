@@ -1,0 +1,4850 @@
+[
+ {
+  "name": "Hainanese Chicken Rice",
+  "aliases": [
+   "Wun Tan Rice",
+   "Hainanese Steamed Chicken Rice"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Braised Duck Rice",
+  "aliases": [
+   "Duck Rice",
+   "Lor Ark Rice",
+   "Five-Spice Duck Rice"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Nasi Lemak",
+  "aliases": [
+   "Coconut Rice",
+   "Nasi Lemak Set"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Nasi Briyani",
+  "aliases": [
+   "Biryani",
+   "Briyani",
+   "Nasi Biryani"
+  ],
+  "kcal": 650
+ },
+ {
+  "name": "Claypot Rice",
+  "aliases": [
+   "Claypot Chicken Rice",
+   "Wok Rice",
+   "Claypot Wok Rice"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Char Siew Rice",
+  "aliases": [
+   "BBQ Pork Rice",
+   "Char Siu Rice",
+   "Roast Pork Rice"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Mixed Rice",
+  "aliases": [
+   "Cai Fan",
+   "Economic Rice",
+   "Zi Char Rice"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Roasted Duck Rice",
+  "aliases": [
+   "Roast Duck Rice",
+   "Siu Ark Rice",
+   "Crispy Duck Rice"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Siu Yuk Rice",
+  "aliases": [
+   "Crispy Pork Rice",
+   "Roast Pork Belly Rice"
+  ],
+  "kcal": 650
+ },
+ {
+  "name": "Curry Chicken Rice",
+  "aliases": [
+   "Chicken Curry Rice",
+   "Curry Rice",
+   "Kari Ayam Rice"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Nasi Goreng",
+  "aliases": [
+   "Nasi Goreng Biasa",
+   "Malay Fried Rice"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Yang Zhou Fried Rice",
+  "aliases": [
+   "Yang Chow Fried Rice",
+   "Yangzhou Fried Rice",
+   "Fried Rice Special"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Teochew Fish Porridge",
+  "aliases": [
+   "Fish Porridge",
+   "Teochew Porridge",
+   "Ikan Congee"
+  ],
+  "kcal": 300
+ },
+ {
+  "name": "Teochew Chicken Porridge",
+  "aliases": [
+   "Chicken Porridge",
+   "Chicken Congee",
+   "Teochew Chicken Congee"
+  ],
+  "kcal": 300
+ },
+ {
+  "name": "Oyster Omelette Rice",
+  "aliases": [
+   "Orh Luak Rice",
+   "Oh Chien Rice",
+   "Oyster Omelette with Rice"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Braised Pork Rice",
+  "aliases": [
+   "Tau Kua Bak Rice",
+   "Braised Pork Belly Rice",
+   "Dong Rou Rice"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Roasted Chicken Rice",
+  "aliases": [
+   "Roast Chicken Rice",
+   "Siu Gai Rice",
+   "Roasted Chicken with Rice"
+  ],
+  "kcal": 500
+ },
+ {
+  "name": "Sweet and Sour Pork Rice",
+  "aliases": [
+   "Gu Lou Yuk Rice",
+   "Sweet and Sour Pork with Rice",
+   "Gula Siew Pork Rice"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Kung Pao Chicken Rice",
+  "aliases": [
+   "Gong Bao Chicken Rice",
+   "Kung Pao Chicken with Rice",
+   "Spicy Chicken Rice"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Mapo Tofu Rice",
+  "aliases": [
+   "Mapo Doufu Rice",
+   "Spicy Tofu Rice",
+   "Mapo Bean Curd Rice"
+  ],
+  "kcal": 500
+ },
+ {
+  "name": "Steamed Fish Rice",
+  "aliases": [
+   "Steamed Fish with Rice",
+   "Zheng Yu Rice",
+   "Steamed Whole Fish Rice"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Frog Porridge",
+  "aliases": [
+   "Frog Congee",
+   "Frog Rice Porridge",
+   "Frog Teochew Porridge"
+  ],
+  "kcal": 300
+ },
+ {
+  "name": "Sotong Porridge",
+  "aliases": [
+   "Squid Porridge",
+   "Sotong Congee",
+   "Squid Teochew Porridge"
+  ],
+  "kcal": 300
+ },
+ {
+  "name": "Nasi Briyani Ayam",
+  "aliases": [
+   "Chicken Briyani",
+   "Ayam Briyani"
+  ],
+  "kcal": 650
+ },
+ {
+  "name": "Nasi Briyani Kambing",
+  "aliases": [
+   "Mutton Briyani",
+   "Kambing Briyani"
+  ],
+  "kcal": 700
+ },
+ {
+  "name": "Nasi Goreng Kampung",
+  "aliases": [
+   "Kampung Fried Rice",
+   "Village Fried Rice",
+   "Nasi Goreng Ikan Bilis"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Nasi Goreng Pattaya",
+  "aliases": [
+   "Pattaya Fried Rice",
+   "Fried Rice in Omelette",
+   "Nasi Goreng Omelette"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Nasi Goreng Seafood",
+  "aliases": [
+   "Seafood Fried Rice",
+   "Nasi Goreng Seafood Special",
+   "Seafood Nasi Goreng"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Braised pork belly",
+  "aliases": [
+   "Tau pok yoke",
+   "Red-braised pork belly",
+   "Lu rou rou"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Steamed egg",
+  "aliases": [
+   "Ching chor dan",
+   "Steamed water egg"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Sweet and sour fish",
+  "aliases": [
+   "Gu lou yu",
+   "Sweet and sour grouper",
+   "Sweet and sour pomfret"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Sweet and sour pork",
+  "aliases": [
+   "Gu lou yuk",
+   "Sweet and sour ribs",
+   "Sweet and sour spare ribs"
+  ],
+  "kcal": 280
+ },
+ {
+  "name": "Braised tofu puff",
+  "aliases": [
+   "Tau pok",
+   "Braised beancurd puff",
+   "Tau pok fu"
+  ],
+  "kcal": 90
+ },
+ {
+  "name": "Steamed fish",
+  "aliases": [
+   "Zheng yu",
+   "Steamed pomfret",
+   "Steamed grouper"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Fried chicken wing",
+  "aliases": [
+   "Zha ji chi",
+   "Crispy chicken wing",
+   "Deep-fried chicken wing"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Braised egg",
+  "aliases": [
+   "Lu dan",
+   "Soy-braised egg",
+   "Five-spice egg"
+  ],
+  "kcal": 85
+ },
+ {
+  "name": "Steamed tofu with mushroom",
+  "aliases": [
+   "Zheng dou fu",
+   "Steamed beancurd",
+   "Steamed tofu"
+  ],
+  "kcal": 90
+ },
+ {
+  "name": "Stir-fried kailan",
+  "aliases": [
+   "Chao gai lan",
+   "Stir-fried Chinese broccoli",
+   "Stir-fried kale"
+  ],
+  "kcal": 60
+ },
+ {
+  "name": "Stir-fried bean sprouts",
+  "aliases": [
+   "Chao tau ya",
+   "Stir-fried tou ya",
+   "Stir-fried taugeh"
+  ],
+  "kcal": 70
+ },
+ {
+  "name": "Braised duck",
+  "aliases": [
+   "Lu ya",
+   "Red-braised duck",
+   "Braised duck leg"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Curry fish head",
+  "aliases": [
+   "Curry yu tou",
+   "Curry fish head piece"
+  ],
+  "kcal": 270
+ },
+ {
+  "name": "Sweet and sour chicken",
+  "aliases": [
+   "Gu lou ji",
+   "Sweet and sour chicken fillet",
+   "Sweet and sour chicken piece"
+  ],
+  "kcal": 270
+ },
+ {
+  "name": "Braised pork knuckle",
+  "aliases": [
+   "Lu zhu jiao",
+   "Braised pig trotter",
+   "Braised pork hock"
+  ],
+  "kcal": 320
+ },
+ {
+  "name": "Steamed chicken",
+  "aliases": [
+   "Zheng ji",
+   "Steamed chicken piece",
+   "Steamed chicken thigh"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Fried wanton",
+  "aliases": [
+   "Zha huntun",
+   "Crispy wonton",
+   "Deep-fried wonton"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Braised beancurd skin",
+  "aliases": [
+   "Fu yuk",
+   "Braised yuba",
+   "Braised bean curd skin"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Stir-fried long bean",
+  "aliases": [
+   "Chao chang dou",
+   "Stir-fried snake bean",
+   "Stir-fried yardlong bean"
+  ],
+  "kcal": 55
+ },
+ {
+  "name": "Fried egg",
+  "aliases": [
+   "Jian dan",
+   "Sunny-side-up egg",
+   "Fried egg sunny side"
+  ],
+  "kcal": 95
+ },
+ {
+  "name": "Braised pig's ear",
+  "aliases": [
+   "Lu zhu er",
+   "Braised pig ear",
+   "Soy-braised pig ear"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Steamed minced pork with salted fish",
+  "aliases": [
+   "Xian yu zheng rou bing",
+   "Steamed pork patty with salted fish",
+   "Steamed minced pork"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Fried fish cake",
+  "aliases": [
+   "Zha yu bing",
+   "Crispy fish cake",
+   "Deep-fried fish cake"
+  ],
+  "kcal": 130
+ },
+ {
+  "name": "Braised chicken feet",
+  "aliases": [
+   "Lu feng zhua",
+   "Braised phoenix claws",
+   "Braised chicken claw"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Stir-fried cabbage",
+  "aliases": [
+   "Chao bai cai",
+   "Stir-fried Chinese cabbage",
+   "Stir-fried pak choi"
+  ],
+  "kcal": 50
+ },
+ {
+  "name": "Curry chicken",
+  "aliases": [
+   "Curry ji",
+   "Curry chicken piece",
+   "Curry chicken thigh"
+  ],
+  "kcal": 230
+ },
+ {
+  "name": "Fried spring roll",
+  "aliases": [
+   "Zha chun juan",
+   "Crispy spring roll",
+   "Deep-fried popiah"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Braised pork intestine",
+  "aliases": [
+   "Lu zhu chang",
+   "Braised pig intestine",
+   "Braised pork gut"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Economy bee hoon",
+  "aliases": [
+   "Jing ji fen",
+   "Economy rice vermicelli",
+   "Mixed rice bee hoon"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Economy noodles",
+  "aliases": [
+   "Jing ji mian",
+   "Economy yellow noodles",
+   "Mixed rice noodles"
+  ],
+  "kcal": 430
+ },
+ {
+  "name": "Curry Laksa",
+  "aliases": [
+   "Laksa",
+   "Laksa Lemak",
+   "Laksa Mee"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Katong Laksa",
+  "aliases": [
+   "Laksa Katong",
+   "Katong-style Laksa",
+   "Laksa"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Assam Laksa",
+  "aliases": [
+   "Asam Laksa",
+   "Penang Laksa",
+   "Laksa Penang"
+  ],
+  "kcal": 380
+ },
+ {
+  "name": "Wanton Mee (Dry)",
+  "aliases": [
+   "Dry Wanton Mee",
+   "Wanton Mee Kering",
+   "Wonton Mee"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Wanton Mee (Soup)",
+  "aliases": [
+   "Soup Wanton Mee",
+   "Wanton Mee Kuah",
+   "Wonton Mee"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Char Kway Teow",
+  "aliases": [
+   "Char Kuey Teow",
+   "Fried Kway Teow",
+   "Char Kwetiau"
+  ],
+  "kcal": 700
+ },
+ {
+  "name": "Hokkien Mee (Fried)",
+  "aliases": [
+   "Fried Hokkien Mee",
+   "Hokkien Mee Goreng",
+   "Hokkien Fried Noodles"
+  ],
+  "kcal": 650
+ },
+ {
+  "name": "Hokkien Mee (Prawn)",
+  "aliases": [
+   "Prawn Hokkien Mee",
+   "Hokkien Prawn Mee",
+   "Hokkien Mee Prawn"
+  ],
+  "kcal": 500
+ },
+ {
+  "name": "Mee Goreng",
+  "aliases": [
+   "Fried Mee",
+   "Mee Goreng Biasa",
+   "Fried Yellow Noodles"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Bak Chor Mee (Dry)",
+  "aliases": [
+   "Dry Bak Chor Mee",
+   "Bak Chor Mee Kering",
+   "Bak Chor Mee with Vinegar"
+  ],
+  "kcal": 500
+ },
+ {
+  "name": "Bak Chor Mee (Soup)",
+  "aliases": [
+   "Soup Bak Chor Mee",
+   "Bak Chor Mee Kuah",
+   "Bak Chor Mee with Soup"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Mee Siam",
+  "aliases": [
+   "Mee Siam Biasa",
+   "Mee Siam Special",
+   "Siamese Noodles"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Mee Rebus",
+  "aliases": [
+   "Mee Rebus Biasa",
+   "Mee Rebus Special",
+   "Mee Rebus Mamak"
+  ],
+  "kcal": 500
+ },
+ {
+  "name": "Mee Kuah",
+  "aliases": [
+   "Mee Kuah Biasa",
+   "Mee Kuah Special"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Lor Mee",
+  "aliases": [
+   "Lor Mee Biasa",
+   "Lor Mee Special",
+   "Lor Mee with Fishcake"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Mee Pok",
+  "aliases": [
+   "Mee Pok Dry",
+   "Mee Pok Soup",
+   "Handmade Noodles"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Mee Sua",
+  "aliases": [
+   "Mee Sua Soup",
+   "Mee Sua Dry",
+   "Thin Wheat Noodles"
+  ],
+  "kcal": 400
+ },
+ {
+  "name": "Mee Bandung",
+  "aliases": [
+   "Mee Bandung Biasa",
+   "Mee Bandung Special"
+  ],
+  "kcal": 500
+ },
+ {
+  "name": "Mee Mamak",
+  "aliases": [
+   "Mee Mamak Biasa",
+   "Mee Mamak Special",
+   "Mee Mamak with Egg"
+  ],
+  "kcal": 650
+ },
+ {
+  "name": "Mee Soto",
+  "aliases": [
+   "Mee Soto Biasa",
+   "Mee Soto Special"
+  ],
+  "kcal": 400
+ },
+ {
+  "name": "Mee Kari",
+  "aliases": [
+   "Mee Kari Biasa",
+   "Mee Kari Special"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Satay Bee Hoon",
+  "aliases": [
+   "Satay Bee Hoon Biasa",
+   "Satay Bee Hoon Special",
+   "Satay Bee Hoon with Peanut Sauce"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Mee Goreng Mamak",
+  "aliases": [
+   "Mee Goreng Mamak Special",
+   "Mee Goreng Mamak with Egg",
+   "Mee Goreng Mamak with Fishcake"
+  ],
+  "kcal": 700
+ },
+ {
+  "name": "Mee Kuah Mamak",
+  "aliases": [
+   "Mee Kuah Mamak Special",
+   "Mee Kuah Mamak with Egg",
+   "Mee Kuah Mamak with Fishcake"
+  ],
+  "kcal": 500
+ },
+ {
+  "name": "Mee Bandung Mamak",
+  "aliases": [
+   "Mee Bandung Mamak Special",
+   "Mee Bandung Mamak with Egg",
+   "Mee Bandung Mamak with Fishcake"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Mee Soto Mamak",
+  "aliases": [
+   "Mee Soto Mamak Special",
+   "Mee Soto Mamak with Egg",
+   "Mee Soto Mamak with Fishcake"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Mee Kari Mamak",
+  "aliases": [
+   "Mee Kari Mamak Special",
+   "Mee Kari Mamak with Egg",
+   "Mee Kari Mamak with Fishcake"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Mee Hoon Kueh",
+  "aliases": [
+   "Mee Hoon Kueh Soup",
+   "Mee Hoon Kueh with Pork"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Bee Hoon Goreng",
+  "aliases": [
+   "Fried Bee Hoon",
+   "Mee Hoon Goreng",
+   "Fried Rice Vermicelli"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Mee Hoon Kuah",
+  "aliases": [
+   "Mee Hoon Kuah Biasa",
+   "Mee Hoon Kuah Special",
+   "Mee Hoon Kuah Mamak"
+  ],
+  "kcal": 400
+ },
+ {
+  "name": "Fishball Noodles (Dry)",
+  "aliases": [
+   "鱼丸面",
+   "Yu Wan Mian",
+   "Fishball Mee"
+  ],
+  "kcal": 500
+ },
+ {
+  "name": "Fishball Noodles (Soup)",
+  "aliases": [
+   "鱼丸汤面",
+   "Yu Wan Tang Mian",
+   "Fishball Soup Noodles"
+  ],
+  "kcal": 420
+ },
+ {
+  "name": "Fishball Bee Hoon",
+  "aliases": [
+   "鱼丸米粉",
+   "Yu Wan Mi Fen",
+   "Fishball Rice Vermicelli"
+  ],
+  "kcal": 420
+ },
+ {
+  "name": "Fishball Kway Teow",
+  "aliases": [
+   "鱼丸粿条",
+   "Yu Wan Guo Tiao",
+   "Fishball Flat Rice Noodles"
+  ],
+  "kcal": 470
+ },
+ {
+  "name": "Fishball Wanton Noodles",
+  "aliases": [
+   "鱼丸云吞面",
+   "Yu Wan Yun Tun Mian",
+   "Fishball Wonton Mee"
+  ],
+  "kcal": 530
+ },
+ {
+  "name": "Ban Mian (Dry)",
+  "aliases": [
+   "板面",
+   "Ban Mian Gan",
+   "Handmade Noodles Dry"
+  ],
+  "kcal": 500
+ },
+ {
+  "name": "Ban Mian (Soup)",
+  "aliases": [
+   "汤板面",
+   "Tang Ban Mian",
+   "Handmade Noodles Soup"
+  ],
+  "kcal": 420
+ },
+ {
+  "name": "Ban Mian with Egg",
+  "aliases": [
+   "蛋板面",
+   "Dan Ban Mian",
+   "Ban Mian Jia Dan"
+  ],
+  "kcal": 530
+ },
+ {
+  "name": "Ban Mian with Minced Meat",
+  "aliases": [
+   "肉碎板面",
+   "Rou Sui Ban Mian",
+   "Minced Pork Ban Mian"
+  ],
+  "kcal": 500
+ },
+ {
+  "name": "Mee Hoon Kueh (Dry)",
+  "aliases": [
+   "面薄干",
+   "Mian Bo Gan",
+   "Handmade Noodle Dry"
+  ],
+  "kcal": 430
+ },
+ {
+  "name": "Mee Hoon Kueh (Soup)",
+  "aliases": [
+   "面薄汤",
+   "Mian Bo Tang",
+   "Handmade Noodle Soup"
+  ],
+  "kcal": 370
+ },
+ {
+  "name": "Mee Hoon Kueh with Fish Cake",
+  "aliases": [
+   "面薄鱼饼",
+   "Mian Bo Yu Bing",
+   "Mee Hoon Kueh Yu Piang"
+  ],
+  "kcal": 440
+ },
+ {
+  "name": "Lor Bee Hoon",
+  "aliases": [
+   "卤米粉",
+   "Lu Mi Fen",
+   "Braised Rice Vermicelli"
+  ],
+  "kcal": 480
+ },
+ {
+  "name": "Lor Kway Teow",
+  "aliases": [
+   "卤粿条",
+   "Lu Guo Tiao",
+   "Braised Flat Rice Noodles"
+  ],
+  "kcal": 500
+ },
+ {
+  "name": "Hokkien Prawn Noodles (Dry)",
+  "aliases": [
+   "福建虾面干",
+   "Hokkien Har Mee Gan",
+   "Hokkien Prawn Mee Dry"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Hokkien Prawn Noodles (Soup)",
+  "aliases": [
+   "福建虾面汤",
+   "Hokkien Har Mee Tang",
+   "Hokkien Prawn Mee Soup"
+  ],
+  "kcal": 480
+ },
+ {
+  "name": "Prawn Mee Sua",
+  "aliases": [
+   "虾面线",
+   "Har Mian Xian",
+   "Prawn Fine Noodles"
+  ],
+  "kcal": 430
+ },
+ {
+  "name": "Prawn Bee Hoon",
+  "aliases": [
+   "虾米粉",
+   "Har Mi Fen",
+   "Prawn Rice Vermicelli"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Kway Teow Soup",
+  "aliases": [
+   "粿条汤",
+   "Guo Tiao Tang",
+   "Flat Rice Noodle Soup"
+  ],
+  "kcal": 370
+ },
+ {
+  "name": "Kway Teow Soup with Fish",
+  "aliases": [
+   "鱼片粿条汤",
+   "Yu Pian Guo Tiao Tang",
+   "Fish Sliced Kway Teow Soup"
+  ],
+  "kcal": 400
+ },
+ {
+  "name": "Kway Teow Soup with Minced Meat",
+  "aliases": [
+   "肉碎粿条汤",
+   "Rou Sui Guo Tiao Tang",
+   "Minced Pork Kway Teow Soup"
+  ],
+  "kcal": 420
+ },
+ {
+  "name": "Kway Teow Soup with Wanton",
+  "aliases": [
+   "云吞粿条汤",
+   "Yun Tun Guo Tiao Tang",
+   "Wonton Kway Teow Soup"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Fishball Noodles with Wanton",
+  "aliases": [
+   "鱼丸云吞面",
+   "Yu Wan Yun Tun Mian",
+   "Fishball Wonton Noodles"
+  ],
+  "kcal": 540
+ },
+ {
+  "name": "Lor Mee with Egg",
+  "aliases": [
+   "卤蛋面",
+   "Lu Dan Mian",
+   "Braised Noodles with Egg"
+  ],
+  "kcal": 570
+ },
+ {
+  "name": "Prawn Noodles with Egg",
+  "aliases": [
+   "虾面加蛋",
+   "Har Mian Jia Dan",
+   "Prawn Mee with Egg"
+  ],
+  "kcal": 570
+ },
+ {
+  "name": "Ban Mian with Mushroom",
+  "aliases": [
+   "蘑菇板面",
+   "Mo Gu Ban Mian",
+   "Mushroom Ban Mian"
+  ],
+  "kcal": 470
+ },
+ {
+  "name": "Mee Hoon Kueh with Fishball",
+  "aliases": [
+   "面薄鱼丸",
+   "Mian Bo Yu Wan",
+   "Mee Hoon Kueh Yu Wan"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Kway Teow Soup with Fishball",
+  "aliases": [
+   "鱼丸粿条汤",
+   "Yu Wan Guo Tiao Tang",
+   "Fishball Kway Teow Soup"
+  ],
+  "kcal": 420
+ },
+ {
+  "name": "Hokkien mee",
+  "aliases": [
+   "prawn noodles",
+   "Hokkien prawn noodles"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Roti prata",
+  "aliases": [
+   "roti canai",
+   "flatbread"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Wanton mee",
+  "aliases": [
+   "dry wanton mee"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Fishball noodles",
+  "aliases": [
+   "fishball mee"
+  ],
+  "kcal": 400
+ },
+ {
+  "name": "Bak chor mee",
+  "aliases": [
+   "minced meat noodles"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Kway chap",
+  "aliases": [
+   "Teochew kway chap"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Lontong",
+  "aliases": [
+   "nasi lontong"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Cendol",
+  "aliases": [],
+  "kcal": 250
+ },
+ {
+  "name": "Ice kachang",
+  "aliases": [
+   "ais kachang",
+   "ice kacang"
+  ],
+  "kcal": 300
+ },
+ {
+  "name": "Teh tarik",
+  "aliases": [
+   "pulled milk tea"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Kopi",
+  "aliases": [
+   "coffee"
+  ],
+  "kcal": 120
+ },
+ {
+  "name": "Kaya toast",
+  "aliases": [
+   "kaya butter toast"
+  ],
+  "kcal": 280
+ },
+ {
+  "name": "Yong tau foo",
+  "aliases": [
+   "stuffed tofu"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Carrot cake (white)",
+  "aliases": [
+   "chai tow kway",
+   "fried carrot cake"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Carrot cake (black)",
+  "aliases": [
+   "chai tow kway",
+   "dark carrot cake"
+  ],
+  "kcal": 400
+ },
+ {
+  "name": "Oyster omelette",
+  "aliases": [
+   "orh luak"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Satay",
+  "aliases": [
+   "chicken satay"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Popiah",
+  "aliases": [],
+  "kcal": 220
+ },
+ {
+  "name": "Rojak",
+  "aliases": [
+   "Indian rojak"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Nasi padang",
+  "aliases": [
+   "padang rice"
+  ],
+  "kcal": 700
+ },
+ {
+  "name": "Roti Prata Telur",
+  "aliases": [
+   "Egg Prata",
+   "Roti Prata Egg",
+   "Prata Telur"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Roti Prata Onion",
+  "aliases": [
+   "Onion Prata",
+   "Prata Bawang",
+   "Roti Prata Bawang"
+  ],
+  "kcal": 300
+ },
+ {
+  "name": "Roti Prata Cheese",
+  "aliases": [
+   "Cheese Prata",
+   "Prata Cheese"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Murtabak",
+  "aliases": [
+   "Martabak",
+   "Murtabak Ayam"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Murtabak Mutton",
+  "aliases": [
+   "Mutton Martabak",
+   "Murtabak Kambing"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Thosai",
+  "aliases": [
+   "Dosa",
+   "Dose",
+   "Thosai Plain"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Masala Thosai",
+  "aliases": [
+   "Masala Dosa",
+   "Masala Dose"
+  ],
+  "kcal": 280
+ },
+ {
+  "name": "Idli",
+  "aliases": [
+   "Steamed Rice Cake"
+  ],
+  "kcal": 60
+ },
+ {
+  "name": "Chapati",
+  "aliases": [
+   "Roti",
+   "Phulka",
+   "Chapati Roti"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Naan",
+  "aliases": [
+   "Naan Bread",
+   "Tandoori Naan"
+  ],
+  "kcal": 270
+ },
+ {
+  "name": "Butter Naan",
+  "aliases": [
+   "Makhan Naan"
+  ],
+  "kcal": 300
+ },
+ {
+  "name": "Garlic Naan",
+  "aliases": [
+   "Lahsun Naan"
+  ],
+  "kcal": 280
+ },
+ {
+  "name": "Appam",
+  "aliases": [
+   "Appa",
+   "Hoppers",
+   "Pal Appam"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Putu Mayam",
+  "aliases": [
+   "String Hoppers",
+   "Idiyappam",
+   "Putu"
+  ],
+  "kcal": 180
+ },
+ {
+  "name": "Vada",
+  "aliases": [
+   "Medu Vada",
+   "Vadai",
+   "Ulundu Vadai"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Poori",
+  "aliases": [
+   "Puri",
+   "Puri Bhaji"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Parotta",
+  "aliases": [
+   "Porotta",
+   "Paratha",
+   "Malaysian Parotta"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Chicken Biryani",
+  "aliases": [
+   "Chicken Briyani",
+   "Chicken Biriyani"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Mutton Biryani",
+  "aliases": [
+   "Mutton Briyani",
+   "Mutton Biriyani"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Tandoori Chicken",
+  "aliases": [
+   "Chicken Tandoori"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Uttapam",
+  "aliases": [
+   "Uthappam",
+   "Uthapam",
+   "Onion Uttapam"
+  ],
+  "kcal": 270
+ },
+ {
+  "name": "Rava Dosa",
+  "aliases": [
+   "Rava Thosai",
+   "Semolina Dosa",
+   "Rava Dose"
+  ],
+  "kcal": 280
+ },
+ {
+  "name": "Chicken Curry",
+  "aliases": [
+   "Kari Ayam",
+   "Chicken Kari"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Mutton Curry",
+  "aliases": [
+   "Kari Kambing",
+   "Mutton Kari"
+  ],
+  "kcal": 300
+ },
+ {
+  "name": "Fish Head Curry",
+  "aliases": [
+   "Kari Kepala Ikan"
+  ],
+  "kcal": 300
+ },
+ {
+  "name": "Dal",
+  "aliases": [
+   "Dhal",
+   "Daal",
+   "Dal Fry"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Paneer Butter Masala",
+  "aliases": [
+   "Paneer Makhani"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Seekh Kebab",
+  "aliases": [
+   "Shish Kebab",
+   "Chicken Seekh"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Lassi",
+  "aliases": [
+   "Mango Lassi",
+   "Sweet Lassi"
+  ],
+  "kcal": 180
+ },
+ {
+  "name": "Ayam Penyet",
+  "aliases": [
+   "Nasi Ayam Penyet",
+   "Penyet"
+  ],
+  "kcal": 800
+ },
+ {
+  "name": "Rendang",
+  "aliases": [
+   "Beef Rendang",
+   "Rendang Daging"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Nasi Kerabu",
+  "aliases": [
+   "Blue Rice"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Sup Kambing",
+  "aliases": [
+   "Mutton Soup"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Ayam Masak Merah",
+  "aliases": [
+   "Chicken Masak Merah"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Nasi Dagang",
+  "aliases": [
+   "Nasi Dagang Terengganu"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Sup Ayam",
+  "aliases": [
+   "Chicken Soup"
+  ],
+  "kcal": 300
+ },
+ {
+  "name": "Bandung",
+  "aliases": [
+   "Sirap Bandung"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Nasi Lemak Ayam",
+  "aliases": [
+   "Nasi Lemak with Chicken"
+  ],
+  "kcal": 800
+ },
+ {
+  "name": "Sup Ekor",
+  "aliases": [
+   "Oxtail Soup"
+  ],
+  "kcal": 400
+ },
+ {
+  "name": "Nasi Goreng Daging",
+  "aliases": [
+   "Beef Fried Rice"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Fish soup",
+  "aliases": [
+   "sliced fish soup",
+   "yu sheng",
+   "fish soup with rice"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Bak kut teh",
+  "aliases": [
+   "pork rib soup",
+   "BKT",
+   "herbal pork soup"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Sliced fish bee hoon",
+  "aliases": [
+   "fish bee hoon",
+   "yu mian xian",
+   "fish soup bee hoon"
+  ],
+  "kcal": 400
+ },
+ {
+  "name": "Thunder tea rice",
+  "aliases": [
+   "lei cha fan",
+   "Hakka tea rice"
+  ],
+  "kcal": 430
+ },
+ {
+  "name": "Porridge",
+  "aliases": [
+   "zhou",
+   "teochew porridge"
+  ],
+  "kcal": 280
+ },
+ {
+  "name": "Mala xiang guo",
+  "aliases": [
+   "mala pot",
+   "spicy hot pot",
+   "mala dry pot"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Satay with rice",
+  "aliases": [
+   "chicken satay",
+   "satay nasi impit"
+  ],
+  "kcal": 620
+ },
+ {
+  "name": "Roasted pork rice",
+  "aliases": [
+   "siew yor rice",
+   "BBQ pork rice"
+  ],
+  "kcal": 570
+ },
+ {
+  "name": "Fish head curry with rice",
+  "aliases": [
+   "Indian fish head curry"
+  ],
+  "kcal": 700
+ },
+ {
+  "name": "Fish ball noodles",
+  "aliases": [
+   "fishball mee",
+   "Teochew fishball noodles",
+   "fish ball soup noodles"
+  ],
+  "kcal": 420
+ },
+ {
+  "name": "Sup tulang",
+  "aliases": [
+   "bone soup",
+   "lamb bone soup",
+   "beef bone soup"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Chicken bee hoon soup",
+  "aliases": [
+   "chicken bee hoon",
+   "chicken vermicelli soup",
+   "ji mian xian"
+  ],
+  "kcal": 420
+ },
+ {
+  "name": "Half-boiled eggs",
+  "aliases": [
+   "soft-boiled eggs",
+   "telur separuh masak"
+  ],
+  "kcal": 140
+ },
+ {
+  "name": "Teh",
+  "aliases": [
+   "teh susu",
+   "tea with condensed milk"
+  ],
+  "kcal": 130
+ },
+ {
+  "name": "Kopi-O",
+  "aliases": [],
+  "kcal": 15
+ },
+ {
+  "name": "Teh-O",
+  "aliases": [
+   "teh o",
+   "black tea"
+  ],
+  "kcal": 15
+ },
+ {
+  "name": "Kopi-C",
+  "aliases": [
+   "kopi c",
+   "coffee with evaporated milk"
+  ],
+  "kcal": 90
+ },
+ {
+  "name": "Teh-C",
+  "aliases": [
+   "teh c",
+   "tea with evaporated milk"
+  ],
+  "kcal": 90
+ },
+ {
+  "name": "You tiao",
+  "aliases": [
+   "youtiao",
+   "fried dough stick",
+   "cruller"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Curry puff",
+  "aliases": [
+   "karipap"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Pau",
+  "aliases": [
+   "bao"
+  ],
+  "kcal": 180
+ },
+ {
+  "name": "Kueh lapis",
+  "aliases": [
+   "kuih lapis"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Chee cheong fun",
+  "aliases": [
+   "rice noodle roll"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Mee siam mamak",
+  "aliases": [
+   "mamak mee siam"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Apam balik",
+  "aliases": [
+   "murtabak manis"
+  ],
+  "kcal": 230
+ },
+ {
+  "name": "Milo",
+  "aliases": [
+   "chocolate malt drink"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Kopi tarik",
+  "aliases": [
+   "pulled coffee"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Hor fun",
+  "aliases": [
+   "ho fun",
+   "flat rice noodles"
+  ],
+  "kcal": 400
+ },
+ {
+  "name": "Bee hoon",
+  "aliases": [
+   "vermicelli"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Kaya bun",
+  "aliases": [
+   "butter kaya bun"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Har gow",
+  "aliases": [
+   "shrimp dumpling",
+   "xia jiao",
+   "ha gau"
+  ],
+  "kcal": 120
+ },
+ {
+  "name": "Siew mai",
+  "aliases": [
+   "shumai",
+   "siu mai",
+   "shaomai"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Char siew bao",
+  "aliases": [
+   "BBQ pork bun",
+   "cha siu bao",
+   "barbecue pork bun"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Lo mai gai",
+  "aliases": [
+   "lotus leaf rice",
+   "sticky rice in lotus leaf",
+   "lo mai kai"
+  ],
+  "kcal": 380
+ },
+ {
+  "name": "Egg tart",
+  "aliases": [
+   "dan tat",
+   "Portuguese egg tart",
+   "dan ta"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Carrot cake",
+  "aliases": [
+   "chai tow kway",
+   "fried radish cake",
+   "cai tou guo"
+  ],
+  "kcal": 280
+ },
+ {
+  "name": "Cheong fun",
+  "aliases": [
+   "rice noodle roll",
+   "steamed rice roll",
+   "chang fen"
+  ],
+  "kcal": 180
+ },
+ {
+  "name": "Fung zao",
+  "aliases": [
+   "chicken feet",
+   "phoenix claws",
+   "feng zhao"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Ma lai gao",
+  "aliases": [
+   "steamed sponge cake",
+   "malay cake",
+   "mar la gao"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Nai huang bao",
+  "aliases": [
+   "custard bun",
+   "cream bun",
+   "milk custard bun"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Lau sa bao",
+  "aliases": [
+   "salted egg yolk bun",
+   "lava bun",
+   "flowing sand bun"
+  ],
+  "kcal": 200
+ },
+ {
+  "name": "Lo bak go",
+  "aliases": [
+   "turnip cake",
+   "radish cake",
+   "steamed turnip cake"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Jin dui",
+  "aliases": [
+   "sesame ball",
+   "sesame seed ball",
+   "jian dui"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Spring roll",
+  "aliases": [
+   "chun juen",
+   "popiah goreng"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Fried wonton",
+  "aliases": [
+   "zha yun tun",
+   "crispy wonton",
+   "fried wonton noodles"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Tau fu fah",
+  "aliases": [
+   "beancurd pudding",
+   "tofu pudding",
+   "dou fu hua"
+  ],
+  "kcal": 100
+ },
+ {
+  "name": "Mango pudding",
+  "aliases": [
+   "mango sago pudding",
+   "mango pomelo sago",
+   "mang guo bu ding"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Yam paste",
+  "aliases": [
+   "yam roll",
+   "ngam sui gok",
+   "taro paste"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Gai daan geng",
+  "aliases": [
+   "steamed egg custard"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Ang ku kueh",
+  "aliases": [
+   "red tortoise cake",
+   "ang ku kuih",
+   "hong gui gao"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Ondeh-ondeh",
+  "aliases": [
+   "ondeh ondeh",
+   "kueh ondeh-ondeh",
+   "pandan coconut ball"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Siu yuk",
+  "aliases": [
+   "crispy pork belly",
+   "roast pork belly"
+  ],
+  "kcal": 280
+ },
+ {
+  "name": "Paai gwat",
+  "aliases": [
+   "steamed spare ribs",
+   "black bean spare ribs",
+   "pai guat"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Ngau yuk ball",
+  "aliases": [
+   "beef ball",
+   "steamed beef ball",
+   "beef meatball"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Steamed fish ball",
+  "aliases": [
+   "fish ball",
+   "yu wan",
+   "steamed fish paste"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Pineapple tart",
+  "aliases": [
+   "bromley",
+   "nan siua",
+   "pineapple pie"
+  ],
+  "kcal": 90
+ },
+ {
+  "name": "Kopi-O Kosong",
+  "aliases": [
+   "black coffee no sugar",
+   "kopi o kosong"
+  ],
+  "kcal": 5
+ },
+ {
+  "name": "Kopi-C Kosong",
+  "aliases": [
+   "coffee evaporated milk no sugar",
+   "kopi c kosong"
+  ],
+  "kcal": 40
+ },
+ {
+  "name": "Kopi Peng",
+  "aliases": [
+   "kopi ping"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Kopi-O Peng",
+  "aliases": [
+   "iced black coffee",
+   "kopi o ping"
+  ],
+  "kcal": 80
+ },
+ {
+  "name": "Kopi-C Peng",
+  "aliases": [
+   "iced coffee evaporated milk",
+   "kopi c ping"
+  ],
+  "kcal": 100
+ },
+ {
+  "name": "Kopi-O Peng Kosong",
+  "aliases": [
+   "iced black coffee no sugar",
+   "kopi o kosong peng"
+  ],
+  "kcal": 5
+ },
+ {
+  "name": "Kopi-C Peng Kosong",
+  "aliases": [
+   "iced coffee evaporated milk no sugar",
+   "kopi c kosong peng"
+  ],
+  "kcal": 50
+ },
+ {
+  "name": "Teh-O Kosong",
+  "aliases": [
+   "black tea no sugar",
+   "teh o kosong"
+  ],
+  "kcal": 5
+ },
+ {
+  "name": "Teh-C Kosong",
+  "aliases": [
+   "tea evaporated milk no sugar",
+   "teh c kosong"
+  ],
+  "kcal": 40
+ },
+ {
+  "name": "Teh Peng",
+  "aliases": [
+   "teh ping"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Teh-O Peng",
+  "aliases": [
+   "iced black tea",
+   "teh o ping"
+  ],
+  "kcal": 80
+ },
+ {
+  "name": "Teh-C Peng",
+  "aliases": [
+   "iced tea evaporated milk",
+   "teh c ping"
+  ],
+  "kcal": 100
+ },
+ {
+  "name": "Teh-O Peng Kosong",
+  "aliases": [
+   "iced black tea no sugar",
+   "teh o kosong peng"
+  ],
+  "kcal": 5
+ },
+ {
+  "name": "Teh-C Peng Kosong",
+  "aliases": [
+   "iced tea evaporated milk no sugar",
+   "teh c kosong peng"
+  ],
+  "kcal": 50
+ },
+ {
+  "name": "Milo Peng",
+  "aliases": [
+   "iced milo",
+   "milo ping"
+  ],
+  "kcal": 180
+ },
+ {
+  "name": "Milo Dinosaur",
+  "aliases": [
+   "thick milo"
+  ],
+  "kcal": 280
+ },
+ {
+  "name": "Horlicks",
+  "aliases": [
+   "malted milk"
+  ],
+  "kcal": 140
+ },
+ {
+  "name": "Horlicks Peng",
+  "aliases": [
+   "iced horlicks",
+   "horlicks ping"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Barley",
+  "aliases": [
+   "barley water",
+   "pak hoak"
+  ],
+  "kcal": 80
+ },
+ {
+  "name": "Barley Peng",
+  "aliases": [
+   "iced barley",
+   "barley ping"
+  ],
+  "kcal": 100
+ },
+ {
+  "name": "Lime Juice",
+  "aliases": [
+   "calamansi juice",
+   "limau"
+  ],
+  "kcal": 60
+ },
+ {
+  "name": "Sugarcane Juice",
+  "aliases": [
+   "tebu",
+   "sugarcane"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Kopi-O Kosong Peng",
+  "aliases": [
+   "iced kopi o kosong",
+   "black coffee iced no sugar"
+  ],
+  "kcal": 5
+ },
+ {
+  "name": "Taro milk tea with pearls",
+  "aliases": [
+   "Taro boba",
+   "Taro bubble tea",
+   "Taro milk tea"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Brown sugar boba milk",
+  "aliases": [
+   "Brown sugar milk tea",
+   "Brown sugar bubble tea",
+   "Brown sugar milk"
+  ],
+  "kcal": 480
+ },
+ {
+  "name": "Matcha milk tea with pearls",
+  "aliases": [
+   "Matcha boba",
+   "Matcha bubble tea"
+  ],
+  "kcal": 380
+ },
+ {
+  "name": "Chocolate milk tea with pearls",
+  "aliases": [
+   "Chocolate boba",
+   "Chocolate bubble tea",
+   "Chocolate milk tea"
+  ],
+  "kcal": 420
+ },
+ {
+  "name": "Assam milk tea with pearls",
+  "aliases": [
+   "Original bubble tea",
+   "Classic milk tea",
+   "Assam boba"
+  ],
+  "kcal": 380
+ },
+ {
+  "name": "Passion fruit tea",
+  "aliases": [
+   "Passion fruit green tea",
+   "Passion fruit iced tea",
+   "Passion fruit fruit tea"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Lychee fruit tea",
+  "aliases": [
+   "Lychee green tea",
+   "Lychee iced tea",
+   "Lychee tea"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Peach fruit tea",
+  "aliases": [
+   "Peach green tea",
+   "Peach iced tea",
+   "Peach tea"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Soya milk",
+  "aliases": [
+   "Soy milk",
+   "Sweetened soya milk",
+   "Soya bean milk"
+  ],
+  "kcal": 120
+ },
+ {
+  "name": "Fresh coconut water",
+  "aliases": [
+   "Fresh coconut",
+   "Air kelapa"
+  ],
+  "kcal": 70
+ },
+ {
+  "name": "Iced lemon tea",
+  "aliases": [
+   "Bottled lemon tea",
+   "Lipton ice lemon tea"
+  ],
+  "kcal": 100
+ },
+ {
+  "name": "Coca-Cola",
+  "aliases": [
+   "Coke",
+   "Coca Cola",
+   "Coke can"
+  ],
+  "kcal": 139
+ },
+ {
+  "name": "Sprite",
+  "aliases": [
+   "Sprite can",
+   "Lemon soda",
+   "7-Up"
+  ],
+  "kcal": 130
+ },
+ {
+  "name": "100 Plus",
+  "aliases": [
+   "100plus",
+   "Isotonic drink",
+   "100 Plus can"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Grass jelly drink",
+  "aliases": [
+   "Grass jelly",
+   "Grass jelly milk",
+   "Cincau drink"
+  ],
+  "kcal": 120
+ },
+ {
+  "name": "Chendol",
+  "aliases": [
+   "Ice cendol",
+   "Chendol drink"
+  ],
+  "kcal": 300
+ },
+ {
+  "name": "Teh O Ais",
+  "aliases": [
+   "Iced black tea",
+   "Iced tea O",
+   "Teh O ice"
+  ],
+  "kcal": 70
+ },
+ {
+  "name": "Teh Ais",
+  "aliases": [
+   "Iced milk tea",
+   "Iced teh",
+   "Teh ice"
+  ],
+  "kcal": 130
+ },
+ {
+  "name": "Kopi O Ais",
+  "aliases": [
+   "Iced black coffee",
+   "Iced kopi O",
+   "Kopi O ice"
+  ],
+  "kcal": 15
+ },
+ {
+  "name": "Kopi Ais",
+  "aliases": [
+   "Iced kopi",
+   "Kopi ice"
+  ],
+  "kcal": 130
+ },
+ {
+  "name": "Milo Ais",
+  "aliases": [
+   "Iced Milo",
+   "Milo ice",
+   "Iced chocolate malt"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Lemon barley",
+  "aliases": [
+   "Iced lemon barley",
+   "Lemon barley drink",
+   "Lemongrass barley"
+  ],
+  "kcal": 120
+ },
+ {
+  "name": "Watermelon juice",
+  "aliases": [
+   "Fresh watermelon juice",
+   "Watermelon drink",
+   "Air tembikai"
+  ],
+  "kcal": 100
+ },
+ {
+  "name": "Iced latte",
+  "aliases": [
+   "Latte",
+   "Iced coffee latte",
+   "Cafe latte"
+  ],
+  "kcal": 130
+ },
+ {
+  "name": "Iced Americano",
+  "aliases": [
+   "Americano",
+   "Iced long black",
+   "Cafe Americano"
+  ],
+  "kcal": 10
+ },
+ {
+  "name": "Yakult",
+  "aliases": [
+   "Yakult bottle",
+   "Probiotic drink",
+   "Yakult 65ml"
+  ],
+  "kcal": 67
+ },
+ {
+  "name": "Iced longan drink",
+  "aliases": [
+   "Longan juice",
+   "Longan drink",
+   "Air longan"
+  ],
+  "kcal": 100
+ },
+ {
+  "name": "McSpicy",
+  "aliases": [
+   "McSpicy Burger",
+   "Spicy Chicken Burger"
+  ],
+  "kcal": 510
+ },
+ {
+  "name": "Big Mac",
+  "aliases": [
+   "Big Mac Burger"
+  ],
+  "kcal": 508
+ },
+ {
+  "name": "Quarter Pounder with Cheese",
+  "aliases": [
+   "Quarter Pounder",
+   "QP with Cheese"
+  ],
+  "kcal": 530
+ },
+ {
+  "name": "Double Cheeseburger",
+  "aliases": [
+   "Double Cheese"
+  ],
+  "kcal": 440
+ },
+ {
+  "name": "Cheeseburger",
+  "aliases": [
+   "Cheese Burger"
+  ],
+  "kcal": 290
+ },
+ {
+  "name": "Hamburger",
+  "aliases": [
+   "Plain Burger"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Filet-O-Fish",
+  "aliases": [
+   "Fish Burger",
+   "Filet O Fish"
+  ],
+  "kcal": 390
+ },
+ {
+  "name": "McChicken",
+  "aliases": [
+   "Chicken Burger",
+   "McChicken Burger"
+  ],
+  "kcal": 390
+ },
+ {
+  "name": "Chicken McNuggets (4 pcs)",
+  "aliases": [
+   "Nuggets 4pc",
+   "Chicken Nuggets 4pc"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Chicken McNuggets (6 pcs)",
+  "aliases": [
+   "Nuggets 6pc",
+   "Chicken Nuggets 6pc"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Chicken McNuggets (10 pcs)",
+  "aliases": [
+   "Nuggets 10pc",
+   "Chicken Nuggets 10pc"
+  ],
+  "kcal": 420
+ },
+ {
+  "name": "Medium Fries",
+  "aliases": [
+   "Fries Medium",
+   "Medium French Fries"
+  ],
+  "kcal": 330
+ },
+ {
+  "name": "Large Fries",
+  "aliases": [
+   "Fries Large",
+   "Large French Fries"
+  ],
+  "kcal": 500
+ },
+ {
+  "name": "Small Fries",
+  "aliases": [
+   "Fries Small",
+   "Small French Fries"
+  ],
+  "kcal": 230
+ },
+ {
+  "name": "Sausage McMuffin",
+  "aliases": [
+   "Sausage Muffin"
+  ],
+  "kcal": 400
+ },
+ {
+  "name": "Egg McMuffin",
+  "aliases": [
+   "Egg Muffin"
+  ],
+  "kcal": 300
+ },
+ {
+  "name": "Sausage McMuffin with Egg",
+  "aliases": [
+   "Sausage Egg McMuffin",
+   "Sausage Muffin with Egg"
+  ],
+  "kcal": 480
+ },
+ {
+  "name": "McFlurry Oreo",
+  "aliases": [
+   "Oreo McFlurry",
+   "Oreo Sundae"
+  ],
+  "kcal": 340
+ },
+ {
+  "name": "McFlurry KitKat",
+  "aliases": [
+   "KitKat McFlurry",
+   "KitKat Sundae"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Soft Serve Cone",
+  "aliases": [
+   "Vanilla Cone",
+   "Ice Cream Cone"
+  ],
+  "kcal": 200
+ },
+ {
+  "name": "Hot Apple Pie",
+  "aliases": [
+   "Apple Pie",
+   "McApple Pie"
+  ],
+  "kcal": 240
+ },
+ {
+  "name": "McWings",
+  "aliases": [
+   "Chicken Wings",
+   "Spicy Wings"
+  ],
+  "kcal": 260
+ },
+ {
+  "name": "Chicken Big Mac",
+  "aliases": [
+   "Chicken BigMac",
+   "Big Mac Chicken"
+  ],
+  "kcal": 530
+ },
+ {
+  "name": "McDouble",
+  "aliases": [
+   "Double Burger",
+   "McDouble Burger"
+  ],
+  "kcal": 390
+ },
+ {
+  "name": "Iced Coffee",
+  "aliases": [
+   "McIced Coffee"
+  ],
+  "kcal": 140
+ },
+ {
+  "name": "Coca-Cola (Medium)",
+  "aliases": [
+   "Coke Medium",
+   "Coca Cola Medium"
+  ],
+  "kcal": 210
+ },
+ {
+  "name": "Sprite (Medium)",
+  "aliases": [
+   "Sprite Medium",
+   "7Up Medium"
+  ],
+  "kcal": 200
+ },
+ {
+  "name": "Fanta (Medium)",
+  "aliases": [
+   "Fanta Orange Medium",
+   "Orange Fanta Medium"
+  ],
+  "kcal": 210
+ },
+ {
+  "name": "McSpicy Deluxe",
+  "aliases": [
+   "Spicy Deluxe",
+   "McSpicy Deluxe Burger"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Hash Brown",
+  "aliases": [
+   "Potato Hash Brown",
+   "Breakfast Hash Brown"
+  ],
+  "kcal": 140
+ },
+ {
+  "name": "Original Recipe Chicken",
+  "aliases": [
+   "KFC Original Recipe",
+   "Original Recipe drumstick",
+   "Original Recipe thigh"
+  ],
+  "kcal": 310
+ },
+ {
+  "name": "Zinger Burger",
+  "aliases": [
+   "Zinger",
+   "Spicy Zinger Burger",
+   "Zinger sandwich"
+  ],
+  "kcal": 510
+ },
+ {
+  "name": "Zinger Double Down",
+  "aliases": [
+   "Double Down",
+   "Zinger Double Down burger",
+   "DD"
+  ],
+  "kcal": 750
+ },
+ {
+  "name": "Tower Burger",
+  "aliases": [
+   "KFC Tower",
+   "Tower burger with hash brown",
+   "Tower"
+  ],
+  "kcal": 570
+ },
+ {
+  "name": "Hot Wings",
+  "aliases": [
+   "Spicy Wings",
+   "Hot Wings 3 pcs",
+   "Wings"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Popcorn Chicken",
+  "aliases": [
+   "Popcorn Chicken Regular",
+   "Chicken Popcorn"
+  ],
+  "kcal": 270
+ },
+ {
+  "name": "Chicken Strip",
+  "aliases": [
+   "Chicken Strips",
+   "KFC Strip",
+   "Tender"
+  ],
+  "kcal": 130
+ },
+ {
+  "name": "Fries",
+  "aliases": [
+   "Chips"
+  ],
+  "kcal": 320
+ },
+ {
+  "name": "Coleslaw",
+  "aliases": [
+   "KFC Coleslaw",
+   "Slaw",
+   "Cabbage Slaw"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Mashed Potato with Gravy",
+  "aliases": [
+   "Mash with Gravy",
+   "Mashed Potato",
+   "Mash"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Corn on the Cob",
+  "aliases": [
+   "KFC Corn",
+   "Buttered Corn"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Rice",
+  "aliases": [
+   "Steamed Rice",
+   "Small Rice",
+   "Plain Rice"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Chocolate Sundae",
+  "aliases": [
+   "Choco Sundae",
+   "Chocolate Ice Cream Sundae"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Soft Drink",
+  "aliases": [
+   "Medium Soft Drink",
+   "Soda",
+   "Coke"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Texas Chicken",
+  "aliases": [
+   "Texas Chicken piece",
+   "Original Texas Chicken",
+   "Texas drumstick"
+  ],
+  "kcal": 320
+ },
+ {
+  "name": "Texas Fries",
+  "aliases": [
+   "Texas Chicken Fries",
+   "Seasoned Fries"
+  ],
+  "kcal": 320
+ },
+ {
+  "name": "Texas Coleslaw",
+  "aliases": [
+   "Texas Chicken Coleslaw",
+   "Slaw"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Texas Rice",
+  "aliases": [
+   "Texas Chicken Rice",
+   "Steamed Rice",
+   "Plain Rice"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Chickenjoy",
+  "aliases": [
+   "Jollibee Chickenjoy",
+   "Chickenjoy 1 pc",
+   "Crispy Chickenjoy"
+  ],
+  "kcal": 320
+ },
+ {
+  "name": "Jolly Spaghetti",
+  "aliases": [
+   "Spaghetti",
+   "Jolly Spag",
+   "Sweet Spaghetti"
+  ],
+  "kcal": 320
+ },
+ {
+  "name": "Burger Steak",
+  "aliases": [
+   "Jollibee Burger Steak",
+   "Burger Steak with Gravy",
+   "Beef Patty"
+  ],
+  "kcal": 420
+ },
+ {
+  "name": "Yumburger",
+  "aliases": [
+   "Jollibee Yumburger",
+   "Yum Burger",
+   "Cheese Yumburger"
+  ],
+  "kcal": 300
+ },
+ {
+  "name": "Peach Mango Pie",
+  "aliases": [
+   "Mango Pie",
+   "Peach Pie",
+   "Jollibee Pie"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Palabok Fiesta",
+  "aliases": [
+   "Palabok",
+   "Jollibee Palabok",
+   "Pancit Palabok"
+  ],
+  "kcal": 420
+ },
+ {
+  "name": "Jollibee Rice",
+  "aliases": [
+   "Steamed Rice",
+   "Plain Rice",
+   "Small Rice"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Popeyes Chicken Sandwich",
+  "aliases": [
+   "Spicy Chicken Sandwich",
+   "Popeyes Sandwich"
+  ],
+  "kcal": 720
+ },
+ {
+  "name": "Popeyes Original Chicken",
+  "aliases": [
+   "Popeyes Chicken piece",
+   "Cajun Original"
+  ],
+  "kcal": 320
+ },
+ {
+  "name": "Popeyes Fries",
+  "aliases": [
+   "Cajun Fries",
+   "Cajun Seasoned Fries"
+  ],
+  "kcal": 320
+ },
+ {
+  "name": "Popeyes Biscuit",
+  "aliases": [
+   "Buttermilk Biscuit",
+   "Biscuit"
+  ],
+  "kcal": 270
+ },
+ {
+  "name": "Mac & Cheese",
+  "aliases": [
+   "Popeyes Mac and Cheese",
+   "Macaroni and Cheese",
+   "Mac"
+  ],
+  "kcal": 320
+ },
+ {
+  "name": "Red Beans & Rice",
+  "aliases": [
+   "Red Beans and Rice",
+   "Popeyes Red Beans",
+   "Beans and Rice"
+  ],
+  "kcal": 270
+ },
+ {
+  "name": "Whopper",
+  "aliases": [
+   "Whopper Burger",
+   "Classic Whopper"
+  ],
+  "kcal": 627
+ },
+ {
+  "name": "Chicken Royale",
+  "aliases": [
+   "Crispy Chicken Burger",
+   "Chicken Burger"
+  ],
+  "kcal": 530
+ },
+ {
+  "name": "Big King",
+  "aliases": [
+   "Big King Burger"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "9pc Chicken Nuggets",
+  "aliases": [
+   "Chicken Nuggets",
+   "Nuggets"
+  ],
+  "kcal": 410
+ },
+ {
+  "name": "Onion Rings",
+  "aliases": [
+   "Medium Onion Rings"
+  ],
+  "kcal": 310
+ },
+ {
+  "name": "Iced Tea",
+  "aliases": [
+   "Lemon Tea",
+   "Sweet Tea"
+  ],
+  "kcal": 100
+ },
+ {
+  "name": "Sundae",
+  "aliases": [
+   "Soft Serve"
+  ],
+  "kcal": 200
+ },
+ {
+  "name": "Mos Burger",
+  "aliases": [
+   "Original Mos Burger",
+   "Classic Burger"
+  ],
+  "kcal": 400
+ },
+ {
+  "name": "Teriyaki Burger",
+  "aliases": [
+   "Teriyaki Chicken Burger",
+   "Teriyaki"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Shrimp Burger",
+  "aliases": [
+   "Ebi Burger",
+   "Prawn Burger"
+  ],
+  "kcal": 420
+ },
+ {
+  "name": "Katsu Burger",
+  "aliases": [
+   "Chicken Katsu Burger",
+   "Tonkatsu Burger"
+  ],
+  "kcal": 480
+ },
+ {
+  "name": "Mos Fries",
+  "aliases": [
+   "Chips"
+  ],
+  "kcal": 300
+ },
+ {
+  "name": "Melon Soda",
+  "aliases": [
+   "Melon Cream Soda",
+   "Cream Soda"
+  ],
+  "kcal": 120
+ },
+ {
+  "name": "Italian B.M.T.",
+  "aliases": [
+   "BMT",
+   "Italian Sub"
+  ],
+  "kcal": 410
+ },
+ {
+  "name": "Chicken Teriyaki",
+  "aliases": [
+   "Teriyaki Chicken Sub",
+   "Chicken Teriyaki Sub"
+  ],
+  "kcal": 370
+ },
+ {
+  "name": "Tuna Melt",
+  "aliases": [
+   "Tuna Sub",
+   "Tuna Melt Sub"
+  ],
+  "kcal": 480
+ },
+ {
+  "name": "Meatball Marinara",
+  "aliases": [
+   "Meatball Sub",
+   "Meatball"
+  ],
+  "kcal": 480
+ },
+ {
+  "name": "Cookie",
+  "aliases": [
+   "Chocolate Chip Cookie",
+   "Subway Cookie"
+  ],
+  "kcal": 200
+ },
+ {
+  "name": "Fish & Chips",
+  "aliases": [
+   "Battered Fish Meal"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Chicken Basket",
+  "aliases": [
+   "Fried Chicken Basket",
+   "Chicken Meal"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Shrimp Basket",
+  "aliases": [
+   "Prawn Basket",
+   "Fried Shrimp Meal"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Hush Puppies",
+  "aliases": [
+   "Cornbread Balls",
+   "Corn Fritters"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Fish Sandwich",
+  "aliases": [
+   "Fish Burger",
+   "Fish Fillet Burger"
+  ],
+  "kcal": 400
+ },
+ {
+  "name": "Ramen",
+  "aliases": [
+   "Rāmen",
+   "Japanese noodle soup"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Udon",
+  "aliases": [
+   "Udon noodle soup",
+   "Thick wheat noodles"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Donburi",
+  "aliases": [
+   "Don",
+   "Gyudon"
+  ],
+  "kcal": 700
+ },
+ {
+  "name": "Katsu curry",
+  "aliases": [
+   "Tonkatsu curry",
+   "Curry rice with cutlet"
+  ],
+  "kcal": 900
+ },
+ {
+  "name": "Sushi plate",
+  "aliases": [
+   "Nigiri set",
+   "Sushi set",
+   "Sushi platter"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Onigiri",
+  "aliases": [
+   "Rice ball",
+   "Omusubi",
+   "Japanese rice ball"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Bento",
+  "aliases": [
+   "Japanese lunch box",
+   "Obento",
+   "Set meal box"
+  ],
+  "kcal": 700
+ },
+ {
+  "name": "Karaage",
+  "aliases": [
+   "Japanese fried chicken",
+   "Chicken karaage",
+   "Fried chicken bite"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Sashimi",
+  "aliases": [
+   "Sliced raw fish",
+   "Sashimi plate",
+   "Sashimi set"
+  ],
+  "kcal": 200
+ },
+ {
+  "name": "Tempura",
+  "aliases": [
+   "Tempura set",
+   "Deep-fried seafood and vegetables",
+   "Ebi tempura"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Yakitori",
+  "aliases": [
+   "Grilled chicken skewer",
+   "Chicken skewer",
+   "Kushiyaki"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Okonomiyaki",
+  "aliases": [
+   "Japanese pancake",
+   "Savoury pancake",
+   "Hiroshima-style pancake"
+  ],
+  "kcal": 500
+ },
+ {
+  "name": "Takoyaki",
+  "aliases": [
+   "Octopus ball",
+   "Octopus dumpling",
+   "Tako-yaki"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Miso soup",
+  "aliases": [
+   "Misosiru",
+   "Japanese soup"
+  ],
+  "kcal": 50
+ },
+ {
+  "name": "Edamame",
+  "aliases": [
+   "Boiled soybean",
+   "Soybean pod",
+   "Green soybean"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Gyoza",
+  "aliases": [
+   "Pan-fried dumpling",
+   "Potsticker",
+   "Chinese dumpling"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Chawanmushi",
+  "aliases": [
+   "Steamed egg custard",
+   "Japanese steamed egg",
+   "Savory egg custard"
+  ],
+  "kcal": 100
+ },
+ {
+  "name": "Soba",
+  "aliases": [
+   "Buckwheat noodle",
+   "Soba noodle soup",
+   "Zaru soba"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Tonkatsu",
+  "aliases": [
+   "Pork cutlet",
+   "Breaded pork cutlet",
+   "Pork katsu"
+  ],
+  "kcal": 700
+ },
+ {
+  "name": "Matcha latte",
+  "aliases": [
+   "Green tea latte",
+   "Matcha milk",
+   "Matcha milk tea"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Ocha",
+  "aliases": [
+   "Green tea",
+   "Sencha",
+   "Japanese green tea"
+  ],
+  "kcal": 2
+ },
+ {
+  "name": "Sake",
+  "aliases": [
+   "Rice wine",
+   "Nihonshu",
+   "Japanese wine"
+  ],
+  "kcal": 190
+ },
+ {
+  "name": "Ramune",
+  "aliases": [
+   "Japanese soda",
+   "Marble soda",
+   "Japanese soft drink"
+  ],
+  "kcal": 130
+ },
+ {
+  "name": "Taiyaki",
+  "aliases": [
+   "Fish-shaped cake",
+   "Fish pastry",
+   "Taiyaki cake"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Mochi",
+  "aliases": [
+   "Rice cake",
+   "Daifuku",
+   "Japanese rice cake"
+  ],
+  "kcal": 100
+ },
+ {
+  "name": "Dango",
+  "aliases": [
+   "Rice dumpling skewer",
+   "Mitarashi dango",
+   "Hanami dango"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Yakisoba",
+  "aliases": [
+   "Stir-fried noodle",
+   "Japanese fried noodle",
+   "Fried soba"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Oden",
+  "aliases": [
+   "Japanese hotpot",
+   "Stewed skewer",
+   "Japanese stew"
+  ],
+  "kcal": 200
+ },
+ {
+  "name": "Chirashi sushi",
+  "aliases": [
+   "Scattered sushi",
+   "Chirashi bowl",
+   "Bara chira"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Japanese curry rice",
+  "aliases": [
+   "Curry rice",
+   "Karē raisu",
+   "Japanese curry"
+  ],
+  "kcal": 700
+ },
+ {
+  "name": "Bibimbap",
+  "aliases": [
+   "Mixed rice bowl",
+   "Korean mixed rice"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Korean fried chicken",
+  "aliases": [
+   "K-fried chicken",
+   "Yangnyeom chicken"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Tteokbokki",
+  "aliases": [
+   "Spicy rice cakes",
+   "Topokki"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Kimchi jjigae",
+  "aliases": [
+   "Kimchi stew",
+   "Kimchi soup"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Bulgogi",
+  "aliases": [
+   "Marinated beef",
+   "Korean BBQ beef"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Japchae",
+  "aliases": [
+   "Glass noodles",
+   "Stir-fried sweet potato noodles"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Samgyeopsal",
+  "aliases": [
+   "Grilled pork belly",
+   "Korean pork belly"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Sundubu jjigae",
+  "aliases": [
+   "Soft tofu stew",
+   "Silken tofu soup"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Gimbap",
+  "aliases": [
+   "Korean sushi rolls",
+   "Seaweed rice rolls"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Naengmyeon",
+  "aliases": [
+   "Cold noodles",
+   "Korean cold buckwheat noodles"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Budae jjigae",
+  "aliases": [
+   "Army stew",
+   "Army base stew"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Jajangmyeon",
+  "aliases": [
+   "Black bean noodles",
+   "Korean-Chinese noodles"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Soju",
+  "aliases": [
+   "Korean liquor",
+   "Korean rice wine"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Fried rice",
+  "aliases": [
+   "Wok-fried rice"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Dumplings",
+  "aliases": [
+   "Jiaozi",
+   "Steamed dumplings"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Hotpot portion",
+  "aliases": [
+   "Steamboat",
+   "Shabu-shabu"
+  ],
+  "kcal": 500
+ },
+ {
+  "name": "Kung pao chicken",
+  "aliases": [
+   "Gong bao ji ding",
+   "Kung po chicken"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Mapo tofu",
+  "aliases": [
+   "Spicy tofu",
+   "Mala tofu"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Wonton noodles",
+  "aliases": [
+   "Wantan mee",
+   "Wonton mee"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Roast duck",
+  "aliases": [
+   "Cantonese roast duck"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Chow mein",
+  "aliases": [
+   "Stir-fried noodles",
+   "Fried noodles"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Spring rolls",
+  "aliases": [
+   "Lumpia"
+  ],
+  "kcal": 180
+ },
+ {
+  "name": "Char siu",
+  "aliases": [
+   "BBQ pork",
+   "Roast pork"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Congee",
+  "aliases": [
+   "Rice porridge",
+   "Jook"
+  ],
+  "kcal": 180
+ },
+ {
+  "name": "Kimchi",
+  "aliases": [
+   "Fermented cabbage",
+   "Korean pickles"
+  ],
+  "kcal": 40
+ },
+ {
+  "name": "Chicken chop",
+  "aliases": [
+   "Chicken steak",
+   "Black pepper chicken chop"
+  ],
+  "kcal": 650
+ },
+ {
+  "name": "Fish and chips",
+  "aliases": [
+   "Battered fish and chips",
+   "Fish n chips"
+  ],
+  "kcal": 650
+ },
+ {
+  "name": "Steak",
+  "aliases": [
+   "Sirloin steak",
+   "Tenderloin steak"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Pizza slice",
+  "aliases": [
+   "Slice of pizza",
+   "Cheese pizza slice"
+  ],
+  "kcal": 280
+ },
+ {
+  "name": "Spaghetti carbonara",
+  "aliases": [
+   "Carbonara",
+   "Pasta carbonara"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Spaghetti bolognese",
+  "aliases": [
+   "Bolognese",
+   "Pasta bolognese"
+  ],
+  "kcal": 500
+ },
+ {
+  "name": "Caesar salad",
+  "aliases": [
+   "Chicken Caesar salad",
+   "Caesar"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Club sandwich",
+  "aliases": [
+   "Club",
+   "Triple-decker sandwich"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Chicken wrap",
+  "aliases": [
+   "Wrap",
+   "Chicken tortilla wrap"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Spaghetti aglio olio",
+  "aliases": [
+   "Aglio olio",
+   "Garlic spaghetti"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Mac and cheese",
+  "aliases": [
+   "Mac n cheese",
+   "Macaroni and cheese"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Grilled chicken salad",
+  "aliases": [
+   "Chicken salad",
+   "Garden salad with chicken"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "French fries",
+  "aliases": [
+   "Chips"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Hot dog",
+  "aliases": [
+   "Sausage roll",
+   "Frankfurter"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "BLT sandwich",
+  "aliases": [
+   "BLT",
+   "Bacon lettuce tomato"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Tuna sandwich",
+  "aliases": [
+   "Tuna mayo sandwich"
+  ],
+  "kcal": 400
+ },
+ {
+  "name": "BBQ chicken wings",
+  "aliases": [
+   "Chicken wings",
+   "Buffalo wings"
+  ],
+  "kcal": 450
+ },
+ {
+  "name": "Pork chop",
+  "aliases": [
+   "Pork steak",
+   "Grilled pork chop"
+  ],
+  "kcal": 650
+ },
+ {
+  "name": "Cappuccino",
+  "aliases": [
+   "Capp",
+   "Cafe cappuccino"
+  ],
+  "kcal": 130
+ },
+ {
+  "name": "Milkshake",
+  "aliases": [
+   "Shake",
+   "Chocolate milkshake"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Tiramisu",
+  "aliases": [
+   "Tiramisu cake",
+   "Tiramisu slice"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Cheesecake",
+  "aliases": [
+   "New York cheesecake",
+   "Cheesecake slice"
+  ],
+  "kcal": 400
+ },
+ {
+  "name": "Mushroom soup",
+  "aliases": [
+   "Cream of mushroom soup",
+   "Mushroom cream soup"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Garlic bread",
+  "aliases": [
+   "Garlic toast",
+   "Cheesy garlic bread"
+  ],
+  "kcal": 200
+ },
+ {
+  "name": "Corn soup",
+  "aliases": [
+   "Cream of corn soup",
+   "Sweet corn soup"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Potato chips",
+  "aliases": [
+   "Ruffles",
+   "prawn crackers",
+   "keropok"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "KitKat",
+  "aliases": [
+   "Kit Kat",
+   "chocolate wafer bar"
+  ],
+  "kcal": 218
+ },
+ {
+  "name": "Mars bar",
+  "aliases": [
+   "Mars",
+   "Mars chocolate bar"
+  ],
+  "kcal": 230
+ },
+ {
+  "name": "Snickers",
+  "aliases": [
+   "Snickers bar",
+   "peanut chocolate bar"
+  ],
+  "kcal": 230
+ },
+ {
+  "name": "Oreo",
+  "aliases": [
+   "Oreo cookies",
+   "chocolate sandwich biscuits"
+  ],
+  "kcal": 180
+ },
+ {
+  "name": "Marie biscuits",
+  "aliases": [
+   "Marie",
+   "tea biscuits"
+  ],
+  "kcal": 140
+ },
+ {
+  "name": "Maggi cup noodles",
+  "aliases": [
+   "Maggi",
+   "Maggi cup",
+   "Maggi noodles"
+  ],
+  "kcal": 280
+ },
+ {
+  "name": "Indomie cup noodles",
+  "aliases": [
+   "Indomie",
+   "Indomie Mi Goreng cup",
+   "Indomie cup"
+  ],
+  "kcal": 290
+ },
+ {
+  "name": "Granola bar",
+  "aliases": [
+   "Nature Valley bar",
+   "oat bar",
+   "cereal bar"
+  ],
+  "kcal": 190
+ },
+ {
+  "name": "Cornetto",
+  "aliases": [
+   "Wall's Cornetto",
+   "ice cream cone"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Magnum",
+  "aliases": [
+   "Wall's Magnum",
+   "Magnum ice cream bar"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Pandan cake slice",
+  "aliases": [
+   "kuih pandan cake",
+   "pandan chiffon slice"
+  ],
+  "kcal": 280
+ },
+ {
+  "name": "Butter cake slice",
+  "aliases": [
+   "kek mentega"
+  ],
+  "kcal": 320
+ },
+ {
+  "name": "Chiffon cake slice",
+  "aliases": [
+   "sponge cake slice"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Brownie",
+  "aliases": [
+   "chocolate brownie",
+   "fudge brownie"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Chupa Chups",
+  "aliases": [
+   "lollipop",
+   "chupa",
+   "sucker"
+  ],
+  "kcal": 60
+ },
+ {
+  "name": "Gummy bears",
+  "aliases": [
+   "Haribo",
+   "gummy candy",
+   "jelly sweets"
+  ],
+  "kcal": 140
+ },
+ {
+  "name": "Kacang Puteh",
+  "aliases": [
+   "fried peanuts",
+   "salted peanuts",
+   "kacang"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Fish skin crackers",
+  "aliases": [
+   "fish skin",
+   "keropok ikan",
+   "fish crackers"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Chuba",
+  "aliases": [
+   "dried plum",
+   "salted plum",
+   "li hing mui"
+  ],
+  "kcal": 50
+ },
+ {
+  "name": "Toblerone",
+  "aliases": [
+   "Toblerone bar",
+   "triangular chocolate"
+  ],
+  "kcal": 540
+ },
+ {
+  "name": "Donut",
+  "aliases": [
+   "Mister Donut",
+   "glazed donut"
+  ],
+  "kcal": 280
+ },
+ {
+  "name": "Ice cream sandwich",
+  "aliases": [
+   "Wall's sandwich",
+   "ice cream cookie sandwich"
+  ],
+  "kcal": 200
+ },
+ {
+  "name": "Choco Pie",
+  "aliases": [
+   "Orion Choco Pie",
+   "marshmallow pie",
+   "chocolate pie"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Wafer",
+  "aliases": [
+   "Prince wafer",
+   "chocolate wafer",
+   "biskut wafer"
+  ],
+  "kcal": 130
+ },
+ {
+  "name": "Popcorn",
+  "aliases": [
+   "microwave popcorn",
+   "butter popcorn",
+   "pop corn"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Ferrero Rocher",
+  "aliases": [
+   "Ferrero",
+   "hazelnut chocolate",
+   "gold ball chocolate"
+  ],
+  "kcal": 130
+ },
+ {
+  "name": "Kinder Bueno",
+  "aliases": [
+   "Kinder",
+   "Bueno",
+   "hazelnut wafer bar"
+  ],
+  "kcal": 230
+ },
+ {
+  "name": "Twix",
+  "aliases": [
+   "Twix bar",
+   "caramel chocolate bar"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Bounty",
+  "aliases": [
+   "Bounty bar",
+   "coconut chocolate bar"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Croissant",
+  "aliases": [
+   "Plain croissant",
+   "Butter croissant"
+  ],
+  "kcal": 231
+ },
+ {
+  "name": "White bread roll",
+  "aliases": [
+   "Bread roll",
+   "Round bun",
+   "Roti bun"
+  ],
+  "kcal": 100
+ },
+ {
+  "name": "Sausage bread",
+  "aliases": [
+   "Sausage bun"
+  ],
+  "kcal": 280
+ },
+ {
+  "name": "Doughnut",
+  "aliases": [
+   "Glazed doughnut",
+   "Sugar doughnut"
+  ],
+  "kcal": 260
+ },
+ {
+  "name": "Muffin",
+  "aliases": [
+   "Blueberry muffin",
+   "Banana muffin"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Butter cookie",
+  "aliases": [
+   "Butter biscuit",
+   "Shortbread"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Pandan cake",
+  "aliases": [
+   "Kek pandan",
+   "Pandan chiffon"
+  ],
+  "kcal": 270
+ },
+ {
+  "name": "Butter cake",
+  "aliases": [
+   "Rich butter cake",
+   "Pound cake"
+  ],
+  "kcal": 320
+ },
+ {
+  "name": "Chiffon cake",
+  "aliases": [
+   "Sponge cake",
+   "Vanilla chiffon"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Cocktail puff",
+  "aliases": [
+   "Cocktail pie",
+   "Chicken puff"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Pork floss bun",
+  "aliases": [
+   "Bak kwa bun",
+   "Meat floss bun",
+   "Rousong bun"
+  ],
+  "kcal": 270
+ },
+ {
+  "name": "Coconut bun",
+  "aliases": [
+   "Kaya coconut bun",
+   "Desiccated coconut bun"
+  ],
+  "kcal": 220
+ },
+ {
+  "name": "Almond crunch",
+  "aliases": [
+   "Almond cookie",
+   "Almond tuile"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Swiss roll",
+  "aliases": [
+   "Cream roll",
+   "Jam roll"
+  ],
+  "kcal": 230
+ },
+ {
+  "name": "Cupcake",
+  "aliases": [
+   "Fairy cake",
+   "Iced bun"
+  ],
+  "kcal": 300
+ },
+ {
+  "name": "Danish pastry",
+  "aliases": [
+   "Fruit danish",
+   "Danish"
+  ],
+  "kcal": 320
+ },
+ {
+  "name": "Pain au chocolat",
+  "aliases": [
+   "Chocolate croissant",
+   "Chocolate danish"
+  ],
+  "kcal": 330
+ },
+ {
+  "name": "Bagel",
+  "aliases": [
+   "Plain bagel",
+   "Sesame bagel"
+  ],
+  "kcal": 270
+ },
+ {
+  "name": "White toast",
+  "aliases": [
+   "Toast",
+   "Grilled bread"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Churros",
+  "aliases": [
+   "Churro",
+   "Spanish doughnut"
+  ],
+  "kcal": 270
+ },
+ {
+  "name": "Brioche bun",
+  "aliases": [
+   "Brioche",
+   "Milk bun"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Cream puff",
+  "aliases": [
+   "Profiterole",
+   "Choux puff"
+  ],
+  "kcal": 200
+ },
+ {
+  "name": "Eclair",
+  "aliases": [
+   "Chocolate eclair",
+   "Coffee eclair"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Scone",
+  "aliases": [
+   "Plain scone",
+   "Raisin scone"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Banana",
+  "aliases": [
+   "Pisang",
+   "Pisang awak",
+   "Pisang emas"
+  ],
+  "kcal": 105
+ },
+ {
+  "name": "Apple",
+  "aliases": [
+   "Epel",
+   "Fuji apple",
+   "Red apple"
+  ],
+  "kcal": 95
+ },
+ {
+  "name": "Orange",
+  "aliases": [
+   "Oren",
+   "Jeruk",
+   "Mikan"
+  ],
+  "kcal": 62
+ },
+ {
+  "name": "Durian",
+  "aliases": [
+   "D24",
+   "Mao Shan Wang",
+   "Musang King"
+  ],
+  "kcal": 147
+ },
+ {
+  "name": "Rice bowl",
+  "aliases": [
+   "Nasi",
+   "Steamed rice",
+   "White rice"
+  ],
+  "kcal": 260
+ },
+ {
+  "name": "Bread slice",
+  "aliases": [
+   "White bread",
+   "Sliced bread",
+   "Roti"
+  ],
+  "kcal": 80
+ },
+ {
+  "name": "Egg",
+  "aliases": [
+   "Telur",
+   "Boiled egg",
+   "Hard-boiled egg"
+  ],
+  "kcal": 78
+ },
+ {
+  "name": "Oats",
+  "aliases": [
+   "Oatmeal",
+   "Rolled oats",
+   "Instant oats"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Yoghurt",
+  "aliases": [
+   "Yogurt",
+   "Plain yoghurt",
+   "Cup yoghurt"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Milk",
+  "aliases": [
+   "Susu",
+   "Fresh milk",
+   "Full cream milk"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Nuts",
+  "aliases": [
+   "Mixed nuts",
+   "Kacang",
+   "Groundnuts"
+  ],
+  "kcal": 180
+ },
+ {
+  "name": "Papaya",
+  "aliases": [
+   "Betik",
+   "Pawpaw",
+   "Sedap"
+  ],
+  "kcal": 60
+ },
+ {
+  "name": "Watermelon",
+  "aliases": [
+   "Tembikai",
+   "Suika",
+   "Melon air"
+  ],
+  "kcal": 85
+ },
+ {
+  "name": "Pineapple",
+  "aliases": [
+   "Nanas",
+   "Nanas madu",
+   "Sweet pineapple"
+  ],
+  "kcal": 82
+ },
+ {
+  "name": "Mango",
+  "aliases": [
+   "Mangga",
+   "Harum manis",
+   "Apple mango"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Dragon fruit",
+  "aliases": [
+   "Buah naga",
+   "Pitaya",
+   "Pitahaya"
+  ],
+  "kcal": 102
+ },
+ {
+  "name": "Sweet potato",
+  "aliases": [
+   "Ubi keledek",
+   "Ubi",
+   "Kumara"
+  ],
+  "kcal": 130
+ },
+ {
+  "name": "Corn",
+  "aliases": [
+   "Jagung",
+   "Sweet corn",
+   "Manis jagung"
+  ],
+  "kcal": 90
+ },
+ {
+  "name": "Coconut water",
+  "aliases": [
+   "Air kelapa",
+   "Cendol air",
+   "Kelapa muda"
+  ],
+  "kcal": 45
+ },
+ {
+  "name": "Steamed bun",
+  "aliases": [
+   "Bao"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Banana fritter",
+  "aliases": [
+   "Pisang goreng",
+   "Pisang goreng tepung",
+   "Fried banana"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Guava",
+  "aliases": [
+   "Jambu batu",
+   "Jambu klutuk",
+   "Chinese guava"
+  ],
+  "kcal": 68
+ },
+ {
+  "name": "Coconut",
+  "aliases": [
+   "Kelapa",
+   "Kelapa muda",
+   "Fresh coconut"
+  ],
+  "kcal": 283
+ },
+ {
+  "name": "Whey protein shake",
+  "aliases": [
+   "whey",
+   "protein shake",
+   "whey protein"
+  ],
+  "kcal": 120
+ },
+ {
+  "name": "Protein bar",
+  "aliases": [
+   "protein snack bar",
+   "high-protein bar"
+  ],
+  "kcal": 200
+ },
+ {
+  "name": "Energy gel",
+  "aliases": [
+   "running gel",
+   "carb gel"
+  ],
+  "kcal": 100
+ },
+ {
+  "name": "BCAA drink",
+  "aliases": [
+   "branched-chain amino acids",
+   "amino drink"
+  ],
+  "kcal": 5
+ },
+ {
+  "name": "Pre-workout",
+  "aliases": [
+   "pre-workout powder",
+   "pump formula"
+  ],
+  "kcal": 10
+ },
+ {
+  "name": "Mass gainer shake",
+  "aliases": [
+   "weight gainer",
+   "bulking shake"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Greek yogurt",
+  "aliases": [
+   "Greek yoghurt",
+   "high-protein yogurt"
+  ],
+  "kcal": 90
+ },
+ {
+  "name": "Chicken breast",
+  "aliases": [
+   "grilled chicken breast",
+   "chicken breast rice"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Egg whites",
+  "aliases": [
+   "egg white",
+   "liquid egg whites"
+  ],
+  "kcal": 70
+ },
+ {
+  "name": "Canned tuna in water",
+  "aliases": [
+   "tuna can",
+   "tuna in brine"
+  ],
+  "kcal": 160
+ },
+ {
+  "name": "Peanut butter",
+  "aliases": [
+   "PB",
+   "peanut butter spread"
+  ],
+  "kcal": 190
+ },
+ {
+  "name": "Casein protein",
+  "aliases": [
+   "casein",
+   "micellar casein"
+  ],
+  "kcal": 120
+ },
+ {
+  "name": "Whey isolate",
+  "aliases": [
+   "WPI",
+   "isolate protein"
+  ],
+  "kcal": 110
+ },
+ {
+  "name": "Protein cookie",
+  "aliases": [
+   "protein biscuit"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Clif Bar",
+  "aliases": [
+   "energy bar"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Black coffee",
+  "aliases": [
+   "kopi O kosong",
+   "kopi O kosong"
+  ],
+  "kcal": 5
+ },
+ {
+  "name": "Fish oil capsules",
+  "aliases": [
+   "omega-3",
+   "fish oil"
+  ],
+  "kcal": 20
+ },
+ {
+  "name": "Protein chips",
+  "aliases": [
+   "high-protein chips"
+  ],
+  "kcal": 150
+ },
+ {
+  "name": "Rice cakes",
+  "aliases": [
+   "rice crackers",
+   "rice cake"
+  ],
+  "kcal": 70
+ },
+ {
+  "name": "Gatorade",
+  "aliases": [
+   "sports drink",
+   "isotonic sports drink"
+  ],
+  "kcal": 80
+ },
+ {
+  "name": "Protein pancake mix",
+  "aliases": [
+   "protein pancake",
+   "high-protein pancake"
+  ],
+  "kcal": 180
+ },
+ {
+  "name": "Chicken Rice",
+  "aliases": [
+   "Nasi Ayam"
+  ],
+  "kcal": 600
+ },
+ {
+  "name": "Nasi + Chicken Curry",
+  "aliases": [
+   "Nasi Ayam Curry",
+   "Chicken Curry Rice"
+  ],
+  "kcal": 660
+ },
+ {
+  "name": "Nasi + Fish Curry",
+  "aliases": [
+   "Nasi Ikan Curry",
+   "Ikan Curry Rice"
+  ],
+  "kcal": 610
+ },
+ {
+  "name": "Nasi + Dhal",
+  "aliases": [
+   "Nasi Dhal",
+   "Dhal Rice"
+  ],
+  "kcal": 540
+ },
+ {
+  "name": "Nasi + Sambal Kangkung",
+  "aliases": [
+   "Nasi Kangkung",
+   "Sambal Kangkung Rice"
+  ],
+  "kcal": 500
+ },
+ {
+  "name": "Nasi + Ayam Goreng",
+  "aliases": [
+   "Nasi Ayam Goreng",
+   "Fried Chicken Rice"
+  ],
+  "kcal": 710
+ },
+ {
+  "name": "Nasi + Rendang",
+  "aliases": [
+   "Nasi Rendang",
+   "Beef Rendang Rice"
+  ],
+  "kcal": 700
+ },
+ {
+  "name": "Nasi + Sambal Sotong",
+  "aliases": [
+   "Nasi Sotong",
+   "Sambal Squid Rice"
+  ],
+  "kcal": 610
+ },
+ {
+  "name": "Nasi + Sayur Campur",
+  "aliases": [
+   "Nasi Sayur",
+   "Mixed Veg Rice"
+  ],
+  "kcal": 480
+ },
+ {
+  "name": "Nasi + Telur Mata",
+  "aliases": [
+   "Nasi Telur",
+   "Fried Egg Rice"
+  ],
+  "kcal": 490
+ },
+ {
+  "name": "SAF Field Ration",
+  "aliases": [
+   "Field Ration Pack",
+   "FRP",
+   "MRE"
+  ],
+  "kcal": 1300
+ },
+ {
+  "name": "Nasi + Fish Head Curry",
+  "aliases": [
+   "Nasi Kepala Ikan",
+   "Fish Head Rice"
+  ],
+  "kcal": 650
+ },
+ {
+  "name": "Nasi + Sambal Ikan Bilis",
+  "aliases": [
+   "Nasi Ikan Bilis",
+   "Anchovy Sambal Rice"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Nasi + Ayam Masak Merah",
+  "aliases": [
+   "Nasi Ayam Merah",
+   "Red Cooked Chicken Rice"
+  ],
+  "kcal": 650
+ },
+ {
+  "name": "Nasi + Sayur Lodeh",
+  "aliases": [
+   "Nasi Lodeh",
+   "Coconut Veg Rice"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Nasi + Sambal Udang",
+  "aliases": [
+   "Nasi Udang",
+   "Sambal Prawn Rice"
+  ],
+  "kcal": 650
+ },
+ {
+  "name": "Nasi + Ikan Goreng",
+  "aliases": [
+   "Nasi Ikan Goreng",
+   "Fried Fish Rice"
+  ],
+  "kcal": 640
+ },
+ {
+  "name": "Nasi + Sambal Tumis",
+  "aliases": [
+   "Nasi Sambal Tumis",
+   "Sambal Tumis Rice"
+  ],
+  "kcal": 520
+ },
+ {
+  "name": "Nasi + Sambal Kangkung + Telur",
+  "aliases": [
+   "Nasi Kangkung Telur",
+   "Kangkung Egg Rice"
+  ],
+  "kcal": 580
+ },
+ {
+  "name": "Nasi + Dhal + Roti Prata",
+  "aliases": [
+   "Dhal Prata Set",
+   "Nasi Dhal Prata"
+  ],
+  "kcal": 660
+ },
+ {
+  "name": "Nasi + Sambal Sotong + Sayur",
+  "aliases": [
+   "Nasi Sotong Sayur",
+   "Squid Veg Rice"
+  ],
+  "kcal": 620
+ },
+ {
+  "name": "Tea egg",
+  "aliases": [
+   "marinated egg",
+   "茶叶蛋"
+  ],
+  "kcal": 75
+ },
+ {
+  "name": "Hot dog bun",
+  "aliases": [
+   "hotdog bun",
+   "sausage bun",
+   "cocktail sausage bun"
+  ],
+  "kcal": 280
+ },
+ {
+  "name": "Chicken sandwich",
+  "aliases": [
+   "chicken mayo sandwich",
+   "chicken salad sandwich",
+   "chicken floss sandwich"
+  ],
+  "kcal": 250
+ },
+ {
+  "name": "Chicken rice bento",
+  "aliases": [
+   "microwave chicken rice",
+   "Hainanese chicken rice set",
+   "chicken rice meal"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Curry fish ball",
+  "aliases": [
+   "fish ball curry",
+   "fishball in curry",
+   "fish ball soup"
+  ],
+  "kcal": 180
+ },
+ {
+  "name": "Pork bao",
+  "aliases": [
+   "steamed pork bun",
+   "meat bun"
+  ],
+  "kcal": 230
+ },
+ {
+  "name": "Soy sauce chicken wing",
+  "aliases": [
+   "braised chicken wing",
+   "soy chicken wing",
+   "chicken wing"
+  ],
+  "kcal": 170
+ },
+ {
+  "name": "Cocktail sausage",
+  "aliases": [
+   "cocktail sausage pack",
+   "mini sausage",
+   "hot dog sausage"
+  ],
+  "kcal": 120
+ },
+ {
+  "name": "Cup noodles",
+  "aliases": [
+   "instant noodles",
+   "Maggi cup",
+   "pot noodles"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Chrysanthemum tea",
+  "aliases": [
+   "Yeo's chrysanthemum",
+   "菊花茶",
+   "crown chrysanthemum"
+  ],
+  "kcal": 90
+ },
+ {
+  "name": "Chocolate bar",
+  "aliases": [
+   "chocolate"
+  ],
+  "kcal": 230
+ },
+ {
+  "name": "Kopi O",
+  "aliases": [
+   "bottled kopi",
+   "local coffee"
+  ],
+  "kcal": 100
+ },
+ {
+  "name": "Nasi lemak bento",
+  "aliases": [
+   "microwave nasi lemak",
+   "coconut rice set",
+   "Malay rice meal"
+  ],
+  "kcal": 550
+ },
+ {
+  "name": "Fish ball noodle soup",
+  "aliases": [
+   "fishball mee",
+   "fish ball mee",
+   "fish ball bee hoon"
+  ],
+  "kcal": 350
+ },
+ {
+  "name": "Kaya puff",
+  "aliases": [
+   "coconut jam puff",
+   "kaya pastry"
+  ],
+  "kcal": 210
+ },
+ {
+  "name": "Ham and cheese sandwich",
+  "aliases": [
+   "cheese sandwich",
+   "ham sandwich"
+  ],
+  "kcal": 270
+ },
+ {
+  "name": "Ice lemon tea",
+  "aliases": [
+   "bottled lemon tea",
+   "Lipton lemon tea"
+  ],
+  "kcal": 120
+ },
+ {
+  "name": "Char kway teow bento",
+  "aliases": [
+   "microwave char kway teow",
+   "fried kway teow set",
+   "CKT meal"
+  ],
+  "kcal": 520
+ }
+]

@@ -72,6 +72,39 @@ def _prompt(piece: str, zone: str, hints: list[str]) -> str:
     )
 
 
+def env_settings() -> tuple[str, str, str]:
+    """(base URL, API key, model) from the environment, or exits saying
+    which are missing."""
+    missing = [k for k in ("LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL") if not os.environ.get(k)]
+    if missing:
+        raise SystemExit(f"Set {', '.join(missing)} in .env")
+    return os.environ["LLM_BASE_URL"], os.environ["LLM_API_KEY"], os.environ["LLM_MODEL"]
+
+
+def chat(prompt: str, base_url: str, api_key: str, model: str, timeout: int = 300) -> str:
+    """One chat-completions request; the answer's text. Asks for low
+    reasoning effort: many times faster on reasoning models, ignored by
+    servers that don't know it."""
+    body = json.dumps({
+        "model": model,
+        "temperature": 0,
+        "reasoning_effort": "low",
+        "messages": [{"role": "user", "content": prompt}],
+    }).encode()
+    request = urllib.request.Request(
+        f"{base_url.rstrip('/')}/chat/completions",
+        data=body,
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return json.load(response)["choices"][0]["message"]["content"] or ""
+
+
+def extract_array(content: str) -> list | None:
+    """The JSON array in a model's answer, ignoring any reasoning around it."""
+    return _extract_array(content)
+
+
 def _extract_array(content: str) -> list[str] | None:
     content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
     match = re.search(r"\[.*\]", content, flags=re.DOTALL)
