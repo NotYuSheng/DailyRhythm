@@ -28,7 +28,8 @@ class DietScore {
     ('rich', _words(r'nasi lemak|laksa|char kway teow|char kuey teow|hokkien mee|carbonara|cream sauce|cheesy|cheese|butter|mayo'), -0.5),
     ('sweet', _words(r'(?<!carrot |fish )cakes?|cookies?|donuts?|doughnuts?|ice cream|mcflurry|gelato|waffles?|chocolate|bubble tea|milk tea|boba|coke|soft drink|soda|dessert|kueh|cream puffs?|tarts?|croissants?|brownies?|candy|sweets'), -1),
     ('processed', _words(r'maggi|instant noodles?|shin ramen|cup noodles?|sausages?|hot ?dogs?|luncheon|spam|ham|bacon'), -0.5),
-    ('vegetables', _words(r'veg|vegetables?|salad|brocc?oli|brocolli|spinach|cabbage|kai ?lan|bean ?sprouts?|greens|kangkong|chye sim|tomato(es)?|cucumber|carrots?(?! cake)'), 1),
+    // A sub comes with its salad, so Subway is fast food with vegetables.
+    ('vegetables', _words(r'subway|veg|vegetables?|salad|brocc?oli|brocolli|spinach|cabbage|kai ?lan|bean ?sprouts?|greens|kangkong|chye sim|tomato(es)?|cucumber|carrots?(?! cake)'), 1),
     ('steamed or soup', _words(r'steam(ed)?|soup|porridge|congee|yong tau foo|thunder tea|clear broth|boiled'), 1),
     ('fish or lean protein', _words(r'fish(?! (and|&) chips)|salmon|sashimi|tofu|chicken breast|grilled|eggs?|tuna|prawns?|lean'), 0.5),
     ('fruit', _words(r'fruits?|apples?|bananas?|oranges?|watermelon|papaya|grapes|berries|kiwi|pear|mango|oats|yogh?urt'), 1),
