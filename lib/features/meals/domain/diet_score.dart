@@ -43,6 +43,14 @@ class DietScore {
     return (score: score.clamp(1, 5).toDouble(), reasons: reasons);
   }
 
+  /// "Health 2/5 · fried, fast food", or null for what isn't scored.
+  static String? describe(String name) {
+    final food = forFood(name);
+    if (food == null || name.trim().isEmpty) return null;
+    final score = food.score == food.score.roundToDouble() ? '${food.score.round()}' : food.score.toStringAsFixed(1);
+    return 'Health $score/5 · ${food.reasons.isEmpty ? 'a typical plate' : food.reasons.join(', ')}';
+  }
+
   /// A day's average from (name, kcal) pairs; meals without calories weigh
   /// as a typical meal. Null when nothing scored.
   static double? forDay(Iterable<(String, double?)> meals) {

@@ -95,6 +95,14 @@ void main() {
       expect(tester.widget<TextField>(_field('Price (optional)')).controller!.text, '4.50');
     });
 
+    testWidgets('shows how healthy a meal is while typing it', (tester) async {
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Meal Name'), 'Fried rice');
+      await tester.pumpAndSettle();
+      expect(find.text('Health 2/5 · fried'), findsOneWidget);
+    });
+
     testWidgets('suggests foods while typing and offers the agreed spelling', (tester) async {
       await seedFoods(db);
       await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));

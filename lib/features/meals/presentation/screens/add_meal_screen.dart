@@ -4,6 +4,7 @@ import '../../data/models/food_item.dart';
 import '../../data/models/meal_entry.dart';
 import '../../data/services/calorie_lookup.dart';
 import '../../domain/calorie_estimator.dart';
+import '../../domain/diet_score.dart';
 import '../../domain/food_matcher.dart';
 import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/services/database/repositories/catalog_repository.dart';
@@ -252,9 +253,11 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                       controller: _nameController,
                       focusNode: _nameFocus,
                       autofocus: widget.entry == null,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Meal Name',
                         hintText: 'What did you eat?',
+                        // How healthy this is, by the same rules as the day's score.
+                        helperText: DietScore.describe(text),
                       ),
                       textCapitalization: TextCapitalization.sentences,
                       textInputAction: TextInputAction.next,

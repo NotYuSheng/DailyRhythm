@@ -157,6 +157,7 @@ void main() {
 
     await tester.scrollUntilVisible(find.text('Chicken rice'), 200, scrollable: scrollable);
     expect(find.text('1 meal \u00b7 \$4.50 \u00b7 health 3/5'), findsOneWidget, reason: 'chicken rice: a typical plate');
+    expect(find.text('Health 3/5 · a typical plate'), findsOneWidget, reason: 'each meal says its own');
     await tester.ensureVisible(find.text('Chicken rice'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Chicken rice'));
