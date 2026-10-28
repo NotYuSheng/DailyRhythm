@@ -138,6 +138,45 @@ void main() {
       expect((meal.name, meal.foodItemId, meal.foodSource), ('Mixed rice', rice!.id, FoodSource.foodCourt));
     });
 
+    testWidgets('what\'s in a meal can be ticked, for the food or just this meal', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Meal Name'), 'Mixed rice');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Health 3/5 · a typical plate'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilterChip, 'vegetables'));
+      await tester.pumpAndSettle();
+      expect(find.text('Health 4/5 · vegetables'), findsOneWidget);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final rice = (await CatalogRepository(db).findFood('Mixed rice'))!;
+      expect(rice.healthTags, ['vegetables'], reason: 'remembered for the food');
+      expect((await db.getMealEntriesByDate(pastDay)).single.healthTags, isNull);
+
+      // Another day, just that meal: fried.
+      final other = DateTime(pastDay.year, pastDay.month, pastDay.day - 1);
+      await tester.pumpWidget(const SizedBox()); // saving closed the screen: start a new app
+      await tester.pumpWidget(_app(AddMealScreen(date: other)));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Meal Name'), 'Mixed rice');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Health 4/5 · vegetables'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilterChip, 'vegetables'));
+      await tester.tap(find.widgetWithText(FilterChip, 'fried'));
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+      expect(find.text('Only this meal'), findsOneWidget);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect((await db.getMealEntriesByDate(other)).single.healthTags, ['fried']);
+      expect((await CatalogRepository(db).findFood('Mixed rice'))!.healthTags, ['vegetables'], reason: 'the food keeps its own');
+    });
+
     testWidgets('typed calories become the food\'s, per serving', (tester) async {
       await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
       await tester.enterText(_field('Meal Name'), 'Laksa');

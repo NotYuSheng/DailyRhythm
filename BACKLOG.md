@@ -72,7 +72,9 @@ How the plant is picked when the user doesn't choose:
   starts at 3; fried, fast food, sweets, processed and rich dishes lower it;
   vegetables, steamed food and soups, fish and lean protein, and fruit raise it. A day
   is the meals' average weighted by calories. Shown on Today's meals row, as Health in
-  the Metrics heatmap and the (now two) tables. Rough, and says so.
+  the Metrics heatmap and the (now two) tables. Rough, and says so. Each meal shows
+  its own score and why; in Add meal, "What's in it?" lets the user tick the
+  categories, remembered for the food or for that meal only (schema v15).
 - **Weight log:** weight is the `weight_kg` health metric (manual source). Log it from
   Metrics (Weight section) or by changing it in the profile; the latest weight is the
   profile's, so the calorie range follows it. The trend is the real check on whether

@@ -25,9 +25,20 @@ void main() {
   });
 
   test('a day weighs each meal by its calories', () {
-    expect(DietScore.forDay([('Fried rice', 600), ('Banana', 100)]), closeTo((2 * 600 + 4 * 100) / 700, 0.001));
-    expect(DietScore.forDay([('Creatine', null)]), isNull);
+    expect(DietScore.forDay([('Fried rice', 600, null), ('Banana', 100, null)]), closeTo((2 * 600 + 4 * 100) / 700, 0.001));
+    expect(DietScore.forDay([('Creatine', null, null)]), isNull);
     expect(DietScore.levelFor(2.4), 2);
+  });
+
+  test('categories the user set replace what the name points to', () {
+    expect(DietScore.detect('Fried chicken briyani'), {'fried'});
+    expect(score('Mixed rice'), 3);
+    expect(DietScore.forFood('Mixed rice', tags: ['vegetables', 'fish_or_lean_protein'])!.score, 4.5);
+    expect(DietScore.forFood('Fried rice', tags: const [])!.score, 3, reason: 'none ticked: a typical plate');
+    expect(DietScore.describe('Stuffd', tags: ['fast_food']), 'Health 2/5 · fast food');
+    expect(DietScore.decodeTags(''), isEmpty, reason: 'set to none');
+    expect(DietScore.decodeTags(null), isNull, reason: 'not set');
+    expect(DietScore.encodeTags(['fried', 'rich']), 'fried,rich');
   });
 
   test('each food says its score and why', () {

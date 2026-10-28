@@ -4,6 +4,7 @@ import '../../../../features/exercise/data/models/exercise_entry.dart';
 import '../../../../features/exercise/data/models/exercise_item.dart';
 import '../../../../features/exercise/domain/exercise_matcher.dart';
 import '../../../../features/meals/data/models/food_item.dart';
+import '../../../../features/meals/domain/diet_score.dart';
 import '../../../../features/meals/domain/food_matcher.dart';
 import '../database_service.dart';
 
@@ -67,6 +68,20 @@ class CatalogRepository {
         for (final r in await _usual('food_items', 'meal_entries', 'food_item_id', day, days, limit))
           FoodChoice(FoodItem.fromMap(r), r['uses'] as int),
       ];
+
+  /// Sets (or with null clears) the health score categories the user chose
+  /// for a food, for every meal of it without its own.
+  Future<void> setFoodHealthTags(int foodId, List<String>? tags) async {
+    final db = await _db.database;
+    await db.update('food_items', {'health_tags': DietScore.encodeTags(tags)}, where: 'id = ?', whereArgs: [foodId]);
+  }
+
+  /// Health score categories the user set, by food id.
+  Future<Map<int, List<String>>> foodHealthTags() async {
+    final db = await _db.database;
+    final rows = await db.query('food_items', columns: ['id', 'health_tags'], where: 'health_tags IS NOT NULL');
+    return {for (final r in rows) r['id'] as int: DietScore.decodeTags(r['health_tags'])!};
+  }
 
   /// Calories per serving of every food that has them, by food id.
   Future<Map<int, double>> foodCalories() async {

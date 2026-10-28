@@ -8,10 +8,19 @@ import 'dart:math' as math;
 /// sugary drinks, and processed food lower it; vegetables, steamed food and
 /// clear soups, fish and lean protein, and fruit raise it. A day is the
 /// meals' average, weighted by calories so a snack counts less than a plate.
+///
+/// The user can tag a food (remembered) or one meal with these categories
+/// instead; their tags replace what the name points to.
 class DietScore {
   DietScore._();
 
   static const levels = ['1 · Less healthy', '2', '3', '4', '5 · Healthy'];
+
+  /// What a meal can be: (key, label, change to its score, the words in
+  /// a name that mean it). A user's tags pick from these keys.
+  static final categories = <({String key, String label, double delta, RegExp words})>[
+    for (final (label, words, delta) in _rules) (key: label.replaceAll(' ', '_'), label: label, delta: delta, words: words),
+  ];
 
   static final _rules = <(String, RegExp, double)>[
     ('fried', _words(r'fried|goreng|crispy|katsu|karaage|tempura|nuggets?|fries|chips|wings?|popcorn chicken|fritters?|carrot cake|onion rings|cheese rings|hash ?browns?|curry puffs?|old chang kee|old chung kee|prata|murtabak|you tiao|ngoh hiang'), -1),
@@ -29,34 +38,39 @@ class DietScore {
 
   static final _notFood = RegExp(r'\b(?:creatine|protein(?: shake| powder)?|supplements?|vitamins?|fish oil|water)$|\b(?:creatine|protein shake|supplements?|vitamins?|fish oil)\b', caseSensitive: false);
 
+  /// The category keys a name points to.
+  static Set<String> detect(String name) => {for (final c in categories) if (c.words.hasMatch(name)) c.key};
+
   /// One food's score and what moved it, or null for supplements and water.
-  static ({double score, List<String> reasons})? forFood(String name) {
-    if (_notFood.hasMatch(name)) return null;
+  /// [tags], when the user set them, replace what the name points to.
+  static ({double score, List<String> reasons})? forFood(String name, {List<String>? tags}) {
+    if (tags == null && _notFood.hasMatch(name)) return null;
+    final keys = tags?.toSet() ?? detect(name);
     var score = 3.0;
     final reasons = <String>[];
-    for (final (reason, pattern, delta) in _rules) {
-      if (pattern.hasMatch(name)) {
-        score += delta;
-        reasons.add(reason);
+    for (final c in categories) {
+      if (keys.contains(c.key)) {
+        score += c.delta;
+        reasons.add(c.label);
       }
     }
     return (score: score.clamp(1, 5).toDouble(), reasons: reasons);
   }
 
   /// "Health 2/5 · fried, fast food", or null for what isn't scored.
-  static String? describe(String name) {
-    final food = forFood(name);
+  static String? describe(String name, {List<String>? tags}) {
+    final food = forFood(name, tags: tags);
     if (food == null || name.trim().isEmpty) return null;
     final score = food.score == food.score.roundToDouble() ? '${food.score.round()}' : food.score.toStringAsFixed(1);
     return 'Health $score/5 · ${food.reasons.isEmpty ? 'a typical plate' : food.reasons.join(', ')}';
   }
 
-  /// A day's average from (name, kcal) pairs; meals without calories weigh
-  /// as a typical meal. Null when nothing scored.
-  static double? forDay(Iterable<(String, double?)> meals) {
+  /// A day's average from (name, kcal, tags) meals; meals without calories
+  /// weigh as a typical meal. Null when nothing scored.
+  static double? forDay(Iterable<(String, double?, List<String>?)> meals) {
     var total = 0.0, weight = 0.0;
-    for (final (name, kcal) in meals) {
-      final food = forFood(name);
+    for (final (name, kcal, tags) in meals) {
+      final food = forFood(name, tags: tags);
       if (food == null) continue;
       final w = math.max(50.0, kcal ?? 500);
       total += food.score * w;
@@ -67,4 +81,10 @@ class DietScore {
 
   /// 1–5, rounded, or null.
   static int? levelFor(double? score) => score?.round().clamp(1, 5);
+
+  /// Tags as stored: comma-separated keys; '' is "none", null "not set".
+  static List<String>? decodeTags(Object? stored) =>
+      stored == null ? null : [for (final t in (stored as String).split(',')) if (t.isNotEmpty) t];
+
+  static String? encodeTags(List<String>? tags) => tags?.join(',');
 }

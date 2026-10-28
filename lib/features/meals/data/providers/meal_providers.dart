@@ -32,6 +32,11 @@ final foodCaloriesProvider = FutureProvider<Map<int, double>>((ref) {
   return CatalogRepository(ref.watch(databaseProvider)).foodCalories();
 });
 
+/// Health score categories the user set for foods, by food id.
+final foodHealthTagsProvider = FutureProvider<Map<int, List<String>>>((ref) {
+  return CatalogRepository(ref.watch(databaseProvider)).foodHealthTags();
+});
+
 /// Meal entries provider for a specific date
 final mealEntriesProvider = FutureProvider.family<List<MealEntry>, DateTime>((ref, date) async {
   final db = ref.watch(databaseProvider);

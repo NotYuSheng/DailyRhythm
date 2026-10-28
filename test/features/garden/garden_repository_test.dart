@@ -3,11 +3,14 @@ import 'package:daily_rhythm/features/garden/data/garden_repository.dart';
 import 'package:daily_rhythm/features/garden/domain/plant.dart';
 import 'package:daily_rhythm/features/health/data/models/health_metric.dart';
 import 'package:daily_rhythm/features/journal/data/models/journal_entry.dart';
+import 'package:daily_rhythm/features/meals/data/models/food_item.dart';
+import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
 import 'package:daily_rhythm/features/sleep/data/models/sleep_entry.dart';
 import 'package:daily_rhythm/shared/models/activity_entry.dart';
 import 'package:daily_rhythm/shared/models/day_checkin.dart';
 import 'package:daily_rhythm/shared/models/mood_entry.dart';
 import 'package:daily_rhythm/shared/services/database/database_service.dart';
+import 'package:daily_rhythm/shared/services/database/repositories/catalog_repository.dart';
 import 'package:daily_rhythm/shared/services/database/repositories/checkin_repository.dart';
 import 'package:daily_rhythm/shared/services/database/repositories/health_repository.dart';
 import 'package:daily_rhythm/shared/services/database/repositories/journal_repository.dart';
@@ -90,5 +93,17 @@ void main() {
     final days = await GardenRepository(db).daysInRange(DateTime(2026, 10, 1), DateTime(2026, 10, 31));
     expect(days, hasLength(31));
     expect(days.where((d) => d.plant.logged).map((d) => d.date), [DateTime(2026, 10, 2)]);
+  });
+
+  test('a day’s health score uses the categories set for a meal, then its food, then the name', () async {
+    final rice = await CatalogRepository(db).saveFood(FoodItem(name: 'Mixed rice', healthTags: ['vegetables']));
+    await db.createMealEntry(MealEntry(date: day, time: day, name: 'Mixed rice', foodItemId: rice, calories: 500));
+    var g = (await GardenRepository(db).daysInRange(day, day)).single;
+    expect(g.diet, 4, reason: 'the food is tagged with vegetables');
+
+    final next = DateTime(day.year, day.month, day.day + 1);
+    await db.createMealEntry(MealEntry(date: next, time: next, name: 'Mixed rice', foodItemId: rice, calories: 500, healthTags: ['fried']));
+    g = (await GardenRepository(db).daysInRange(next, next)).single;
+    expect(g.diet, 2, reason: 'this meal was fried, whatever the food usually is');
   });
 }

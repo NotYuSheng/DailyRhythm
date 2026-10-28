@@ -58,6 +58,15 @@ stored, in `day_checkins.plant_override`.
 An imported meal that was really an event can be moved here from the meal
 screen ("Not a meal: move to events & gifts").
 
+## v15
+
+Additive: `health_tags` (TEXT, nullable) on `food_items` and `meal_entries`. The health
+score's categories the user chose: comma-separated keys (`fried`, `fast_food`, `sweet`,
+`processed`, `rich`, `vegetables`, `steamed_or_soup`, `fish_or_lean_protein`, `fruit`),
+`''` for none, `NULL` when not set. A meal's own tags win, then its food's, then the
+rules on the name (`meals/domain/diet_score.dart`). Exported as a `Health Tags` column
+(`;`-separated, `none` for none).
+
 ## Export and import
 
 Every table is exported as a CSV in the export zip. New columns go at the end of a

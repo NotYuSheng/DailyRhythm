@@ -83,9 +83,9 @@ class GardenRepository {
       logged[day(r['date'])] = (logged[day(r['date'])] ?? 0) + points;
     }
     // How healthy each day's food was, from the meals' names and calories.
-    final eaten = <DateTime, List<(String, double?)>>{};
+    final eaten = <DateTime, List<(String, double?, List<String>?)>>{};
     for (final r in await db.rawQuery(
-      'SELECT m.date, m.name, m.calories, m.quantity, f.kcal FROM meal_entries m '
+      'SELECT m.date, m.name, m.calories, m.quantity, m.health_tags, f.kcal, f.health_tags AS food_tags FROM meal_entries m '
       'LEFT JOIN food_items f ON f.id = m.food_item_id WHERE m.$inRange',
       args,
     )) {
@@ -93,7 +93,9 @@ class GardenRepository {
         final k? => k * ((r['quantity'] as num?) ?? 1),
         null => null,
       };
-      (eaten[day(r['date'])] ??= []).add((r['name'] as String, kcal));
+      // The meal's own tags, else its food's, else the name decides.
+      final tags = DietScore.decodeTags(r['health_tags']) ?? DietScore.decodeTags(r['food_tags']);
+      (eaten[day(r['date'])] ??= []).add((r['name'] as String, kcal, tags));
     }
     final meals = {
       for (final r in await db.rawQuery('SELECT date, COUNT(*) AS n FROM meal_entries WHERE $inRange GROUP BY date', args))
