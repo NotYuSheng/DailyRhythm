@@ -41,12 +41,42 @@ class Effort {
   /// One logged exercise's points.
   static double entryPoints({required bool run, String? name, int? reps, int? sets, double? km, String? notes, Duration? duration}) {
     if (run) return (km ?? 3) * 3; // a run of unknown length: a short one
-    final label = name ?? '';
-    final minutes = duration?.inSeconds.toDouble() ?? (double.tryParse(_minutes.firstMatch(notes ?? '')?.group(1) ?? '') ?? 0) * 60;
-    if (minutes > 0 && RegExp('plank', caseSensitive: false).hasMatch(label)) return minutes / 60 * 2;
+    if (_plankMinutes(name, notes, duration) case final minutes?) return minutes * 2;
     final count = sets ?? 1;
-    return factorFor(label) * (reps == null ? count : math.max(1, reps * count / 10));
+    return factorFor(name ?? '') * (reps == null ? count : math.max(1, reps * count / 10));
   }
+
+  /// Calories burned by one logged exercise, roughly: METs × weight × time
+  /// (kcal a minute = METs × 3.5 × kg ÷ 200). A set is about a minute of
+  /// vigorous work (8 METs), scaled by reps and difficulty as for points;
+  /// a run about 1 kcal per kg per km; a plank 4 METs a minute.
+  static double kcalBurned({
+    required bool run,
+    required double weightKg,
+    String? name,
+    int? reps,
+    int? sets,
+    double? km,
+    String? notes,
+    Duration? duration,
+  }) {
+    double perMinute(double mets) => mets * 3.5 * weightKg / 200;
+    if (run) return (km ?? 3) * weightKg;
+    if (_plankMinutes(name, notes, duration) case final minutes?) return minutes * perMinute(4);
+    return entryPoints(run: false, name: name, reps: reps, sets: sets) * perMinute(8);
+  }
+
+  /// A timed plank's minutes (from its duration or a "duration_min" note).
+  static double? _plankMinutes(String? name, String? notes, Duration? duration) {
+    if (!RegExp('plank', caseSensitive: false).hasMatch(name ?? '')) return null;
+    final minutes = duration == null
+        ? double.tryParse(_minutes.firstMatch(notes ?? '')?.group(1) ?? '')
+        : duration.inSeconds / 60;
+    return minutes == null || minutes <= 0 ? null : minutes;
+  }
+
+  /// Weight to assume when the profile has none.
+  static const defaultWeightKg = 70.0;
 
   /// The day's points: what was logged, or the watch's intensity minutes
   /// when higher. Intensity minutes alone (a brisk walk) aren't exercise.

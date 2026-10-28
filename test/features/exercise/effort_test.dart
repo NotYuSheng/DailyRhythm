@@ -22,4 +22,12 @@ void main() {
     expect(<double>[0, 1, 3, 6, 10, 16, 40].map(Effort.levelFor), [null, 1, 2, 3, 4, 5, 5]);
     expect(Effort.labelFor(4), 'Hard');
   });
+
+  test('calories burned: METs times weight times time, roughly', () {
+    // One moderate set: a minute at 8 METs = 8 × 3.5 × 60 / 200 = 8.4 kcal at 60 kg.
+    expect(Effort.kcalBurned(run: false, weightKg: 60, name: 'Dumbbell curl to overhead press'), closeTo(8.4, 0.01));
+    expect(Effort.kcalBurned(run: false, weightKg: 60, name: 'Push ups', reps: 30), closeTo(30.24, 0.01));
+    expect(Effort.kcalBurned(run: true, weightKg: 60, km: 5), 300);
+    expect(Effort.kcalBurned(run: false, weightKg: 60, name: 'Plank', notes: 'duration_min 2'), closeTo(8.4, 0.01));
+  });
 }

@@ -9,6 +9,7 @@ import '../../../exercise/data/models/exercise_entry.dart';
 import '../../../exercise/data/providers/exercise_providers.dart';
 import '../../../exercise/domain/effort.dart';
 import '../../../meals/domain/diet_score.dart';
+import '../../../profile/data/profile_providers.dart';
 import '../../../exercise/presentation/screens/add_exercise_screen.dart';
 import '../../../meals/data/models/meal_entry.dart';
 import '../../../meals/data/providers/meal_providers.dart';
@@ -93,6 +94,19 @@ class DayLogCard extends ConsumerWidget {
     final foodTags = ref.watch(foodHealthTagsProvider).value ?? const <int, List<String>>{};
     final kcal = [for (final m in meals) ?m.caloriesWith(foodKcal)];
     final kcalText = kcal.isEmpty ? '' : ' · ≈${NumberFormat.decimalPattern().format(kcal.reduce((a, b) => a + b).round())} kcal';
+    final weight = ref.watch(profileProvider).value?.weightKg ?? Effort.defaultWeightKg;
+    double burned(ExerciseEntry x) => Effort.kcalBurned(
+          run: x.type == ExerciseType.run,
+          weightKg: weight,
+          name: x.exerciseName,
+          reps: x.reps,
+          sets: x.sets,
+          km: x.distance,
+          notes: x.notes,
+          duration: x.duration,
+        );
+    final burnedTotal = exercises.fold(0.0, (sum, x) => sum + burned(x));
+    String approx(double kcal) => '≈${NumberFormat.decimalPattern().format(kcal.round())} kcal';
     final activityNames = [for (final a in activities) tags[a.tagId]?.name].whereType<String>().toList()..sort();
 
     return Container(
@@ -124,7 +138,11 @@ class DayLogCard extends ConsumerWidget {
           for (final m in meals)
             _Item(
               text: m.quantity > 1 ? '${m.quantity}× ${m.name}' : m.name,
-              detail: DietScore.describe(m.name, tags: m.healthTags ?? foodTags[m.foodItemId]),
+              // Its calories, then how healthy it is and why.
+              detail: [
+                if (m.caloriesWith(foodKcal) case final kcal?) approx(kcal),
+                ?DietScore.describe(m.name, tags: m.healthTags ?? foodTags[m.foodItemId]),
+              ].join(' · ').ifEmpty,
               trailing: m.price == null ? null : formatMoney(m.price!, m.currency),
               colors: colors,
               onTap: () => open(AddMealScreen(entry: m)),
@@ -134,7 +152,7 @@ class DayLogCard extends ConsumerWidget {
             title: 'Exercise',
             summary: exercises.isEmpty
                 ? 'Add exercise'
-                : '${exercises.length} logged${effort == null ? '' : ' · ${Effort.labelFor(effort)} effort'}',
+                : '${exercises.length} logged${effort == null ? '' : ' · ${Effort.labelFor(effort)} effort'} · ${approx(burnedTotal)} burned',
             colors: colors,
             action: 'Add',
             onTap: () => open(AddExerciseScreen(date: day)),
@@ -142,6 +160,7 @@ class DayLogCard extends ConsumerWidget {
           for (final x in exercises)
             _Item(
               text: x.exerciseName ?? (x.type == ExerciseType.run ? 'Run' : 'Weights'),
+              detail: '${approx(burned(x))} burned',
               trailing: x.amount,
               colors: colors,
               onTap: () => open(AddExerciseScreen(entry: x)),
@@ -370,4 +389,9 @@ class ActivitySheet extends ConsumerWidget {
       ),
     );
   }
+}
+
+extension on String {
+  /// Null for an empty line, so nothing is shown.
+  String? get ifEmpty => isEmpty ? null : this;
 }
