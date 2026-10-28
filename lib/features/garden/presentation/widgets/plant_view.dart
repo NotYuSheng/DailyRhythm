@@ -1,11 +1,13 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../data/plant_style_provider.dart';
 import '../../domain/plant.dart';
 
-/// A plant in its pot. With [sway] it rocks gently from the soil line,
-/// unless the system asks for reduced motion.
-class PlantView extends StatefulWidget {
+/// A plant in its pot, in the chosen [PlantStyle]. With [sway] it rocks
+/// gently from the soil line, unless the system asks for reduced motion.
+class PlantView extends ConsumerStatefulWidget {
   const PlantView({super.key, required this.spec, this.width = 200, this.potColor = '#F2A27E', this.sway = false});
 
   final PlantSpec spec;
@@ -14,29 +16,23 @@ class PlantView extends StatefulWidget {
   final bool sway;
 
   @override
-  State<PlantView> createState() => _PlantViewState();
+  ConsumerState<PlantView> createState() => _PlantViewState();
 }
 
-class _PlantViewState extends State<PlantView> with SingleTickerProviderStateMixin {
+class _PlantViewState extends ConsumerState<PlantView> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 2500));
   String? _plant;
-  late String _pot;
+  String _pot = '';
 
-  @override
-  void initState() {
-    super.initState();
-    _draw();
-  }
+  /// What was drawn last, so a rebuild only redraws when it changed.
+  (PlantSpec, String, PlantStyle)? _drawn;
 
-  @override
-  void didUpdateWidget(PlantView old) {
-    super.didUpdateWidget(old);
-    if (old.spec != widget.spec || old.potColor != widget.potColor) _draw();
-  }
-
-  void _draw() {
-    _plant = PlantSvg.plant(widget.spec);
-    _pot = PlantSvg.pot(widget.potColor);
+  void _draw(PlantStyle style) {
+    final key = (widget.spec, widget.potColor, style);
+    if (key == _drawn) return;
+    _drawn = key;
+    _plant = PlantSvg.plant(widget.spec, style: style);
+    _pot = PlantSvg.pot(widget.potColor, style: style);
   }
 
   @override
@@ -58,6 +54,7 @@ class _PlantViewState extends State<PlantView> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    _draw(ref.watch(plantStyleProvider));
     final height = widget.width * PlantSvg.height / PlantSvg.width;
     Widget layer(String svg) => SvgPicture.string(svg, width: widget.width, height: height);
     final plant = _plant;

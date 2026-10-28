@@ -12,6 +12,8 @@ import '../../../tags/data/providers/tag_providers.dart';
 import '../../../tags/presentation/screens/tags_screen.dart';
 import '../../../health/presentation/health_settings_card.dart';
 import '../../../garden/data/garden_providers.dart';
+import '../../../garden/data/plant_style_provider.dart';
+import '../../../garden/domain/plant_ink.dart';
 import '../../../spending/data/spending_providers.dart';
 import '../../../metrics/data/providers/metrics_providers.dart';
 import '../../../profile/presentation/profile_screen.dart';
@@ -103,6 +105,20 @@ class SettingsScreen extends ConsumerWidget {
                   onChanged: (bool value) {
                     ref.read(themeModeProvider.notifier).toggleTheme();
                   },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.local_florist_outlined),
+                  title: const Text('Plant style'),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: SegmentedButton<PlantStyle>(
+                      showSelectedIcon: false,
+                      segments: [for (final s in PlantStyle.values) ButtonSegment(value: s, label: Text(s.label))],
+                      selected: {ref.watch(plantStyleProvider)},
+                      onSelectionChanged: (s) => ref.read(plantStyleProvider.notifier).set(s.first),
+                    ),
+                  ),
                 ),
                 const Divider(height: 1),
                 ListTile(
