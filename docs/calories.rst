@@ -55,6 +55,13 @@ on it's yours (``user``).
        replaced by anything you type.
      - Available
 
+Portions
+--------
+
+A meal can be **Small**, **Regular** or **Large** against the food's usual
+serving (0.7×, 1× and 1.4×). A small or large portion is saved as that
+meal's own calories; the food's per-serving value stays as it was.
+
 Privacy
 -------
 

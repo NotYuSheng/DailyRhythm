@@ -5,6 +5,7 @@ import '../../data/models/meal_entry.dart';
 import '../../data/services/calorie_lookup.dart';
 import '../../domain/calorie_estimator.dart';
 import '../../domain/diet_score.dart';
+import '../../domain/portion.dart';
 import '../../domain/food_matcher.dart';
 import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/services/database/repositories/catalog_repository.dart';
@@ -47,6 +48,10 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   /// Whether the calories were typed or looked up on this screen; only
   /// then do they become the food's (editing an old meal shouldn't).
   bool _caloriesChanged = false;
+
+  /// How big this meal was: scales the food's calories or the estimate, and
+  /// is saved as this meal's calories when not regular.
+  Portion _portion = Portion.regular;
 
   /// Health score categories ticked on this screen; null until touched.
   List<String>? _healthTags;
@@ -381,8 +386,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                       labelText: 'Calories (optional)',
                       // A known food's calories apply unless one is typed.
                       hintText: switch ((_inheritedCalories, estimate)) {
-                        (final kcal?, _) => '≈ ${kcal.round()} from ${_matcher.exact(text)!.item.name}',
-                        (_, final e?) => '≈ ${(e.kcal * _quantity).round()} (estimate)',
+                        (final kcal?, _) => '≈ ${(kcal * _portion.factor).round()} from ${_matcher.exact(text)!.item.name}',
+                        (_, final e?) => '≈ ${(e.kcal * _quantity * _portion.factor).round()} (estimate)',
                         _ => 'Enter calories',
                       },
                       // A new food gets this estimate unless something is typed.
@@ -398,6 +403,14 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                       _lookedUpPerServing = null;
                       _caloriesChanged = true;
                     }),
+                  ),
+                  const SizedBox(height: 10),
+                  // Bigger or smaller than the usual serving.
+                  SegmentedButton<Portion>(
+                    showSelectedIcon: false,
+                    segments: [for (final p in Portion.values) ButtonSegment(value: p, label: Text(p.label))],
+                    selected: {_portion},
+                    onSelectionChanged: (s) => setState(() => _portion = s.first),
                   ),
                   Align(
                     alignment: Alignment.centerLeft,
@@ -582,6 +595,12 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       final name = _nameController.text.trim();
       final known = _matcher.exact(name)?.item;
       final estimate = calories == null && known?.kcal == null ? _estimate : null;
+      // A small or large portion: this meal's own calories, the food's kept.
+      var mealCalories = calories;
+      if (calories == null && _portion != Portion.regular) {
+        final base = known?.kcal == null ? (estimate == null ? null : estimate.kcal * quantity) : known!.kcal! * quantity;
+        if (base != null) mealCalories = (base * _portion.factor).round();
+      }
       // Typed calories become the food's, per serving, for next time.
       final foodItemId = await CatalogRepository(db).saveFood(
         FoodItem(
@@ -604,7 +623,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         name: known?.name ?? name,
         quantity: quantity,
         price: price,
-        calories: calories,
+        calories: mealCalories,
         // Legacy free-text tags on older meals are kept as they were.
         tags: widget.entry?.tags ?? const [],
         notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
