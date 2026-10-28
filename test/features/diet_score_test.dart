@@ -29,4 +29,11 @@ void main() {
     expect(DietScore.forDay([('Creatine', null)]), isNull);
     expect(DietScore.levelFor(2.4), 2);
   });
+
+  test('each food says its score and why', () {
+    expect(DietScore.describe('Mcspicy'), 'Health 2/5 · fast food');
+    expect(DietScore.describe('Fish soup rice'), 'Health 4.5/5 · steamed or soup, fish or lean protein');
+    expect(DietScore.describe('Chicken rice'), 'Health 3/5 · a typical plate');
+    expect(DietScore.describe('Creatine'), isNull);
+  });
 }

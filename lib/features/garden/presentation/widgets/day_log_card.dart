@@ -122,6 +122,7 @@ class DayLogCard extends ConsumerWidget {
           for (final m in meals)
             _Item(
               text: m.quantity > 1 ? '${m.quantity}× ${m.name}' : m.name,
+              detail: DietScore.describe(m.name),
               trailing: m.price == null ? null : formatMoney(m.price!, m.currency),
               colors: colors,
               onTap: () => open(AddMealScreen(entry: m)),
@@ -240,9 +241,12 @@ class _Row extends StatelessWidget {
 
 /// One logged meal or exercise under its row; tap to edit.
 class _Item extends StatelessWidget {
-  const _Item({required this.text, required this.colors, required this.onTap, this.trailing});
+  const _Item({required this.text, required this.colors, required this.onTap, this.trailing, this.detail});
 
   final String text;
+
+  /// A second, quieter line: a meal's health score and why.
+  final String? detail;
   final String? trailing;
   final GardenColors colors;
   final VoidCallback onTap;
@@ -258,7 +262,18 @@ class _Item extends StatelessWidget {
           padding: const EdgeInsets.only(left: 34),
           child: Row(
             children: [
-              Expanded(child: Text(text, style: nunito(14, FontWeight.w600, colors.ink))),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(text, style: nunito(14, FontWeight.w600, colors.ink)),
+                      if (detail != null) Text(detail!, style: nunito(12, FontWeight.w700, colors.muted)),
+                    ],
+                  ),
+                ),
+              ),
               if (trailing != null) Text(trailing!, style: nunito(13, FontWeight.w700, colors.muted)),
             ],
           ),
