@@ -6,6 +6,7 @@ import 'package:path/path.dart';
 import '../../utils/date_utils.dart';
 import 'schema_v13.dart';
 import 'schema_v14.dart';
+import 'schema_v15.dart';
 import '../../../features/sleep/data/models/sleep_entry.dart';
 import '../../models/nap_entry.dart';
 import '../../../features/meals/data/models/meal_entry.dart';
@@ -19,7 +20,7 @@ class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
   static Database? _database;
 
-  static const int schemaVersion = 14;
+  static const int schemaVersion = 15;
 
   /// Overrides the database file location (e.g. `inMemoryDatabasePath`).
   @visibleForTesting
@@ -237,6 +238,9 @@ class DatabaseService {
     }
     if (oldVersion < 14) {
       await SchemaV14.apply(db);
+    }
+    if (oldVersion < 15) {
+      await SchemaV15.apply(db);
     }
   }
 
@@ -513,6 +517,7 @@ class DatabaseService {
 
     await SchemaV13.apply(db);
     await SchemaV14.apply(db);
+    await SchemaV15.apply(db);
   }
 
   // ==================== Sleep Entry CRUD ====================

@@ -23,6 +23,7 @@ import '../../../features/exercise/data/models/exercise_item.dart';
 import '../../../features/health/data/models/health_metric.dart';
 import '../../../features/journal/data/models/journal_entry.dart';
 import '../../../features/meals/data/models/food_item.dart';
+import '../../../features/meals/domain/diet_score.dart';
 
 class ExportResult {
   final String path;
@@ -152,7 +153,7 @@ class ExportService {
       'meal_entries.csv': [
         [
           'ID', 'Date', 'Time', 'Name', 'Quantity', 'Price', 'Calories', 'Tags', 'Notes',
-          'Food Source', 'Food Item', 'Currency', 'Raw Text', 'Time Known',
+          'Food Source', 'Food Item', 'Currency', 'Raw Text', 'Time Known', 'Health Tags',
         ],
         for (final e in await _db.getAllMealEntries())
           [
@@ -170,6 +171,7 @@ class ExportService {
             e.currency,
             e.rawText ?? '',
             e.timeKnown ? 1 : 0,
+            _tagsCell(e.healthTags),
           ],
       ],
       'mood_entries.csv': [
@@ -236,8 +238,9 @@ class ExportService {
         for (final t in tags) [t.id ?? '', t.name, t.emoji, t.category, t.color ?? '', t.sortOrder ?? '', t.kind],
       ],
       'food_items.csv': [
-        ['ID', 'Name', 'Aliases', 'Kcal', 'Kcal Source', 'Last Price'],
-        for (final f in foods) [f.id ?? '', f.name, f.aliases.join(';'), f.kcal ?? '', f.kcalSource ?? '', f.lastPrice ?? ''],
+        ['ID', 'Name', 'Aliases', 'Kcal', 'Kcal Source', 'Last Price', 'Health Tags'],
+        for (final f in foods)
+          [f.id ?? '', f.name, f.aliases.join(';'), f.kcal ?? '', f.kcalSource ?? '', f.lastPrice ?? '', _tagsCell(f.healthTags)],
       ],
       'exercise_items.csv': [
         ['ID', 'Name', 'Aliases', 'Category'],
@@ -616,9 +619,19 @@ class _Importer {
         kcal: _double(row, 3),
         kcalSource: _text(row, 4),
         lastPrice: _double(row, 5),
+        healthTags: _tags(row, 6),
       );
       final known = _foodIds[item.name.toLowerCase()];
       if (known != null) {
+        // Health categories the user set come along when the food has none.
+        if (item.healthTags != null) {
+          await txn.update(
+            'food_items',
+            {'health_tags': DietScore.encodeTags(item.healthTags)},
+            where: 'id = ? AND health_tags IS NULL',
+            whereArgs: [known],
+          );
+        }
         // A known food takes calories from the import when it has none, or
         // only an estimate and the import has the user's own value. A
         // value the user set here stays.
@@ -674,6 +687,7 @@ class _Importer {
           currency: _text(row, 11) ?? 'SGD',
           rawText: _text(row, 12),
           timeKnown: (_int(row, 13) ?? 1) != 0,
+          healthTags: _tags(row, 14),
         ).toMap(),
       );
     },
@@ -806,6 +820,16 @@ class _Importer {
 }
 
 // ---- Cell parsing helpers; an empty cell is null. ----
+
+/// Health tags in a CSV cell: '' not set, 'none' set to none, else
+/// 'fried;fast_food'.
+String _tagsCell(List<String>? tags) => tags == null ? '' : (tags.isEmpty ? 'none' : tags.join(';'));
+
+List<String>? _tags(List<dynamic> row, int i) => switch (_text(row, i)) {
+      null => null,
+      'none' => const [],
+      final cell => cell.split(';'),
+    };
 
 String? _text(List<dynamic> row, int i) {
   if (i >= row.length) return null;

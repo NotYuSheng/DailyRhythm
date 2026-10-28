@@ -48,6 +48,18 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   /// then do they become the food's (editing an old meal shouldn't).
   bool _caloriesChanged = false;
 
+  /// Health score categories ticked on this screen; null until touched.
+  List<String>? _healthTags;
+
+  /// Whether ticked categories become the food's, for every meal of it, or
+  /// only this meal's. A meal tagged on its own opens as a one-off.
+  late bool _rememberTags = widget.entry?.healthTags == null;
+
+  /// What the health score uses: ticked here, else this meal's own, else
+  /// the food's; null leaves it to the name.
+  List<String>? get _currentTags =>
+      _healthTags ?? widget.entry?.healthTags ?? _matcher.exact(_nameController.text)?.item.healthTags;
+
   /// The user's foods, for suggestions; empty until loaded.
   FoodMatcher _matcher = FoodMatcher(const []);
   CalorieEstimator _estimator = CalorieEstimator(yourFoods: const [], reference: const []);
@@ -215,6 +227,44 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     }
   }
 
+  /// How healthy this meal is and why; opens to change what's in it.
+  Widget _healthPanel(String name, String health) {
+    final selected = (_currentTags ?? DietScore.detect(name)).toSet();
+    final food = _matcher.exact(name)?.item.name ?? name.trim();
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: const EdgeInsets.only(bottom: 8),
+      title: Text(health),
+      subtitle: const Text('What’s in it? Change it if the name doesn’t say'),
+      children: [
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final c in DietScore.categories)
+              FilterChip(
+                label: Text(c.label),
+                selected: selected.contains(c.key),
+                onSelected: (on) => setState(() {
+                  // From the state now, not when this chip was built.
+                  final next = {...(_currentTags ?? DietScore.detect(_nameController.text))};
+                  on ? next.add(c.key) : next.remove(c.key);
+                  _healthTags = [for (final c in DietScore.categories) if (next.contains(c.key)) c.key];
+                }),
+              ),
+          ],
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text('Remember for $food'),
+          subtitle: Text(_rememberTags ? 'Every $food counts this way' : 'Only this meal'),
+          value: _rememberTags,
+          onChanged: (v) => setState(() => _rememberTags = v),
+        ),
+      ],
+    );
+  }
+
   static String _formatPrice(double price) =>
       price == price.roundToDouble() ? price.toStringAsFixed(0) : price.toStringAsFixed(2);
 
@@ -253,11 +303,9 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                       controller: _nameController,
                       focusNode: _nameFocus,
                       autofocus: widget.entry == null,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         labelText: 'Meal Name',
                         hintText: 'What did you eat?',
-                        // How healthy this is, by the same rules as the day's score.
-                        helperText: DietScore.describe(text),
                       ),
                       textCapitalization: TextCapitalization.sentences,
                       textInputAction: TextInputAction.next,
@@ -274,6 +322,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                       _nameFocus.unfocus();
                     },
                   ),
+                  if (DietScore.describe(text, tags: _currentTags) case final health?) _healthPanel(text, health),
                 ],
               ),
             ),
@@ -544,6 +593,10 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         ),
       );
 
+      // Ticked categories: the food's for every meal of it, or this meal's.
+      final tags = _healthTags ?? widget.entry?.healthTags;
+      if (tags != null && _rememberTags) await CatalogRepository(db).setFoodHealthTags(foodItemId, tags);
+
       final entry = MealEntry(
         id: widget.entry?.id,
         date: _date,
@@ -560,6 +613,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         currency: widget.entry?.currency ?? 'SGD',
         rawText: widget.entry?.rawText,
         timeKnown: widget.entry?.timeKnown ?? true,
+        healthTags: _rememberTags ? null : tags,
       );
 
       if (widget.entry == null) {
@@ -573,6 +627,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       ref.invalidate(mealEntriesProvider(normalizedDate));
       ref.invalidate(todayMealEntriesProvider);
       ref.invalidate(foodCaloriesProvider);
+      ref.invalidate(foodHealthTagsProvider);
 
       if (mounted) {
         Navigator.pop(context);

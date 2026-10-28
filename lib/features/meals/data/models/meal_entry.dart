@@ -1,3 +1,5 @@
+import '../../domain/diet_score.dart';
+
 /// Where a meal came from (stored in `meal_entries.food_source`).
 class FoodSource {
   FoodSource._();
@@ -39,6 +41,9 @@ class MealEntry {
   final String? rawText; // original Daylio line, when imported
   final bool timeKnown; // false for imported meals, which have no time
 
+  /// Health score categories set for this meal only; null uses the food's.
+  final List<String>? healthTags;
+
   MealEntry({
     this.id,
     required this.date,
@@ -54,6 +59,7 @@ class MealEntry {
     this.currency = 'SGD',
     this.rawText,
     this.timeKnown = true,
+    this.healthTags,
   });
 
   // Convert to Map for database
@@ -81,6 +87,7 @@ class MealEntry {
       'currency': currency,
       'raw_text': rawText,
       'time_known': timeKnown ? 1 : 0,
+      'health_tags': DietScore.encodeTags(healthTags),
     };
   }
 
@@ -103,6 +110,7 @@ class MealEntry {
       currency: map['currency'] as String? ?? 'SGD',
       rawText: map['raw_text'] as String?,
       timeKnown: (map['time_known'] as int? ?? 1) != 0,
+      healthTags: DietScore.decodeTags(map['health_tags']),
     );
   }
 
@@ -122,6 +130,7 @@ class MealEntry {
     String? currency,
     String? rawText,
     bool? timeKnown,
+    List<String>? healthTags,
   }) {
     return MealEntry(
       id: id ?? this.id,
@@ -138,6 +147,7 @@ class MealEntry {
       currency: currency ?? this.currency,
       rawText: rawText ?? this.rawText,
       timeKnown: timeKnown ?? this.timeKnown,
+      healthTags: healthTags ?? this.healthTags,
     );
   }
 }

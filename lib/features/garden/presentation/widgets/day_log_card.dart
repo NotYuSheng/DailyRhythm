@@ -31,6 +31,7 @@ void invalidateDayLog(WidgetRef ref, DateTime day) {
   ref.invalidate(sleepEntriesProvider);
   ref.invalidate(mealEntriesProvider);
   ref.invalidate(foodCaloriesProvider);
+  ref.invalidate(foodHealthTagsProvider);
   ref.invalidate(spendingProvider);
   ref.invalidate(exerciseEntriesProvider);
   ref.invalidate(moodEntryProvider);
@@ -89,6 +90,7 @@ class DayLogCard extends ConsumerWidget {
     final spentText = moneyTotals([for (final m in meals) if (m.price != null) (m.price!, m.currency)]);
     // Calories as logged or from each food; an estimate, so "≈".
     final foodKcal = ref.watch(foodCaloriesProvider).value ?? const <int, double>{};
+    final foodTags = ref.watch(foodHealthTagsProvider).value ?? const <int, List<String>>{};
     final kcal = [for (final m in meals) ?m.caloriesWith(foodKcal)];
     final kcalText = kcal.isEmpty ? '' : ' · ≈${NumberFormat.decimalPattern().format(kcal.reduce((a, b) => a + b).round())} kcal';
     final activityNames = [for (final a in activities) tags[a.tagId]?.name].whereType<String>().toList()..sort();
@@ -122,7 +124,7 @@ class DayLogCard extends ConsumerWidget {
           for (final m in meals)
             _Item(
               text: m.quantity > 1 ? '${m.quantity}× ${m.name}' : m.name,
-              detail: DietScore.describe(m.name),
+              detail: DietScore.describe(m.name, tags: m.healthTags ?? foodTags[m.foodItemId]),
               trailing: m.price == null ? null : formatMoney(m.price!, m.currency),
               colors: colors,
               onTap: () => open(AddMealScreen(entry: m)),
