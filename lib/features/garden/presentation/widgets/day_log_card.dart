@@ -8,6 +8,7 @@ import '../../../../shared/services/database/database_provider.dart';
 import '../../../exercise/data/models/exercise_entry.dart';
 import '../../../exercise/data/providers/exercise_providers.dart';
 import '../../../exercise/domain/effort.dart';
+import '../../../meals/domain/diet_score.dart';
 import '../../../exercise/presentation/screens/add_exercise_screen.dart';
 import '../../../meals/data/models/meal_entry.dart';
 import '../../../meals/data/providers/meal_providers.dart';
@@ -65,7 +66,9 @@ class DayLogCard extends ConsumerWidget {
     final sleep = ref.watch(sleepEntriesProvider(day)).value ?? const [];
     final meals = ref.watch(mealEntriesProvider(day)).value ?? const <MealEntry>[];
     final exercises = ref.watch(exerciseEntriesProvider(day)).value ?? const <ExerciseEntry>[];
-    final effort = ref.watch(gardenDayProvider(day)).value?.effort;
+    final garden = ref.watch(gardenDayProvider(day)).value;
+    final effort = garden?.effort;
+    final health = DietScore.levelFor(garden?.diet);
     final activities = ref.watch(activityEntriesProvider(day)).value ?? const <ActivityEntry>[];
     final spending = ref.watch(spendingProvider(day)).value ?? const <SpendingEntry>[];
     final tags = {for (final t in ref.watch(allTagsProvider).value ?? const <Tag>[]) t.id: t};
@@ -110,7 +113,8 @@ class DayLogCard extends ConsumerWidget {
             title: 'Meals',
             summary: meals.isEmpty
                 ? 'Add a meal'
-                : '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'}${spentText.isEmpty ? '' : ' · $spentText'}$kcalText',
+                : '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'}${spentText.isEmpty ? '' : ' · $spentText'}$kcalText'
+                    '${health == null ? '' : ' · health $health/5'}',
             colors: colors,
             action: 'Add',
             onTap: () => open(AddMealScreen(date: day)),

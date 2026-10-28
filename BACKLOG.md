@@ -67,6 +67,12 @@ How the plant is picked when the user doesn't choose:
   minutes when higher (`exercise/domain/effort.dart`). Shown on Today's exercise row,
   as Effort in the Metrics heatmap and tables; a Hard day grows a sunflower even when
   exercise is routine.
+- **Health score (2026-10-28):** each day with meals gets 1 (less healthy) to 5
+  (healthy), from rules on the food names (`meals/domain/diet_score.dart`): a meal
+  starts at 3; fried, fast food, sweets, processed and rich dishes lower it;
+  vegetables, steamed food and soups, fish and lean protein, and fruit raise it. A day
+  is the meals' average weighted by calories. Shown on Today's meals row, as Health in
+  the Metrics heatmap and the (now two) tables. Rough, and says so.
 - **Weight log:** weight is the `weight_kg` health metric (manual source). Log it from
   Metrics (Weight section) or by changing it in the profile; the latest weight is the
   profile's, so the calorie range follows it. The trend is the real check on whether
