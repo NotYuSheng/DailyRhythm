@@ -144,10 +144,11 @@ void main() {
     await tester.scrollUntilVisible(find.text('A tulip for time with people. From Social Event.'), -300, scrollable: scrollable);
   });
 
-  testWidgets('the exercise row shows how hard the day was', (tester) async {
+  testWidgets('the exercise row shows how hard the day was and what it burned', (tester) async {
     await db.createExerciseEntry(ExerciseEntry(date: today, timestamp: today, type: ExerciseType.run, distance: 5));
     await pump(tester, const GardenTodayScreen());
-    await tester.scrollUntilVisible(find.text('1 logged · Hard effort'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.scrollUntilVisible(find.text('1 logged · Hard effort · ≈350 kcal burned'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.text('≈350 kcal burned'), findsOneWidget, reason: '5 km at the default 70 kg');
   });
 
   testWidgets('meals are listed and open the meal editor', (tester) async {
@@ -163,6 +164,12 @@ void main() {
     await tester.tap(find.text('Chicken rice'));
     await tester.pumpAndSettle();
     expect(find.byType(AddMealScreen), findsOneWidget);
+  });
+
+  testWidgets('each meal shows its calories, then its health score', (tester) async {
+    await db.createMealEntry(MealEntry(date: today, time: DateTime.now(), name: 'Fried rice', calories: 650));
+    await pump(tester, const GardenTodayScreen());
+    await tester.scrollUntilVisible(find.text('≈650 kcal · Health 2/5 · fried'), 200, scrollable: find.byType(Scrollable).first);
   });
 
   testWidgets('app opens on Today; Garden, Metrics and Settings are tabs', (tester) async {
