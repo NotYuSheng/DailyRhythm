@@ -1,5 +1,9 @@
 import 'dart:math' as math;
 
+import 'plant_ink.dart';
+
+export 'plant_ink.dart' show PlantStyle;
+
 /// What a day was mostly about, shown as the plant it grows.
 enum PlantSpecies {
   sunflower('Exercise', 'sunflower', 'an exercise day'),
@@ -66,7 +70,10 @@ class PlantSvg {
 
   static String _f(num n) => n.toStringAsFixed(1);
 
-  static String pot(String color) {
+  static String pot(String color, {PlantStyle style = PlantStyle.soft}) =>
+      style == PlantStyle.ink ? PlantInk.inked(_pot(color)) : _pot(color);
+
+  static String _pot(String color) {
     final rim = _potShades[color] ?? color;
     return _wrap(
       '<ellipse cx="100" cy="236" rx="56" ry="4" fill="#2B2440" opacity="0.08"/>'
@@ -83,7 +90,12 @@ class PlantSvg {
   static const _scale = 0.88;
 
   /// The plant itself, or null for an empty pot.
-  static String? plant(PlantSpec spec) {
+  static String? plant(PlantSpec spec, {PlantStyle style = PlantStyle.soft}) {
+    final soft = _plant(spec);
+    return soft == null || style == PlantStyle.soft ? soft : PlantInk.inked(soft);
+  }
+
+  static String? _plant(PlantSpec spec) {
     if (!spec.logged) return null;
     const move = _growth;
     const g = _scale;
