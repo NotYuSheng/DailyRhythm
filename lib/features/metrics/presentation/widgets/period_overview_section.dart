@@ -11,6 +11,7 @@ import '../../data/models/metric_data.dart';
 import '../../data/models/period_overview.dart';
 import '../../data/providers/metrics_providers.dart';
 import '../../../exercise/domain/effort.dart';
+import '../../../meals/domain/diet_score.dart';
 import '../../../profile/data/profile_providers.dart';
 import '../../../profile/domain/profile.dart';
 
@@ -21,7 +22,8 @@ enum YearMetric {
   calories('Calories', ['Under 1.6k', '1.6–1.9k', '1.9–2.2k', '2.2–2.5k', '2.5k+'], [0xFFFFF4D6, 0xFFFCE1A4, 0xFFF6C063, 0xFFE59A2F, 0xFFB86E12]),
   mood('Mood', ['Awful', 'Bad', 'Okay', 'Good', 'Great'], [0xFFC2410C, 0xFFF59E0B, 0xFFDCE6E0, 0xFF7FCB96, 0xFF1F6B45]),
   energy('Energy', ['Much lower', 'Lower', 'Usual', 'Higher', 'Much higher'], [0xFFF59E0B, 0xFFFBD38D, 0xFFDCE6E0, 0xFF8EC9F0, 0xFF2B6CB0]),
-  effort('Effort', Effort.levels, [0xFFFDE7D4, 0xFFF9C08F, 0xFFF29452, 0xFFD9661F, 0xFF9C3D0E]);
+  effort('Effort', Effort.levels, [0xFFFDE7D4, 0xFFF9C08F, 0xFFF29452, 0xFFD9661F, 0xFF9C3D0E]),
+  health('Health', DietScore.levels, [0xFFC2410C, 0xFFF59E0B, 0xFFDCE6E0, 0xFF7FCB96, 0xFF1F6B45]);
 
   const YearMetric(this.label, this.levels, this.colors);
 
@@ -44,6 +46,7 @@ enum YearMetric {
         mood => d.mood == null ? null : (d.mood! - 1).clamp(0, 4),
         energy => d.energy == null ? null : (d.energy! + 2).clamp(0, 4),
         effort => d.effort == null ? null : (d.effort! - 1).clamp(0, 4),
+        health => switch (DietScore.levelFor(d.diet)) { final l? => l - 1, null => null },
       };
 
   List<String> levelsFor(ValueRange? kcal) {
@@ -259,6 +262,14 @@ class _Pixels extends StatelessWidget {
           const SizedBox(height: 4),
           Text('Each square is a week’s average.', style: nunito(12, FontWeight.w700, colors.muted)),
         ],
+        if (metric == YearMetric.health) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Health is worked out from the names of what you ate: fried, fast food, sweets and processed food lower it; '
+            'vegetables, steamed food and soups, fish and fruit raise it. Rough, not a nutrition analysis.',
+            style: nunito(12, FontWeight.w700, colors.muted),
+          ),
+        ],
         if (metric == YearMetric.effort) ...[
           const SizedBox(height: 4),
           Text(
@@ -269,7 +280,7 @@ class _Pixels extends StatelessWidget {
         if (withValue == 0) ...[
           const SizedBox(height: 6),
           Text(
-            '${metric == YearMetric.effort ? 'No exercise' : 'No ${metric.label.toLowerCase()}'} logged this $unit.',
+            '${switch (metric) { YearMetric.effort => 'No exercise', YearMetric.health => 'No meals', _ => 'No ${metric.label.toLowerCase()}' }} logged this $unit.',
             style: nunito(13, FontWeight.w700, colors.muted),
           ),
         ],
@@ -307,8 +318,15 @@ class _CellState extends State<_Cell> {
       YearMetric.mood => d.mood == null ? null : metric.levels[(d.mood! - 1).clamp(0, 4)],
       YearMetric.energy => d.energy == null ? null : metric.levels[(d.energy! + 2).clamp(0, 4)],
       YearMetric.effort => d.effort == null ? null : Effort.labelFor(d.effort!),
+      YearMetric.health => d.diet == null ? null : '${d.diet!.toStringAsFixed(1)} of 5',
     };
-    if (value == null) return metric == YearMetric.effort ? 'No exercise logged' : 'No ${metric.label.toLowerCase()} logged';
+    if (value == null) {
+      return switch (metric) {
+        YearMetric.effort => 'No exercise logged',
+        YearMetric.health => 'No meals logged',
+        _ => 'No ${metric.label.toLowerCase()} logged',
+      };
+    }
     return '${metric.label}: $value';
   }
 
@@ -598,33 +616,44 @@ class _Table extends StatelessWidget {
         );
     String k(double? v) => v == null ? '–' : '${(v / 1000).toStringAsFixed(1)}k';
     const labelWidth = 44.0;
+    String level(double? v) => v == null ? '–' : v.toStringAsFixed(1);
+    // Two tables, so every column fits a phone: the body, then food.
+    List<Widget> table(List<String> headers, List<Widget> Function(GroupRow) cells) => [
+          Row(children: [const SizedBox(width: labelWidth), for (final h in headers) cell(h, header: true)]),
+          const Divider(height: 10),
+          for (final r in rows)
+            Semantics(
+              label: r.group.name,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 30),
+                child: Row(
+                  children: [
+                    SizedBox(width: labelWidth, child: Text(r.group.label, maxLines: 1, style: nunito(13, FontWeight.w900, colors.ink))),
+                    ...cells(r),
+                  ],
+                ),
+              ),
+            ),
+        ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(children: [const SizedBox(width: labelWidth), cell('Sleep', header: true), cell('Steps', header: true), cell('Kcal', header: true), cell('Effort', header: true), cell('Food', header: true), cell('Events', header: true)]),
-        const Divider(height: 10),
-        for (final r in rows)
-          Semantics(
-            label: r.group.name,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 30),
-              child: Row(
-                children: [
-                  SizedBox(width: labelWidth, child: Text(r.group.label, maxLines: 1, style: nunito(13, FontWeight.w900, colors.ink))),
-                  cell(
-                    r.sleep == null ? '–' : '${r.sleep!.toStringAsFixed(1)}h',
-                    bold: r.sleep != null && r.sleep == bestSleep,
-                    side: _side(r.sleep, sleepRange),
-                  ),
-                  cell(k(r.steps), bold: r.steps != null && r.steps == bestSteps),
-                  cell(k(r.kcal), side: _side(r.kcal, kcalRange)),
-                  cell(r.effort == null ? '–' : r.effort!.toStringAsFixed(1)),
-                  cell(r.food == 0 ? '–' : money(r.food)),
-                  cell(r.events == 0 ? '–' : money(r.events)),
-                ],
+        ...table(['Sleep', 'Steps', 'Effort'], (r) => [
+              cell(
+                r.sleep == null ? '–' : '${r.sleep!.toStringAsFixed(1)}h',
+                bold: r.sleep != null && r.sleep == bestSleep,
+                side: _side(r.sleep, sleepRange),
               ),
-            ),
-          ),
+              cell(k(r.steps), bold: r.steps != null && r.steps == bestSteps),
+              cell(level(r.effort)),
+            ]),
+        const SizedBox(height: 14),
+        ...table(['Kcal', 'Health', 'Food', 'Events'], (r) => [
+              cell(k(r.kcal), side: _side(r.kcal, kcalRange)),
+              cell(level(r.diet)),
+              cell(r.food == 0 ? '–' : money(r.food)),
+              cell(r.events == 0 ? '–' : money(r.events)),
+            ]),
         const SizedBox(height: 6),
         Text.rich(
           TextSpan(children: [
@@ -638,7 +667,10 @@ class _Table extends StatelessWidget {
             const TextSpan(text: ' under, '),
             _arrow(1, outside, 12),
             const TextSpan(text: ' over. '),
-            const TextSpan(text: 'Kcal: a day, on average, estimated. Effort: 1 light to 5 very hard, worked out from the exercise you logged.'),
+            const TextSpan(
+              text: 'Kcal: a day, on average, estimated. Effort: 1 light to 5 very hard, from the exercise you logged. '
+                  'Health: 1 less healthy to 5 healthy, from the names of what you ate.',
+            ),
             if (kcalRange == null) const TextSpan(text: ' Add your profile in Settings to see your calorie range.'),
           ]),
           style: nunito(12, FontWeight.w700, colors.muted),

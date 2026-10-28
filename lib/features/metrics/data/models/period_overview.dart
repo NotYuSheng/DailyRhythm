@@ -38,7 +38,8 @@ class DayValues {
       ..kcal = mean(days.map((d) => d.kcal))
       ..mood = mean(days.map((d) => d.mood))?.round()
       ..energy = mean(days.map((d) => d.energy))?.round()
-      ..effort = mean(days.map((d) => d.effort))?.round();
+      ..effort = mean(days.map((d) => d.effort))?.round()
+      ..diet = mean(days.map((d) => d.diet));
   }
 
   final DateTime date;
@@ -50,6 +51,9 @@ class DayValues {
 
   /// How hard the day's exercise was, 1–5; null without any.
   int? effort;
+
+  /// How healthy the day's food was, 1–5; null without meals.
+  double? diet;
 }
 
 /// A night: when sleep started and ended, as hours after 18:00 the evening
@@ -112,7 +116,17 @@ class GroupSleep {
 
 /// A group's averages and spending, for the table.
 class GroupRow {
-  const GroupRow({required this.group, required this.days, this.sleep, this.steps, this.kcal, this.effort, required this.food, required this.events});
+  const GroupRow({
+    required this.group,
+    required this.days,
+    this.sleep,
+    this.steps,
+    this.kcal,
+    this.effort,
+    this.diet,
+    required this.food,
+    required this.events,
+  });
 
   final OverviewGroup group;
 
@@ -124,6 +138,9 @@ class GroupRow {
 
   /// Average effort (1–5) on the days with exercise.
   final double? effort;
+
+  /// Average health score (1–5) on the days with meals.
+  final double? diet;
   final double food;
   final double events;
 }
@@ -243,6 +260,7 @@ class PeriodOverview {
     required Map<DateTime, int> moods,
     required Map<DateTime, int> energy,
     Map<DateTime, int> effort = const {},
+    Map<DateTime, double> diet = const {},
     required List<NightSpan> nights,
     required Map<String, Set<DateTime>> tagDays,
     required Map<DateTime, double> foodSpend,
@@ -259,7 +277,8 @@ class PeriodOverview {
           ..kcal = kcal[d]
           ..mood = moods[d]
           ..energy = energy[d]
-          ..effort = effort[d],
+          ..effort = effort[d]
+          ..diet = diet[d],
     };
     bool inRange(DateTime d) => !d.isBefore(first) && !d.isAfter(last);
     final inPeriod = {for (final d in logged) if (inRange(d)) d};
@@ -325,6 +344,7 @@ class PeriodOverview {
 
     final stepGroups = byGroup(steps);
     final kcalGroups = byGroup(kcal);
+    final dietGroups = byGroup(diet);
     final effortGroups = byGroup({for (final MapEntry(key: d, value: v) in effort.entries) d: v.toDouble()});
     final foodGroups = byGroup(foodSpend);
     final eventGroups = byGroup(eventSpend);
@@ -343,6 +363,7 @@ class PeriodOverview {
             steps: _mean(stepGroups[i]),
             kcal: _mean(kcalGroups[i]),
             effort: _mean(effortGroups[i]),
+            diet: _mean(dietGroups[i]),
             food: foodGroups[i].fold(0.0, (s, v) => s + v),
             events: eventGroups[i].fold(0.0, (s, v) => s + v),
           ),

@@ -21,6 +21,7 @@ class DayLog {
     this.plantOverride,
     this.routineTags = const {},
     this.effort,
+    this.diet,
   });
 
   final DateTime date;
@@ -53,6 +54,9 @@ class DayLog {
   /// How hard the day's exercise was, 1–5 ([Effort]); null without any.
   final int? effort;
 
+  /// How healthy the day's food was, 1–5 ([DietScore]); null without meals.
+  final double? diet;
+
   /// A hard workout stands out even when exercise is routine.
   bool get hardWorkout => (effort ?? 0) >= Effort.hard;
 
@@ -75,6 +79,7 @@ class GardenDay {
     this.reason = '',
     this.usual = false,
     this.effort,
+    this.diet,
   });
 
   final DateTime date;
@@ -91,6 +96,9 @@ class GardenDay {
 
   /// How hard the day's exercise was, 1–5; null without any.
   final int? effort;
+
+  /// How healthy the day's food was, 1–5; null without meals.
+  final double? diet;
 
   /// Activity tags for each plant. Food sources and symptoms don't pick a
   /// plant: they say nothing about what the day was about.
@@ -213,6 +221,7 @@ class GardenDay {
       usual: isUsual(log),
       reason: log.plantOverride != null ? 'You picked this plant.' : reasonFor(log, species),
       effort: log.effort,
+      diet: log.diet,
       plant: PlantSpec(species: species, logged: log.logged),
     );
   }

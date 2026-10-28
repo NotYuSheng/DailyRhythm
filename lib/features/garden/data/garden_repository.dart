@@ -2,6 +2,7 @@ import '../../../shared/services/database/database_service.dart';
 import '../../../shared/utils/date_utils.dart';
 import '../../health/data/models/health_metric.dart';
 import '../../exercise/domain/effort.dart';
+import '../../meals/domain/diet_score.dart';
 import '../domain/garden_day.dart';
 import '../domain/plant.dart';
 
@@ -81,6 +82,19 @@ class GardenRepository {
       );
       logged[day(r['date'])] = (logged[day(r['date'])] ?? 0) + points;
     }
+    // How healthy each day's food was, from the meals' names and calories.
+    final eaten = <DateTime, List<(String, double?)>>{};
+    for (final r in await db.rawQuery(
+      'SELECT m.date, m.name, m.calories, m.quantity, f.kcal FROM meal_entries m '
+      'LEFT JOIN food_items f ON f.id = m.food_item_id WHERE m.$inRange',
+      args,
+    )) {
+      final kcal = (r['calories'] as num?)?.toDouble() ?? switch ((r['kcal'] as num?)?.toDouble()) {
+        final k? => k * ((r['quantity'] as num?) ?? 1),
+        null => null,
+      };
+      (eaten[day(r['date'])] ??= []).add((r['name'] as String, kcal));
+    }
     final meals = {
       for (final r in await db.rawQuery('SELECT date, COUNT(*) AS n FROM meal_entries WHERE $inRange GROUP BY date', args))
         day(r['date']): r['n'] as int,
@@ -151,6 +165,7 @@ class GardenRepository {
           mealCount: meals[d] ?? 0,
           hasCheckin: checkins.containsKey(d),
           plantOverride: PlantSpecies.byName(checkins[d]),
+          diet: eaten[d] == null ? null : DietScore.forDay(eaten[d]!),
           effort: Effort.levelFor(Effort.dayPoints(
             logged[d] ?? 0,
             intensityMinutes: metrics[(d, 'intensity_minutes')]?.$1,
