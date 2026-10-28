@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../metrics/data/providers/metrics_providers.dart';
 import '../../data/garden_providers.dart';
 import '../../domain/garden_day.dart';
+import '../../domain/year_facts.dart';
 import '../garden_style.dart';
 import '../widgets/mini_garden.dart';
 import 'recap_screen.dart';
@@ -66,13 +67,26 @@ class _YearGardensScreenState extends ConsumerState<YearGardensScreen> {
             loading: () => [const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator()))],
             error: (e, _) => [Text('Couldn’t load the gardens: $e')],
             data: (list) {
-              final plants = list.where((d) => d.plant.logged).length;
+              final facts = YearFacts.from(list);
+              String count(int n, String one, [String? many]) => '$n ${n == 1 ? one : many ?? '${one}s'}';
               return [
                 Text(
-                  plants == 0 ? 'Nothing grew in $_year.' : '$plants ${plants == 1 ? 'plant' : 'plants'}',
+                  facts.plants == 0 ? 'Nothing grew in $_year.' : count(facts.plants, 'plant'),
                   textAlign: TextAlign.center,
                   style: nunito(15, FontWeight.w700, colors.muted),
                 ),
+                if (facts.plants > 0) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    [
+                      'Fullest: ${DateFormat('MMMM').format(facts.fullestMonth!)} (${count(facts.fullestCount, 'plant')})',
+                      'Most grown: ${count(facts.commonestCount, facts.commonest!.plantName, facts.commonest!.pluralName)}',
+                      if (facts.quietDays > 0) count(facts.quietDays, 'quiet day'),
+                    ].join(' · '),
+                    textAlign: TextAlign.center,
+                    style: nunito(13, FontWeight.w600, colors.muted),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 LayoutBuilder(
                   builder: (context, box) {
