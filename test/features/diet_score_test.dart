@@ -8,6 +8,7 @@ void main() {
     expect(score('Chicken rice'), 3);
     expect(DietScore.forFood('Fried rice')!.reasons, ['fried']);
     expect(score('Mcspicy'), 2);
+    expect(DietScore.describe('Subway'), 'Health 3/5 · fast food, vegetables', reason: 'a sub comes with salad');
     expect(score('Cheese rings'), 1.5);
     expect(score('Yong tau foo'), 4);
     expect(score('Fish soup rice'), 4.5);
