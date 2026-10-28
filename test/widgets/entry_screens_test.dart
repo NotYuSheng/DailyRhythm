@@ -177,6 +177,24 @@ void main() {
       expect((await CatalogRepository(db).findFood('Mixed rice'))!.healthTags, ['vegetables'], reason: 'the food keeps its own');
     });
 
+    testWidgets('a large portion is this meal\'s calories, not the food\'s', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await CatalogRepository(db).saveFood(FoodItem(name: 'Laksa', kcal: 600, kcalSource: 'user'));
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Meal Name'), 'Laksa');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Large'));
+      await tester.pumpAndSettle();
+      expect(find.text('≈ 840 from Laksa'), findsOneWidget);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect((await db.getMealEntriesByDate(pastDay)).single.calories, 840);
+      expect((await CatalogRepository(db).findFood('Laksa'))!.kcal, 600, reason: 'a serving of laksa is still 600');
+    });
+
     testWidgets('typed calories become the food\'s, per serving', (tester) async {
       await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
       await tester.enterText(_field('Meal Name'), 'Laksa');
