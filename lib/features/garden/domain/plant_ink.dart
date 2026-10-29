@@ -25,14 +25,14 @@ class PlantInk {
   static const lineWidth = 2.2;
 
   /// How far, in the 200 × 240 drawing, a point may wander.
-  static const wobble = 1.5;
+  static const wobble = 0.9;
 
   static final _svg = RegExp(r'^(<svg[^>]*>)(.*)(</svg>)$', dotAll: true);
   static final _fill = RegExp(r'fill="(#[0-9A-Fa-f]{6})"');
   static final _stroke = RegExp(r'stroke="(#[0-9A-Fa-f]{6})"');
   static final _strokeWidth = RegExp(r'stroke-width="([\d.]+)"');
   static final _shape = RegExp(r'<(path|ellipse|circle|rect)\b([^>]*?)/>');
-  static final _number = RegExp(r'-?\d+(?:\.\d+)?');
+  static final _token = RegExp(r'[A-Za-z]|-?\d*\.?\d+');
 
   static String inked(String svg) {
     final m = _svg.firstMatch(svg);
@@ -65,18 +65,20 @@ class PlantInk {
       'rect' => math.min(_num(attrs, 'width'), _num(attrs, 'height')),
       _ => math.min(_num(attrs, tag == 'circle' ? 'r' : 'rx'), _num(attrs, tag == 'circle' ? 'r' : 'ry')),
     };
-    final kept = [for (final a in ['transform', 'opacity', 'stroke-linecap', 'stroke-linejoin']) if (_attr(attrs, a) case final v?) '$a="$v"'].join(' ');
-    final path = '<path d="${_wobbled(d, seed)}" $kept';
+    final kept = [
+      for (final a in ['transform', 'opacity', 'stroke-linecap', 'stroke-linejoin'])
+        if (_attr(attrs, a) case final v?) '$a="$v"',
+    ].join(' ');
+    final wobbled = _wobbled(d, seed, turned: attrs.contains('rotate('));
+    final path = '<path d="$wobbled" $kept';
 
     if (fill == null || fill == 'none') {
       // A line in the drawing (a stem, a vein, cactus spines): an ink line.
       if (stroke == null) return '<$tag$attrs/>';
-      final wobbled = _wobbled(d, seed);
       if (width >= 8) {
         // A thick stroke is a body (a cactus arm): ink a little wider
         // underneath, the wash on top, so it reads as an outlined tube.
-        String tube(String colour, double w) =>
-            '<path d="$wobbled" $kept fill="none" stroke="$colour" stroke-width="${w.toStringAsFixed(1)}" stroke-linecap="round" stroke-linejoin="round"/>';
+        String tube(String colour, double w) => '<path d="$wobbled" $kept fill="none" stroke="$colour" stroke-width="${w.toStringAsFixed(1)}" stroke-linecap="round" stroke-linejoin="round"/>';
         return tube(ink, width + lineWidth * 2) + tube(_pale(stroke), width);
       }
       final pen = width >= 3 ? (width * 0.55).clamp(2.2, 3.2) : 1.3;
@@ -88,17 +90,83 @@ class PlantInk {
     return '$path fill="${_pale(fill)}"${outlined ? ' stroke="$ink" stroke-width="$lineWidth" stroke-linejoin="round" stroke-linecap="round"' : ''}/>';
   }
 
-  /// Every number in a path nudged a little, the same way for the same
-  /// shape each time.
-  static String _wobbled(String d, int seed) {
+  /// The outline bent by a smooth field, like the canvas's displacement
+  /// filter: nearby points move together, so edges wave instead of
+  /// kinking. Straight lines and long curves are split first, so they wave
+  /// along their length too. A shape that is turned (a petal) gets its own
+  /// field, so the copies don't wave alike.
+  static String _wobbled(String d, int seed, {required bool turned}) {
+    final phase = turned ? seed * 1.7 : 0.0;
+    String pt(double x, double y) {
+      final dx = wobble * (0.6 * math.sin(0.22 * x + 0.12 * y + phase) + 0.4 * math.sin(-0.16 * x + 0.29 * y + 2 * phase + 1));
+      final dy = wobble * (0.6 * math.sin(0.19 * x - 0.23 * y + phase + 2) + 0.4 * math.sin(0.13 * x + 0.26 * y + 3 * phase + 4));
+      return '${(x + dx).toStringAsFixed(2)} ${(y + dy).toStringAsFixed(2)}';
+    }
+
+    final out = StringBuffer();
+    final tokens = _token.allMatches(d).map((m) => m.group(0)!).toList();
     var i = 0;
-    // Arc flags can't wobble; the drawings use none.
-    return d.replaceAllMapped(_number, (n) {
-      final v = double.parse(n.group(0)!);
-      final r = math.sin((seed * 97 + i++ * 31) * 12.9898) * 43758.5453;
-      final jitter = (r - r.floorToDouble() - 0.5) * 2 * wobble;
-      return (v + jitter).toStringAsFixed(1);
-    });
+    var cmd = 'M';
+    var (cx, cy) = (0.0, 0.0);
+    var (sx, sy) = (0.0, 0.0);
+    double next() => double.parse(tokens[i++]);
+
+    void line(double x, double y) {
+      final steps = math.max(1, (math.sqrt(math.pow(x - cx, 2) + math.pow(y - cy, 2)) / 8).ceil());
+      for (var k = 1; k <= steps; k++) {
+        out.write('L${pt(cx + (x - cx) * k / steps, cy + (y - cy) * k / steps)} ');
+      }
+      (cx, cy) = (x, y);
+    }
+
+    void curve(double x1, double y1, double x2, double y2, double x, double y) {
+      if (math.sqrt(math.pow(x - cx, 2) + math.pow(y - cy, 2)) > 16) {
+        // Split in half (de Casteljau).
+        final (ax, ay) = ((cx + x1) / 2, (cy + y1) / 2);
+        final (bx, by) = ((x1 + x2) / 2, (y1 + y2) / 2);
+        final (ex, ey) = ((x2 + x) / 2, (y2 + y) / 2);
+        final (fx, fy) = ((ax + bx) / 2, (ay + by) / 2);
+        final (gx, gy) = ((bx + ex) / 2, (by + ey) / 2);
+        final (mx, my) = ((fx + gx) / 2, (fy + gy) / 2);
+        curve(ax, ay, fx, fy, mx, my);
+        curve(gx, gy, ex, ey, x, y);
+        return;
+      }
+      out.write('C${pt(x1, y1)} ${pt(x2, y2)} ${pt(x, y)} ');
+      (cx, cy) = (x, y);
+    }
+
+    while (i < tokens.length) {
+      if (RegExp('[A-Za-z]').hasMatch(tokens[i])) cmd = tokens[i++];
+      final rel = cmd == cmd.toLowerCase();
+      final (ox, oy) = rel ? (cx, cy) : (0.0, 0.0);
+      switch (cmd.toUpperCase()) {
+        case 'M':
+          (cx, cy) = (ox + next(), oy + next());
+          (sx, sy) = (cx, cy);
+          out.write('M${pt(cx, cy)} ');
+          // Further pairs after a move are lines.
+          cmd = rel ? 'l' : 'L';
+        case 'L':
+          line(ox + next(), oy + next());
+        case 'H':
+          line((rel ? cx : 0) + next(), cy);
+        case 'V':
+          line(cx, (rel ? cy : 0) + next());
+        case 'C':
+          curve(ox + next(), oy + next(), ox + next(), oy + next(), ox + next(), oy + next());
+        case 'Q':
+          final (qx, qy, x, y) = (ox + next(), oy + next(), ox + next(), oy + next());
+          curve(cx + (qx - cx) * 2 / 3, cy + (qy - cy) * 2 / 3, x + (qx - x) * 2 / 3, y + (qy - y) * 2 / 3, x, y);
+        case 'Z':
+          out.write('Z ');
+          (cx, cy) = (sx, sy);
+        default:
+          // Arcs and the like: the drawings use none, so leave the path be.
+          return d;
+      }
+    }
+    return out.toString().trim();
   }
 
   /// An ellipse as four curves.
