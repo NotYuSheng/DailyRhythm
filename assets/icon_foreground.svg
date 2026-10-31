@@ -1,13 +1,12 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-  <!-- Transparent background for adaptive icon foreground -->
-
-  <!-- Large circular boundary -->
-  <circle cx="512" cy="512" r="380" stroke="#FFFFFF" stroke-width="40" fill="none"/>
-
-  <!-- Smooth wave inside circle -->
-  <path d="M 220 512 Q 310 350 400 512 T 580 512 T 804 512"
-        stroke="#FFFFFF"
-        stroke-width="50"
-        fill="none"
-        stroke-linecap="round"/>
+  <!-- Adaptive icon foreground: the seedling on a transparent layer; the
+       background is #3F9E6A (pubspec.yaml). Kept inside the 66/108 safe zone. -->
+  <g transform="scale(9.4815)">
+    <!-- Hill of soil -->
+    <path d="M-2 92 Q54 64 110 92 V110 H-2 Z" fill="#2F7F54"/>
+    <!-- Seedling -->
+    <path d="M54 76 C53 64 55 56 54 46" fill="none" stroke="#F1F8EC" stroke-width="4" stroke-linecap="round"/>
+    <path d="M54 60 C43 60 34 52 32 40 C44 40 52 48 54 60 Z" fill="#F1F8EC"/>
+    <path d="M54 52 C64 51 73 43 75 31 C63 31 56 39 54 52 Z" fill="#CDEEDB"/>
+  </g>
 </svg>
