@@ -1,7 +1,7 @@
 DailyRhythm Documentation
 =========================
 
-Welcome to DailyRhythm's documentation. DailyRhythm is a a local-first daily journal that grows a memory garden.
+Welcome to DailyRhythm's documentation. DailyRhythm is a local-first daily journal that grows a memory garden.
 
 .. toctree::
    :maxdepth: 2
