@@ -1,21 +1,13 @@
-<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="lighterBlueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#70A0FF;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#1F69FF;stop-opacity:1" />
-    </linearGradient>
-  </defs>
-
-  <!-- Background with lighter blue gradient (no rounded corners - Google Play applies dynamically) -->
-  <rect width="512" height="512" fill="url(#lighterBlueGradient)"/>
-
-  <!-- Large circular boundary -->
-  <circle cx="256" cy="256" r="190" stroke="#FFFFFF" stroke-width="20" fill="none"/>
-
-  <!-- Smooth wave inside circle -->
-  <path d="M 110 256 Q 155 175 200 256 T 290 256 T 402 256"
-        stroke="#FFFFFF"
-        stroke-width="25"
-        fill="none"
-        stroke-linecap="round"/>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- A seedling on garden green: one day, growing. Drawn on the 108-unit
+       adaptive icon grid; launchers and the Play Store add the corner mask. -->
+  <rect width="1024" height="1024" fill="#3F9E6A"/>
+  <g transform="scale(9.4815)">
+    <!-- Hill of soil -->
+    <path d="M-2 92 Q54 64 110 92 V110 H-2 Z" fill="#2F7F54"/>
+    <!-- Seedling -->
+    <path d="M54 76 C53 64 55 56 54 46" fill="none" stroke="#F1F8EC" stroke-width="4" stroke-linecap="round"/>
+    <path d="M54 60 C43 60 34 52 32 40 C44 40 52 48 54 60 Z" fill="#F1F8EC"/>
+    <path d="M54 52 C64 51 73 43 75 31 C63 31 56 39 54 52 Z" fill="#CDEEDB"/>
+  </g>
 </svg>
