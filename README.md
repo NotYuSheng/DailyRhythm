@@ -1,6 +1,6 @@
 # DailyRhythm
 
-A daily stats tracking Flutter app with rhythm aesthetic.
+A local-first daily journal that grows a memory garden: log your days, meals, sleep and exercise, and each day becomes a plant.
 
 > [!NOTE]  
 > Thank you for visiting! This project is currently a work in progress. Features, documentation, and deployment configurations are actively being developed and may change frequently.
