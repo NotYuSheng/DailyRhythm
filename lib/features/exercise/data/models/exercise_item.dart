@@ -26,8 +26,17 @@ class ExerciseItem {
     return ExerciseItem(
       id: map['id'] as int?,
       name: map['name'] as String,
-      aliases: (jsonDecode(map['aliases'] as String? ?? '[]') as List).cast<String>(),
+      aliases: _aliases(map['aliases'] as String?),
       category: map['category'] as String? ?? strength,
     );
+  }
+
+  /// Aliases are stored as a JSON list. A field written by hand or by an
+  /// older tool may be blank or plain text ("a;b"); read those too, so one
+  /// odd row can't break the catalog or an export.
+  static List<String> _aliases(String? stored) {
+    final text = stored?.trim() ?? '';
+    if (text.startsWith('[')) return (jsonDecode(text) as List).cast<String>();
+    return [for (final a in text.split(';')) if (a.trim().isNotEmpty) a.trim()];
   }
 }
