@@ -33,9 +33,17 @@ Output in `data/migration/`:
 | `review.csv` | Every flagged item with a blank `correction` column |
 | `summary.txt` | Counts by parse method and flag |
 
-Read from the same folder if present: `aliases.csv` (agreed spellings) and
-`free_meals.csv` (`date,name`: meals you confirm were free, kept out of the repo
-as they name people and places).
+Read from the same folder if present: `aliases.csv` (agreed spellings),
+`free_meals.csv` (`date,name`: meals you confirm were free) and `events.csv`
+(`date,name`: priced lines you confirm were group events, moved to spending).
+The last two are kept out of the repo as they name people and places.
+
+**New data later.** A Daylio backup (`.daylio`) is a zip holding base64 JSON;
+its notes keep the line breaks that the CSV export flattens into spaces. To add
+days logged since the last import, convert only the new entries to the CSV
+layout, parse them into a fresh `--out` folder (copy `aliases.csv`,
+`free_meals.csv`, `events.csv` and the caches into it first) and import that
+folder's zip: rows already in the app are skipped.
 
 **Free meals.** Meals paid with CDC vouchers, free ones and army rations cost
 nothing of your own: the parser takes "cdc", "$10 cdc voucher", "free" and

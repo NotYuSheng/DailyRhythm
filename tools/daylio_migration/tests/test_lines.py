@@ -71,6 +71,8 @@ def test_exercises():
     assert (ex.duration_min, ex.distance_km, ex.name) == (40, 5.66, "jog")
     assert parse_exercise("28k steps").steps == 28000
     assert parse_exercise("X3 sets dumbbell squats").sets == 3
+    ex = parse_exercise("X2 sets of 30 Weighted sit ups")
+    assert (ex.sets, ex.reps, ex.name) == (2, 30, "Weighted sit ups")
     assert parse_exercise("Plank").reps is None
 
 
