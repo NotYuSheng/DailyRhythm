@@ -3,6 +3,7 @@ import 'package:daily_rhythm/features/journal/data/models/journal_entry.dart';
 import 'package:daily_rhythm/features/garden/presentation/widgets/day_log_card.dart';
 import 'package:daily_rhythm/features/garden/presentation/screens/garden_month_screen.dart';
 import 'package:daily_rhythm/features/garden/presentation/screens/garden_today_screen.dart';
+import 'package:daily_rhythm/features/garden/presentation/widgets/garden_chip.dart';
 import 'package:daily_rhythm/features/garden/presentation/widgets/moment_sheet.dart';
 import 'package:daily_rhythm/features/garden/presentation/widgets/plant_view.dart';
 import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
@@ -72,6 +73,22 @@ void main() {
     await tester.tap(find.text('Work'));
     await tester.pumpAndSettle();
     expect(find.textContaining('A sprout'), findsOneWidget);
+    expect((await CheckinRepository(db).forDay(today))?.plantOverride, isNull);
+  });
+
+  testWidgets('the automatic plant is not shown as picked, and picking it twice unpicks it', (tester) async {
+    await db.upsertMoodEntry(MoodEntry(date: today, timestamp: DateTime.now(), moodLevel: 3, emoji: ''));
+    await pump(tester, const GardenTodayScreen());
+    GardenChip chip() => tester.widget<GardenChip>(find.widgetWithText(GardenChip, 'A bit of everything'));
+    expect((chip().selected, chip().suggested), (false, true));
+
+    await tester.tap(find.text('A bit of everything'));
+    await tester.pumpAndSettle();
+    expect((chip().selected, chip().suggested), (true, false));
+
+    await tester.tap(find.text('A bit of everything'));
+    await tester.pumpAndSettle();
+    expect((chip().selected, chip().suggested), (false, true));
     expect((await CheckinRepository(db).forDay(today))?.plantOverride, isNull);
   });
 

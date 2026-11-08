@@ -130,7 +130,10 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
                   for (final s in PlantSpecies.values)
                     GardenChip(
                       label: s.label,
-                      selected: g.plant.species == s,
+                      // Filled only when the user picked it; the automatic
+                      // plant is outlined, so picking it again visibly undoes it.
+                      selected: g.chosen && g.plant.species == s,
+                      suggested: !g.chosen && g.plant.logged && g.plant.species == s,
                       colors: colors,
                       // Picking the chosen plant again goes back to automatic.
                       onPressed: () => g.chosen && g.plant.species == s
