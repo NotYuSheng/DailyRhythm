@@ -34,11 +34,20 @@ class FoodItem {
     return FoodItem(
       id: map['id'] as int?,
       name: map['name'] as String,
-      aliases: (jsonDecode(map['aliases'] as String? ?? '[]') as List).cast<String>(),
+      aliases: _aliases(map['aliases'] as String?),
       kcal: (map['kcal'] as num?)?.toDouble(),
       kcalSource: map['kcal_source'] as String?,
       lastPrice: (map['last_price'] as num?)?.toDouble(),
       healthTags: DietScore.decodeTags(map['health_tags']),
     );
+  }
+
+  /// Aliases are stored as a JSON list. A field written by hand or by an
+  /// older tool may be blank or plain text ("a;b"); read those too, so one
+  /// odd row can't break the catalog or an export.
+  static List<String> _aliases(String? stored) {
+    final text = stored?.trim() ?? '';
+    if (text.startsWith('[')) return (jsonDecode(text) as List).cast<String>();
+    return [for (final a in text.split(';')) if (a.trim().isNotEmpty) a.trim()];
   }
 }

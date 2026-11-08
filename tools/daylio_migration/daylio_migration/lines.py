@@ -273,6 +273,9 @@ def parse_exercise(line: str) -> ExerciseSet:
         if ex.sets is None and re.match(r"^sets?\b", q["rest"], re.IGNORECASE):
             ex.sets = int(count)
             body = re.sub(r"^sets?\s*", "", q["rest"], flags=re.IGNORECASE)
+            # "X2 sets of 30 sit ups": the number after "of" is the reps.
+            if r := re.match(r"^(?:of|x)\s*(?P<reps>\d+)\s+(?P<rest>.+)$", body, re.IGNORECASE):
+                ex.reps, body = int(r["reps"]), r["rest"]
         elif ex.reps is None:
             ex.reps = int(count)
             body = q["rest"]

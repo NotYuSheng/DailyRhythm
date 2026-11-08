@@ -12,6 +12,7 @@ class GardenChip extends StatelessWidget {
     required this.onPressed,
     this.compact = false,
     this.idle,
+    this.suggested = false,
   });
 
   final String label;
@@ -26,6 +27,9 @@ class GardenChip extends StatelessWidget {
   /// ground colour for a pill sitting on a card.
   final Color? idle;
 
+  /// Outlined, not filled: what the app would pick if the user doesn't.
+  final bool suggested;
+
   @override
   Widget build(BuildContext context) {
     return Semantics(
@@ -36,7 +40,7 @@ class GardenChip extends StatelessWidget {
         style: TextButton.styleFrom(
           minimumSize: const Size(0, 44),
           padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 14),
-          shape: const StadiumBorder(),
+          shape: StadiumBorder(side: suggested && !selected ? BorderSide(color: colors.accent, width: 1.5) : BorderSide.none),
           backgroundColor: selected ? colors.accent : idle ?? colors.card,
           foregroundColor: selected ? colors.onAccent : colors.leaf,
         ),

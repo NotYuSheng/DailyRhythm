@@ -20,6 +20,7 @@ from .canonical import apply_aliases, load_aliases, load_synonyms
 from .free_food import load_confirmed, mark_free
 from .llm import LlmSplitter, load_env
 from .load import build_days, read_entries
+from .spending import load_events, mark_events
 from .validate import validate
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -52,6 +53,8 @@ def main() -> None:
     renamed = apply_aliases(days, load_aliases(aliases), load_synonyms(aliases))
     free = mark_free(days, load_confirmed(args.out / "free_meals.csv"))
     print(f"Marked {free} unlabelled meals as free")
+    events = mark_events(days, load_events(args.out / "events.csv"))
+    print(f"Moved {events} confirmed group events to spending")
     validate(days)
     write_outputs(days, args.out, renamed_by_synonyms=renamed)
 
