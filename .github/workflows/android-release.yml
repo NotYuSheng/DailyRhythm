@@ -57,6 +57,10 @@ jobs:
     needs: test
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    # Creating the GitHub release on a tag needs write access; the repo's
+    # default token is read-only.
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -110,8 +114,17 @@ jobs:
           storeFile=keystore.jks
           EOF
 
+      # GitHub's release servers sometimes refuse the Gradle download (504);
+      # retry when that is why the build failed, not for real build errors.
       - name: Build Android App Bundle (AAB)
-        run: flutter build appbundle --release
+        run: |
+          for i in 1 2 3; do
+            if flutter build appbundle --release 2>&1 | tee build.log; then exit 0; fi
+            grep -q "gradle-distributions" build.log || exit 1
+            echo "Gradle download failed (try $i), retrying in 60s"
+            sleep 60
+          done
+          exit 1
 
       - name: Build Android APK
         run: flutter build apk --release
@@ -139,7 +152,7 @@ jobs:
 
       - name: Create GitHub Release (on tag)
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             build/app/outputs/bundle/release/app-release.aab
