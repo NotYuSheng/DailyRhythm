@@ -15,6 +15,12 @@ final allTagCategoriesProvider = FutureProvider<List<TagCategory>>((ref) async {
   return db.getAllTagCategories();
 });
 
+/// How often each tag is used (activities and moments), by tag id
+final tagUseCountsProvider = FutureProvider<Map<int, int>>((ref) async {
+  final db = ref.watch(databaseProvider);
+  return db.getTagUseCounts();
+});
+
 /// Tags by category provider
 final tagsByCategoryProvider = FutureProvider.family<List<Tag>, String>((ref, category) async {
   final db = ref.watch(databaseProvider);

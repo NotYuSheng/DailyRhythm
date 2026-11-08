@@ -1,0 +1,51 @@
+import 'package:daily_rhythm/features/meals/domain/diet_score.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  double? score(String name) => DietScore.forFood(name)?.score;
+
+  test('a typical plate is 3; what it is moves it, and says why', () {
+    expect(score('Chicken rice'), 3);
+    expect(DietScore.forFood('Fried rice')!.reasons, ['fried']);
+    expect(score('Mcspicy'), 2);
+    expect(DietScore.describe('Subway'), 'Health 3/5 · fast food, vegetables', reason: 'a sub comes with salad');
+    expect(score('Cheese rings'), 1.5);
+    expect(score('Yong tau foo'), 4);
+    expect(score('Fish soup rice'), 4.5);
+    expect(score('Banana'), 4);
+  });
+
+  test('local names: carrot cake is fried, fish cake and fish and chips aren’t what they seem', () {
+    expect(DietScore.forFood('Carrot cake')!.reasons, ['fried']);
+    expect(DietScore.forFood('Fish cake noodles')!.reasons, ['fish or lean protein']);
+    expect(DietScore.forFood('Fish and chips')!.reasons, ['fried']);
+  });
+
+  test('supplements and water aren’t scored', () {
+    expect([score('Creatine'), score('Protein'), score('Water')], [null, null, null]);
+  });
+
+  test('a day weighs each meal by its calories', () {
+    expect(DietScore.forDay([('Fried rice', 600, null), ('Banana', 100, null)]), closeTo((2 * 600 + 4 * 100) / 700, 0.001));
+    expect(DietScore.forDay([('Creatine', null, null)]), isNull);
+    expect(DietScore.levelFor(2.4), 2);
+  });
+
+  test('categories the user set replace what the name points to', () {
+    expect(DietScore.detect('Fried chicken briyani'), {'fried'});
+    expect(score('Mixed rice'), 3);
+    expect(DietScore.forFood('Mixed rice', tags: ['vegetables', 'fish_or_lean_protein'])!.score, 4.5);
+    expect(DietScore.forFood('Fried rice', tags: const [])!.score, 3, reason: 'none ticked: a typical plate');
+    expect(DietScore.describe('Stuffd', tags: ['fast_food']), 'Health 2/5 · fast food');
+    expect(DietScore.decodeTags(''), isEmpty, reason: 'set to none');
+    expect(DietScore.decodeTags(null), isNull, reason: 'not set');
+    expect(DietScore.encodeTags(['fried', 'rich']), 'fried,rich');
+  });
+
+  test('each food says its score and why', () {
+    expect(DietScore.describe('Mcspicy'), 'Health 2/5 · fast food');
+    expect(DietScore.describe('Fish soup rice'), 'Health 4.5/5 · steamed or soup, fish or lean protein');
+    expect(DietScore.describe('Chicken rice'), 'Health 3/5 · a typical plate');
+    expect(DietScore.describe('Creatine'), isNull);
+  });
+}

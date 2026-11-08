@@ -1,5 +1,12 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import '../../utils/date_utils.dart';
+import 'schema_v13.dart';
+import 'schema_v14.dart';
+import 'schema_v15.dart';
 import '../../../features/sleep/data/models/sleep_entry.dart';
 import '../../models/nap_entry.dart';
 import '../../../features/meals/data/models/meal_entry.dart';
@@ -8,27 +15,37 @@ import '../../../features/exercise/data/models/exercise_entry.dart';
 import '../../models/task_entry.dart';
 import '../../models/activity_entry.dart';
 import '../../../features/tags/data/models/tag.dart';
-import '../../../core/constants/app_config.dart';
 
 class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
   static Database? _database;
 
+  static const int schemaVersion = 15;
+
+  /// Overrides the database file location (e.g. `inMemoryDatabasePath`).
+  @visibleForTesting
+  static String? databasePathOverride;
+
   DatabaseService._init();
+
+  static const String _fileName = 'dailyrhythm.db';
+
+  /// Location of the database file (used by backup and restore).
+  static Future<String> databaseFilePath() async =>
+      databasePathOverride ?? join(await getDatabasesPath(), _fileName);
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('dailyrhythm.db');
+    _database = await _initDB();
     return _database!;
   }
 
-  Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, filePath);
+  Future<Database> _initDB() async {
+    final path = await databaseFilePath();
 
     return await openDatabase(
       path,
-      version: 11,
+      version: schemaVersion,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -184,6 +201,169 @@ class DatabaseService {
         order++;
       }
     }
+    if (oldVersion < 12) {
+      // Version 11 shipped without an upgrade step, so databases upgraded from
+      // version 10 or earlier never received these tables.
+      final hadCategories = (await db.rawQuery(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'tag_categories'",
+      )).isNotEmpty;
+      await db.execute(_napEntriesSql(ifNotExists: true));
+      await db.execute(_tagCategoriesSql(ifNotExists: true));
+      // Defaults only for a new table: on a working v11 database they may
+      // have been deleted on purpose. Categories in use are always added.
+      await _seedTagCategories(db, includeDefaults: !hadCategories);
+
+      // Price becomes optional (fruit, snacks and free food often have none).
+      // SQLite cannot drop NOT NULL in place, so rebuild the table.
+      await db.execute(_mealEntriesSql(table: 'meal_entries_new'));
+      await db.execute('''
+        INSERT INTO meal_entries_new (id, date, time, name, quantity, price, calories, tags, notes)
+        SELECT id, date, time, name, quantity, price, calories, tags, notes FROM meal_entries
+      ''');
+      await db.execute('DROP TABLE meal_entries');
+      await db.execute('ALTER TABLE meal_entries_new RENAME TO meal_entries');
+
+      // Some screens stored the save time in `date`, which hid those entries
+      // from exact-date lookups. Every `date` is a calendar day.
+      for (final table in _datedTables) {
+        await db.execute(
+          "UPDATE $table SET date = substr(date, 1, 10) || 'T00:00:00.000' "
+          "WHERE date NOT LIKE '%T00:00:00.000'",
+        );
+      }
+      await _mergeDuplicateDays(db);
+    }
+    if (oldVersion < 13) {
+      await SchemaV13.apply(db);
+    }
+    if (oldVersion < 14) {
+      await SchemaV14.apply(db);
+    }
+    if (oldVersion < 15) {
+      await SchemaV15.apply(db);
+    }
+  }
+
+  static const List<String> _datedTables = [
+    'sleep_entries',
+    'nap_entries',
+    'meal_entries',
+    'mood_entries',
+    'exercise_entries',
+    'task_entries',
+    'activity_entries',
+  ];
+
+  static String _napEntriesSql({bool ifNotExists = false}) => '''
+    CREATE TABLE ${ifNotExists ? 'IF NOT EXISTS ' : ''}nap_entries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      startTime TEXT NOT NULL,
+      durationHours REAL NOT NULL,
+      tags TEXT
+    )
+  ''';
+
+  static String _tagCategoriesSql({bool ifNotExists = false}) => '''
+    CREATE TABLE ${ifNotExists ? 'IF NOT EXISTS ' : ''}tag_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      color TEXT,
+      sort_order INTEGER
+    )
+  ''';
+
+  static String _mealEntriesSql({String table = 'meal_entries'}) => '''
+    CREATE TABLE $table (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      time TEXT NOT NULL,
+      name TEXT NOT NULL,
+      quantity INTEGER DEFAULT 1,
+      price REAL,
+      calories INTEGER,
+      tags TEXT,
+      notes TEXT
+    )
+  ''';
+
+  /// Sleep and mood are one row per day. Before dates were normalized a day
+  /// could get a second row; keep the latest, filling its gaps from the
+  /// others, and drop the rest.
+  static Future<void> _mergeDuplicateDays(DatabaseExecutor db) async {
+    final sleepDays = [
+      for (final r in await db.rawQuery('SELECT date FROM sleep_entries GROUP BY date HAVING COUNT(*) > 1')) r['date'] as String,
+    ];
+    for (final (table, columns) in [
+      ('sleep_entries', ['wakeUpTime', 'sleepTime', 'napHours', 'tags']),
+      ('mood_entries', ['notes', 'emoji']),
+    ]) {
+      for (final column in columns) {
+        await db.execute('''
+          UPDATE $table SET $column = (
+            SELECT o.$column FROM $table o
+            WHERE o.date = $table.date AND o.$column IS NOT NULL AND o.$column != '' ORDER BY o.id DESC LIMIT 1)
+          WHERE ($column IS NULL OR $column = '')
+            AND date IN (SELECT date FROM $table GROUP BY date HAVING COUNT(*) > 1)
+        ''');
+      }
+      await db.execute('DELETE FROM $table WHERE id NOT IN (SELECT MAX(id) FROM $table GROUP BY date)');
+    }
+    // The kept row's wake time may have come from another row, so work out
+    // the merged days' totals, and the next days', again.
+    for (final iso in sleepDays) {
+      final day = DateTime.parse(iso);
+      for (final d in [day, DateTime(day.year, day.month, day.day + 1)]) {
+        final rows = await db.query('sleep_entries', where: 'date = ?', whereArgs: [d.toIso8601String()]);
+        if (rows.isEmpty) continue;
+        final previous = await db.query(
+          'sleep_entries',
+          where: 'date = ?',
+          whereArgs: [DateTime(d.year, d.month, d.day - 1).toIso8601String()],
+        );
+        final bed = previous.isEmpty ? null : previous.first['sleepTime'] as String?;
+        final wake = rows.first['wakeUpTime'] as String?;
+        await db.update(
+          'sleep_entries',
+          {'totalHours': bed == null || wake == null ? null : sleepDurationHours(DateTime.parse(bed), DateTime.parse(wake))},
+          where: 'id = ?',
+          whereArgs: [rows.first['id']],
+        );
+      }
+    }
+  }
+
+  /// Ensures the default categories (unless [includeDefaults] is false),
+  /// plus any category already referenced by a tag, exist in `tag_categories`.
+  static Future<void> _seedTagCategories(DatabaseExecutor db, {bool includeDefaults = true}) async {
+    final defaults = includeDefaults ? const ['General', 'Health', 'Work', 'Hobby', 'Activity'] : const <String>[];
+    final existing = (await db.query('tag_categories', columns: ['name']))
+        .map((row) => row['name'] as String)
+        .toSet();
+    final used = (await db.rawQuery('SELECT DISTINCT category FROM tags ORDER BY category'))
+        .map((row) => row['category'] as String);
+
+    var order = existing.length;
+    for (final name in {...defaults, ...used}) {
+      if (existing.add(name)) {
+        await db.insert('tag_categories', {'name': name, 'color': null, 'sort_order': order++});
+      }
+    }
+  }
+
+  /// Returns [map] with its `date` normalized to the start of that day.
+  static Map<String, dynamic> _withDay(Map<String, dynamic> map) {
+    final date = map['date'];
+    if (date is String) {
+      map['date'] = dayOf(DateTime.parse(date)).toIso8601String();
+    }
+    return map;
+  }
+
+  static List<String> _dayRangeArgs(DateTime date) {
+    final start = dayOf(date);
+    final end = DateTime(start.year, start.month, start.day + 1);
+    return [start.toIso8601String(), end.toIso8601String()];
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -201,30 +381,10 @@ class DatabaseService {
     ''');
 
     // Nap entries table
-    await db.execute('''
-      CREATE TABLE nap_entries (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date TEXT NOT NULL,
-        startTime TEXT NOT NULL,
-        durationHours REAL NOT NULL,
-        tags TEXT
-      )
-    ''');
+    await db.execute(_napEntriesSql());
 
     // Meal entries table
-    await db.execute('''
-      CREATE TABLE meal_entries (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date TEXT NOT NULL,
-        time TEXT NOT NULL,
-        name TEXT NOT NULL,
-        quantity INTEGER DEFAULT 1,
-        price REAL NOT NULL,
-        calories INTEGER,
-        tags TEXT,
-        notes TEXT
-      )
-    ''');
+    await db.execute(_mealEntriesSql());
 
     // Mood entries table
     await db.execute('''
@@ -298,21 +458,10 @@ class DatabaseService {
     ''');
 
     // Tag categories table
-    await db.execute('''
-      CREATE TABLE tag_categories (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE,
-        color TEXT,
-        sort_order INTEGER
-      )
-    ''');
+    await db.execute(_tagCategoriesSql());
 
     // Create default categories with sort order
-    await db.insert('tag_categories', {'name': 'General', 'color': null, 'sort_order': 0});
-    await db.insert('tag_categories', {'name': 'Health', 'color': null, 'sort_order': 1});
-    await db.insert('tag_categories', {'name': 'Work', 'color': null, 'sort_order': 2});
-    await db.insert('tag_categories', {'name': 'Hobby', 'color': null, 'sort_order': 3});
-    await db.insert('tag_categories', {'name': 'Activity', 'color': null, 'sort_order': 4});
+    await _seedTagCategories(db);
 
     // Create default tags
     // Using Unicons - storing icon names instead of unicode
@@ -365,13 +514,17 @@ class DatabaseService {
     for (final tag in defaultTags) {
       await db.insert('tags', tag);
     }
+
+    await SchemaV13.apply(db);
+    await SchemaV14.apply(db);
+    await SchemaV15.apply(db);
   }
 
   // ==================== Sleep Entry CRUD ====================
 
   Future<int> createSleepEntry(SleepEntry entry) async {
     final db = await database;
-    return await db.insert('sleep_entries', entry.toMap());
+    return await db.insert('sleep_entries', _withDay(entry.toMap()));
   }
 
   Future<SleepEntry?> getSleepEntry(int id) async {
@@ -404,7 +557,7 @@ class DatabaseService {
 
   Future<List<SleepEntry>> getAllSleepEntries() async {
     final db = await database;
-    final maps = await db.query('sleep_entries', orderBy: 'date DESC');
+    final maps = await db.query('sleep_entries', orderBy: 'date DESC, id DESC');
     return maps.map((map) => SleepEntry.fromMap(map)).toList();
   }
 
@@ -435,34 +588,95 @@ class DatabaseService {
       return await updateSleepEntry(entry.copyWith(id: existing.id));
     } else {
       // Create new entry
-      return await db.insert('sleep_entries', entry.toMap());
+      return await db.insert('sleep_entries', _withDay(entry.toMap()));
     }
+  }
+
+  /// Saves the sleep entry for its day and keeps day totals consistent.
+  ///
+  /// A day's total runs from the previous day's bedtime to that day's wake
+  /// time, so saving day N computes N's total and recomputes N+1's.
+  /// Returns the saved total for day N, or null if it cannot be computed.
+  Future<double?> saveSleepEntry(SleepEntry entry) async {
+    final db = await database;
+    final day = dayOf(entry.date);
+    // One transaction, so day N and N+1 can't end up with mismatched totals.
+    return db.transaction((txn) async {
+      Future<SleepEntry?> onDay(DateTime d) async {
+        final rows = await txn.query('sleep_entries', where: 'date = ?', whereArgs: [d.toIso8601String()], limit: 1);
+        return rows.isEmpty ? null : SleepEntry.fromMap(rows.first);
+      }
+
+      final previous = await onDay(DateTime(day.year, day.month, day.day - 1));
+      final totalHours = previous?.sleepTime != null && entry.wakeUpTime != null
+          ? sleepDurationHours(previous!.sleepTime!, entry.wakeUpTime!)
+          : null;
+
+      final existing = await onDay(day);
+      final map = SleepEntry(
+        id: existing?.id ?? entry.id,
+        date: day,
+        wakeUpTime: entry.wakeUpTime,
+        sleepTime: entry.sleepTime,
+        totalHours: totalHours,
+        napHours: entry.napHours,
+        tags: entry.tags,
+      ).toMap();
+      if (existing == null) {
+        map.remove('id');
+        await txn.insert('sleep_entries', map);
+      } else {
+        await txn.update('sleep_entries', map, where: 'id = ?', whereArgs: [existing.id]);
+      }
+
+      final next = await onDay(DateTime(day.year, day.month, day.day + 1));
+      if (next != null && next.wakeUpTime != null) {
+        await txn.update(
+          'sleep_entries',
+          {'totalHours': entry.sleepTime == null ? null : sleepDurationHours(entry.sleepTime!, next.wakeUpTime!)},
+          where: 'id = ?',
+          whereArgs: [next.id],
+        );
+      }
+      return totalHours;
+    });
   }
 
   Future<int> updateSleepEntry(SleepEntry entry) async {
     final db = await database;
     return await db.update(
       'sleep_entries',
-      entry.toMap(),
+      _withDay(entry.toMap()),
       where: 'id = ?',
       whereArgs: [entry.id],
     );
   }
 
+  /// Deletes a day's sleep. The next day's total came from this day's
+  /// bedtime, so it becomes unknown.
   Future<int> deleteSleepEntry(int id) async {
     final db = await database;
-    return await db.delete(
-      'sleep_entries',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return db.transaction((txn) async {
+      final rows = await txn.query('sleep_entries', columns: ['date'], where: 'id = ?', whereArgs: [id]);
+      final deleted = await txn.delete('sleep_entries', where: 'id = ?', whereArgs: [id]);
+      if (rows.isNotEmpty) {
+        final day = dayOf(DateTime.parse(rows.first['date'] as String));
+        await txn.update(
+          'sleep_entries',
+          {'totalHours': null},
+          where: 'date = ?',
+          whereArgs: [DateTime(day.year, day.month, day.day + 1).toIso8601String()],
+        );
+      }
+      return deleted;
+    });
   }
 
   // ==================== Nap Entry CRUD ====================
 
   Future<int> createNapEntry(NapEntry entry) async {
     final db = await database;
-    return await db.insert('nap_entries', entry.toMap());
+    return await db.insert('nap_entries', _withDay(entry.toMap()));
   }
 
   Future<NapEntry?> getNapEntry(int id) async {
@@ -495,7 +709,7 @@ class DatabaseService {
 
   Future<List<NapEntry>> getAllNapEntries() async {
     final db = await database;
-    final maps = await db.query('nap_entries', orderBy: 'date DESC');
+    final maps = await db.query('nap_entries', orderBy: 'date DESC, startTime DESC, id DESC');
     return maps.map((map) => NapEntry.fromMap(map)).toList();
   }
 
@@ -503,7 +717,7 @@ class DatabaseService {
     final db = await database;
     return await db.update(
       'nap_entries',
-      entry.toMap(),
+      _withDay(entry.toMap()),
       where: 'id = ?',
       whereArgs: [entry.id],
     );
@@ -522,7 +736,7 @@ class DatabaseService {
 
   Future<int> createMealEntry(MealEntry entry) async {
     final db = await database;
-    return await db.insert('meal_entries', entry.toMap());
+    return await db.insert('meal_entries', _withDay(entry.toMap()));
   }
 
   Future<MealEntry?> getMealEntry(int id) async {
@@ -555,7 +769,7 @@ class DatabaseService {
 
   Future<List<MealEntry>> getAllMealEntries() async {
     final db = await database;
-    final maps = await db.query('meal_entries', orderBy: 'date DESC');
+    final maps = await db.query('meal_entries', orderBy: 'date DESC, time DESC, id DESC');
     return maps.map((map) => MealEntry.fromMap(map)).toList();
   }
 
@@ -563,7 +777,7 @@ class DatabaseService {
     final db = await database;
     return await db.update(
       'meal_entries',
-      entry.toMap(),
+      _withDay(entry.toMap()),
       where: 'id = ?',
       whereArgs: [entry.id],
     );
@@ -649,27 +863,92 @@ class DatabaseService {
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
+  /// The first day anything was logged, or null for an empty database.
+  Future<DateTime?> firstLoggedDay() async {
+    final db = await database;
+    final row = (await db.rawQuery('''
+      SELECT MIN(d) AS first FROM (
+        SELECT MIN(date) AS d FROM sleep_entries UNION ALL SELECT MIN(date) FROM nap_entries
+        UNION ALL SELECT MIN(date) FROM meal_entries UNION ALL SELECT MIN(date) FROM mood_entries
+        UNION ALL SELECT MIN(date) FROM exercise_entries UNION ALL SELECT MIN(date) FROM task_entries
+        UNION ALL SELECT MIN(date) FROM activity_entries UNION ALL SELECT MIN(date) FROM journal_entries
+        UNION ALL SELECT MIN(date) FROM health_metrics UNION ALL SELECT MIN(start) FROM health_workouts
+      )
+    ''')).first;
+    return row['first'] == null ? null : dayOf(DateTime.parse(row['first'] as String));
+  }
+
+  /// How often each tag is used, by tag id: activity entries plus moments.
+  Future<Map<int, int>> getTagUseCounts() async {
+    final db = await database;
+    final rows = await db.rawQuery('''
+      SELECT tag_id, COUNT(*) AS n FROM (
+        SELECT tagId AS tag_id FROM activity_entries
+        UNION ALL SELECT tag_id FROM journal_entry_tags
+      ) GROUP BY tag_id
+    ''');
+    return {for (final r in rows) r['tag_id'] as int: r['n'] as int};
+  }
+
+  /// Moves tags [tagIds] into the group [group], creating it if needed,
+  /// and removes groups no tag uses any more.
+  Future<void> moveTagsToGroup(List<int> tagIds, String group) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      for (final id in tagIds) {
+        await txn.update('tags', {'category': group}, where: 'id = ?', whereArgs: [id]);
+      }
+      final order = Sqflite.firstIntValue(await txn.rawQuery('SELECT COALESCE(MAX(sort_order) + 1, 0) FROM tag_categories'));
+      await txn.rawInsert('INSERT OR IGNORE INTO tag_categories (name, sort_order) VALUES (?, ?)', [group, order]);
+      await txn.delete('tag_categories', where: 'name NOT IN (SELECT category FROM tags)');
+    });
+  }
+
+  /// Merges tag [fromId] into [intoId]: its activity entries and moment
+  /// links move over (a day or moment that already has both keeps one,
+  /// with both notes), then [fromId] is deleted.
+  Future<void> mergeTags(int fromId, int intoId) async {
+    if (fromId == intoId) return;
+    final db = await database;
+    await db.transaction((txn) async {
+      final both = await txn.rawQuery('''
+        SELECT f.id AS from_id, f.notes AS from_notes, i.id AS into_id, i.notes AS into_notes
+        FROM activity_entries f JOIN activity_entries i ON i.date = f.date AND i.tagId = ?
+        WHERE f.tagId = ?
+      ''', [intoId, fromId]);
+      for (final r in both) {
+        final notes = [r['into_notes'], r['from_notes']].whereType<String>().where((n) => n.trim().isNotEmpty);
+        if (r['from_notes'] case final String n when n.trim().isNotEmpty) {
+          await txn.update('activity_entries', {'notes': notes.toSet().join('; ')}, where: 'id = ?', whereArgs: [r['into_id']]);
+        }
+        await txn.delete('activity_entries', where: 'id = ?', whereArgs: [r['from_id']]);
+      }
+      await txn.update('activity_entries', {'tagId': intoId}, where: 'tagId = ?', whereArgs: [fromId]);
+      await txn.rawInsert(
+        'INSERT OR IGNORE INTO journal_entry_tags (entry_id, tag_id) SELECT entry_id, ? FROM journal_entry_tags WHERE tag_id = ?',
+        [intoId, fromId],
+      );
+      await txn.delete('journal_entry_tags', where: 'tag_id = ?', whereArgs: [fromId]);
+      await txn.delete('tags', where: 'id = ?', whereArgs: [fromId]);
+    });
+  }
+
+  /// Deletes a tag with its activity entries and its links to moments
+  /// (foreign keys aren't enforced, so nothing cascades on its own).
   Future<int> deleteTag(int id) async {
     final db = await database;
-    // First delete all activity entries that reference this tag
-    await db.delete(
-      'activity_entries',
-      where: 'tagId = ?',
-      whereArgs: [id],
-    );
-    // Then delete the tag itself
-    return await db.delete(
-      'tags',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return db.transaction((txn) async {
+      await txn.delete('activity_entries', where: 'tagId = ?', whereArgs: [id]);
+      await txn.delete('journal_entry_tags', where: 'tag_id = ?', whereArgs: [id]);
+      return txn.delete('tags', where: 'id = ?', whereArgs: [id]);
+    });
   }
 
   // ==================== Mood Entry CRUD ====================
 
   Future<int> createMoodEntry(MoodEntry entry) async {
     final db = await database;
-    return await db.insert('mood_entries', entry.toMap());
+    return await db.insert('mood_entries', _withDay(entry.toMap()));
   }
 
   Future<int> upsertMoodEntry(MoodEntry entry) async {
@@ -679,7 +958,7 @@ class DatabaseService {
       // Preserve the original ID when updating
       return await updateMoodEntry(entry.copyWith(id: existing.id));
     } else {
-      return await db.insert('mood_entries', entry.toMap());
+      return await db.insert('mood_entries', _withDay(entry.toMap()));
     }
   }
 
@@ -717,7 +996,7 @@ class DatabaseService {
     final db = await database;
     return await db.update(
       'mood_entries',
-      entry.toMap(),
+      _withDay(entry.toMap()),
       where: 'id = ?',
       whereArgs: [entry.id],
     );
@@ -745,14 +1024,36 @@ class DatabaseService {
     return maps.map((map) => TagCategory.fromMap(map)).toList();
   }
 
+  /// Updates a category. Tags reference categories by name, so a rename is
+  /// applied to its tags in the same transaction.
   Future<int> updateTagCategory(TagCategory category) async {
     final db = await database;
-    return await db.update(
-      'tag_categories',
-      category.toMap(),
-      where: 'id = ?',
-      whereArgs: [category.id],
-    );
+    return await db.transaction((txn) async {
+      final previous = await txn.query(
+        'tag_categories',
+        columns: ['name'],
+        where: 'id = ?',
+        whereArgs: [category.id],
+      );
+      final count = await txn.update(
+        'tag_categories',
+        category.toMap(),
+        where: 'id = ?',
+        whereArgs: [category.id],
+      );
+      if (previous.isNotEmpty) {
+        final oldName = previous.first['name'] as String;
+        if (oldName != category.name) {
+          await txn.update(
+            'tags',
+            {'category': category.name},
+            where: 'category = ?',
+            whereArgs: [oldName],
+          );
+        }
+      }
+      return count;
+    });
   }
 
   Future<int> deleteTagCategory(int id) async {
@@ -782,16 +1083,15 @@ class DatabaseService {
 
   Future<int> createExerciseEntry(ExerciseEntry entry) async {
     final db = await database;
-    return await db.insert('exercise_entries', entry.toMap());
+    return await db.insert('exercise_entries', _withDay(entry.toMap()));
   }
 
   Future<List<ExerciseEntry>> getExerciseEntriesByDate(DateTime date) async {
     final db = await database;
-    final normalizedDate = DateTime(date.year, date.month, date.day);
     final maps = await db.query(
       'exercise_entries',
-      where: 'date = ?',
-      whereArgs: [normalizedDate.toIso8601String()],
+      where: 'date >= ? AND date < ?',
+      whereArgs: _dayRangeArgs(date),
       orderBy: 'timestamp DESC',
     );
     return maps.map((map) => ExerciseEntry.fromMap(map)).toList();
@@ -801,7 +1101,7 @@ class DatabaseService {
     final db = await database;
     return await db.update(
       'exercise_entries',
-      entry.toMap(),
+      _withDay(entry.toMap()),
       where: 'id = ?',
       whereArgs: [entry.id],
     );
@@ -820,16 +1120,15 @@ class DatabaseService {
 
   Future<int> createTaskEntry(TaskEntry entry) async {
     final db = await database;
-    return await db.insert('task_entries', entry.toMap());
+    return await db.insert('task_entries', _withDay(entry.toMap()));
   }
 
   Future<List<TaskEntry>> getTaskEntriesByDate(DateTime date) async {
     final db = await database;
-    final normalizedDate = DateTime(date.year, date.month, date.day);
     final maps = await db.query(
       'task_entries',
-      where: 'date = ?',
-      whereArgs: [normalizedDate.toIso8601String()],
+      where: 'date >= ? AND date < ?',
+      whereArgs: _dayRangeArgs(date),
       orderBy: 'timestamp DESC',
     );
     return maps.map((map) => TaskEntry.fromMap(map)).toList();
@@ -848,16 +1147,15 @@ class DatabaseService {
 
   Future<int> createActivityEntry(ActivityEntry entry) async {
     final db = await database;
-    return await db.insert('activity_entries', entry.toMap());
+    return await db.insert('activity_entries', _withDay(entry.toMap()));
   }
 
   Future<List<ActivityEntry>> getActivityEntriesByDate(DateTime date) async {
     final db = await database;
-    final normalizedDate = DateTime(date.year, date.month, date.day);
     final maps = await db.query(
       'activity_entries',
-      where: 'date = ?',
-      whereArgs: [normalizedDate.toIso8601String()],
+      where: 'date >= ? AND date < ?',
+      whereArgs: _dayRangeArgs(date),
       orderBy: 'timestamp DESC',
     );
     return maps.map((map) => ActivityEntry.fromMap(map)).toList();
@@ -939,7 +1237,118 @@ class DatabaseService {
     return maps.map((map) => MealEntry.fromMap(map)).toList();
   }
 
+  // ==================== Full-table Queries (for Export) ====================
+
+  Future<List<MoodEntry>> getAllMoodEntries() async {
+    final db = await database;
+    final maps = await db.query('mood_entries', orderBy: 'date ASC, id ASC');
+    return maps.map((map) => MoodEntry.fromMap(map)).toList();
+  }
+
+  Future<List<ExerciseEntry>> getAllExerciseEntries() async {
+    final db = await database;
+    final maps = await db.query('exercise_entries', orderBy: 'date ASC, timestamp ASC');
+    return maps.map((map) => ExerciseEntry.fromMap(map)).toList();
+  }
+
+  Future<List<TaskEntry>> getAllTaskEntries() async {
+    final db = await database;
+    final maps = await db.query('task_entries', orderBy: 'date ASC, timestamp ASC');
+    return maps.map((map) => TaskEntry.fromMap(map)).toList();
+  }
+
+  Future<List<ActivityEntry>> getAllActivityEntries() async {
+    final db = await database;
+    final maps = await db.query('activity_entries', orderBy: 'date ASC, timestamp ASC');
+    return maps.map((map) => ActivityEntry.fromMap(map)).toList();
+  }
+
+  /// Whether [table] has a row whose columns equal [values].
+  /// Used by import to skip rows that already exist.
+  Future<bool> rowExists(String table, Map<String, Object?> values) async {
+    final db = await database;
+    final where = values.keys.map((k) => values[k] == null ? '$k IS NULL' : '$k = ?').join(' AND ');
+    final args = values.values.where((v) => v != null).toList();
+    final result = await db.query(table, columns: ['id'], where: where, whereArgs: args, limit: 1);
+    return result.isNotEmpty;
+  }
+
+  /// Checks that the file at [path] is a DailyRhythm database this version
+  /// of the app can open. Returns a reason it cannot be restored, or null.
+  static Future<String?> checkRestorable(String path) async {
+    Database? db;
+    try {
+      db = await openDatabase(path, readOnly: true, singleInstance: false);
+      final version = await db.getVersion();
+      if (version > schemaVersion) {
+        return 'This backup was made by a newer version of DailyRhythm. Update the app first.';
+      }
+      final tables = (await db.rawQuery("SELECT name FROM sqlite_master WHERE type = 'table'"))
+          .map((row) => row['name'])
+          .toSet();
+      // Version 1's tables, plus moods from version 2 on: opening a
+      // backup only creates that table when upgrading from version 1.
+      final required = ['sleep_entries', 'meal_entries', 'tags', if (version >= 2) 'mood_entries'];
+      if (version < 1 || !required.every(tables.contains)) {
+        return 'This file is not a DailyRhythm backup.';
+      }
+      return null;
+    } catch (_) {
+      return 'The backup file is damaged or not a database.';
+    } finally {
+      await db?.close();
+    }
+  }
+
   // ==================== Utility ====================
+
+  /// Writes a consistent copy of the database to [path] without closing it.
+  Future<void> snapshotTo(String path) async {
+    final file = File(path);
+    if (await file.exists()) await file.delete();
+    final db = await database;
+    try {
+      await db.execute('VACUUM INTO ?', [path]);
+    } on DatabaseException {
+      // SQLite before 3.27 (Android 9 and 10).
+      if (await file.exists()) await file.delete();
+      await snapshotByCopying(db, path);
+    }
+  }
+
+  /// Builds a copy in [path] table by table through ATTACH, inside one
+  /// transaction. Copying the file instead could miss writes still in the
+  /// write-ahead log.
+  @visibleForTesting
+  static Future<void> snapshotByCopying(Database db, String path) async {
+    await db.execute('ATTACH DATABASE ? AS snap', [path]);
+    try {
+      await db.transaction((txn) async {
+        final objects = await txn.rawQuery(
+          "SELECT type, name, sql FROM main.sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' "
+          "AND type IN ('table', 'index') ORDER BY type = 'index'",
+        );
+        for (final o in objects) {
+          final sql = o['sql'] as String;
+          if (o['type'] == 'table') {
+            await txn.execute(sql.replaceFirst(RegExp(r'^CREATE TABLE\s+(IF NOT EXISTS\s+)?', caseSensitive: false), 'CREATE TABLE snap.'));
+            await txn.execute('INSERT INTO snap."${o['name']}" SELECT * FROM main."${o['name']}"');
+          } else {
+            await txn.execute(
+              sql.replaceFirstMapped(
+                RegExp(r'^CREATE\s+(UNIQUE\s+)?INDEX\s+(IF NOT EXISTS\s+)?', caseSensitive: false),
+                (m) => 'CREATE ${m[1] ?? ''}INDEX snap.',
+              ),
+            );
+          }
+        }
+        final version = (await txn.rawQuery('PRAGMA main.user_version')).first.values.first as int;
+        await txn.execute('PRAGMA snap.user_version = $version');
+      });
+    } finally {
+      await db.execute('DETACH DATABASE snap');
+    }
+  }
 
   Future<void> close() async {
     if (_database != null) {

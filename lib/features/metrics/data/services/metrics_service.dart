@@ -1,8 +1,11 @@
 import 'dart:math';
 import '../models/metric_data.dart';
 import '../../../exercise/data/models/exercise_entry.dart';
+import '../../../sleep/data/models/sleep_entry.dart';
 import '../../../tags/data/models/tag.dart';
+import '../../../../shared/models/mood_entry.dart';
 import '../../../../shared/services/database/database_service.dart';
+import '../../../../shared/utils/date_utils.dart';
 
 /// Service for calculating metrics and statistics
 class MetricsService {
@@ -13,27 +16,29 @@ class MetricsService {
   // ==================== Sleep Metrics ====================
 
   Future<SleepMetrics> calculateSleepMetrics(DateRange range, {DateRange? previousRange}) async {
-    final entries = await _db.getSleepEntriesInRange(range.start, range.end);
+    // Only days with a computed total count. Without the previous night's
+    // bedtime a day's sleep is unknown, not zero or same-day bed-to-wake.
+    final entries = (await _db.getSleepEntriesInRange(range.start, range.end))
+        .where((e) => e.totalHours != null)
+        .toList();
 
     // Calculate daily data points
     final dailyData = <DailyDataPoint>[];
     for (final entry in entries) {
-      final hours = entry.totalHours ?? entry.calculatedHours;
-      dailyData.add(DailyDataPoint(date: entry.date, value: hours));
+      dailyData.add(DailyDataPoint(date: entry.date, value: entry.totalHours!));
     }
 
     // Calculate average
     final averageHours = entries.isEmpty
         ? 0.0
-        : entries.fold<double>(0.0, (sum, entry) => sum + (entry.totalHours ?? entry.calculatedHours)) / entries.length;
+        : entries.fold<double>(0.0, (sum, entry) => sum + entry.totalHours!) / entries.length;
 
     // Calculate consistency (standard deviation)
     double consistency = 0.0;
     if (entries.length > 1) {
       final mean = averageHours;
       final variance = entries.fold<double>(0.0, (sum, entry) {
-        final hours = entry.totalHours ?? entry.calculatedHours;
-        return sum + pow(hours - mean, 2);
+        return sum + pow(entry.totalHours! - mean, 2);
       }) / entries.length;
       consistency = sqrt(variance);
     }
@@ -41,11 +46,13 @@ class MetricsService {
     // Calculate previous period average if provided
     double? previousAverageHours;
     if (previousRange != null) {
-      final previousEntries = await _db.getSleepEntriesInRange(previousRange.start, previousRange.end);
+      final previousEntries = (await _db.getSleepEntriesInRange(previousRange.start, previousRange.end))
+          .where((e) => e.totalHours != null)
+          .toList();
       if (previousEntries.isNotEmpty) {
         previousAverageHours = previousEntries.fold<double>(
           0.0,
-          (sum, entry) => sum + (entry.totalHours ?? entry.calculatedHours),
+          (sum, entry) => sum + entry.totalHours!,
         ) / previousEntries.length;
       }
     }
@@ -138,31 +145,27 @@ class MetricsService {
     final entries = await _db.getActivityEntriesInRange(range.start, range.end);
     final allTags = await _db.getAllTags();
 
-    final totalActivities = entries.length;
-
-    // Count tag frequencies
-    final tagCounts = <int, int>{};
+    // Days per activity tag (food sources and symptoms aren't activities),
+    // as a share of the days with any activity.
+    final kinds = {for (final t in allTags) t.id: t};
+    final tagDays = <int, Set<DateTime>>{};
     for (final entry in entries) {
-      tagCounts[entry.tagId] = (tagCounts[entry.tagId] ?? 0) + 1;
+      if (kinds[entry.tagId]?.knownKind != TagKind.activity) continue;
+      (tagDays[entry.tagId] ??= {}).add(dayOf(entry.date));
     }
+    final tagged = {for (final days in tagDays.values) ...days};
+    final totalActivities = tagDays.values.fold(0, (sum, days) => sum + days.length);
 
-    // Create top activities list
     final topActivities = <ActivityFrequency>[];
-    for (final tagEntry in tagCounts.entries) {
-      final tag = allTags.firstWhere((t) => t.id == tagEntry.key, orElse: () => Tag(
-        name: 'Unknown',
-        emoji: 'question_circle',
-        category: 'General',
-      ));
-
-      final count = tagEntry.value;
-      final percentage = totalActivities > 0 ? (count / totalActivities) * 100 : 0.0;
-
+    for (final MapEntry(key: id, value: days) in tagDays.entries) {
+      final tag = kinds[id]!;
+      final share = days.length / tagged.length;
       topActivities.add(ActivityFrequency(
         tagName: tag.name,
         emoji: tag.emoji,
-        count: count,
-        percentage: percentage,
+        count: days.length,
+        percentage: share * 100,
+        everyday: tagged.length >= ActivityMetrics.everydayMinDays && share >= ActivityMetrics.everydayShare,
       ));
     }
 
@@ -185,99 +188,91 @@ class MetricsService {
 
   // ==================== Insights Generation ====================
 
+  /// Fewest logged days a period needs before it is summarised or compared.
+  /// Below this a difference is more likely noise than a pattern.
+  static const int minDaysForInsight = 5;
+
+  /// Describes the period's data as neutral observations.
+  ///
+  /// Insights state what was logged and how it compares with the previous
+  /// period of the same length. They never give health advice or imply
+  /// cause and effect, and periods with too little data are skipped.
   Future<List<MetricsInsight>> generateInsights(DateRange range) async {
     final insights = <MetricsInsight>[];
 
-    // Get all metrics
-    final previousRange = _calculatePreviousRange(range);
+    // All time has nothing before it to compare with.
+    final previousRange = range.isAllTime ? null : _calculatePreviousRange(range);
+    // One after another: sqflite has one connection, so running these
+    // together gains nothing.
     final sleepMetrics = await calculateSleepMetrics(range, previousRange: previousRange);
     final moodMetrics = await calculateMoodMetrics(range, previousRange: previousRange);
     final exerciseMetrics = await calculateExerciseMetrics(range, previousRange: previousRange);
+    var previousSleep = const <SleepEntry>[];
+    var previousMoods = const <MoodEntry>[];
+    if (previousRange != null) {
+      previousSleep = await _db.getSleepEntriesInRange(previousRange.start, previousRange.end);
+      previousMoods = await _db.getMoodEntriesInRange(previousRange.start, previousRange.end);
+    }
+    final previousSleepDays = previousSleep.where((e) => e.totalHours != null).length;
+    // Days, not entries: a day can have more than one mood.
+    final previousMoodDays = {for (final e in previousMoods) dayOf(e.date)}.length;
 
-    // Sleep insights
-    if (sleepMetrics.averageHours > 0) {
-      if (sleepMetrics.previousAverageHours != null) {
-        final diff = sleepMetrics.averageHours - sleepMetrics.previousAverageHours!;
-        if (diff.abs() > 0.5) {
-          final direction = diff > 0 ? 'more' : 'less';
-          final hours = diff.abs().toStringAsFixed(1);
-          insights.add(MetricsInsight(
-            text: 'You slept $hours hours $direction this period compared to the previous period',
-            type: diff > 0 ? InsightType.positive : InsightType.negative,
-          ));
-        }
-      }
-
-      if (sleepMetrics.consistency < 1.0) {
+    // Sleep
+    final sleepDays = sleepMetrics.dailyData.length;
+    if (sleepDays >= minDaysForInsight) {
+      final average = sleepMetrics.averageHours.toStringAsFixed(1);
+      final previous = sleepMetrics.previousAverageHours;
+      if (previous != null && previousSleepDays >= minDaysForInsight &&
+          (sleepMetrics.averageHours - previous).abs() >= 0.5) {
+        final diff = sleepMetrics.averageHours - previous;
         insights.add(MetricsInsight(
-          text: 'Great sleep consistency! Your sleep hours are very regular',
-          type: InsightType.positive,
+          text: 'Average sleep was ${average}h over $sleepDays nights, '
+              '${diff.abs().toStringAsFixed(1)}h ${diff > 0 ? 'more' : 'less'} than the previous period',
+          type: diff > 0 ? InsightType.positive : InsightType.negative,
         ));
-      } else if (sleepMetrics.consistency > 2.0) {
+      } else {
         insights.add(MetricsInsight(
-          text: 'Your sleep schedule varies significantly. Try maintaining a consistent sleep routine',
-          type: InsightType.negative,
+          text: 'Average sleep was ${average}h over $sleepDays nights',
+          type: InsightType.neutral,
+        ));
+      }
+      insights.add(MetricsInsight(
+        text: 'Sleep length varied by about ±${sleepMetrics.consistency.toStringAsFixed(1)}h from night to night',
+        type: InsightType.neutral,
+      ));
+    }
+
+    // Mood
+    final moodDays = {for (final d in moodMetrics.dailyData) dayOf(d.date)}.length;
+    final previousMood = moodMetrics.previousAverageMood;
+    if (moodDays >= minDaysForInsight && previousMood != null && previousMoodDays >= minDaysForInsight) {
+      final diff = moodMetrics.averageMood - previousMood;
+      if (diff.abs() >= 0.5) {
+        insights.add(MetricsInsight(
+          text: 'Average mood was ${moodMetrics.averageMood.toStringAsFixed(1)}/5 over $moodDays days, '
+              '${diff > 0 ? 'up' : 'down'} from ${previousMood.toStringAsFixed(1)} in the previous period',
+          type: diff > 0 ? InsightType.positive : InsightType.negative,
         ));
       }
     }
 
-    // Mood insights
-    if (moodMetrics.averageMood > 0) {
-      if (moodMetrics.averageMood >= 4.0) {
-        insights.add(MetricsInsight(
-          text: 'Your mood has been consistently positive! Keep up the great work',
-          type: InsightType.positive,
-        ));
-      } else if (moodMetrics.averageMood < 3.0) {
-        insights.add(MetricsInsight(
-          text: 'Your mood could use a boost. Consider activities that bring you joy',
-          type: InsightType.negative,
-        ));
-      }
-
-      if (moodMetrics.previousAverageMood != null) {
-        final diff = moodMetrics.averageMood - moodMetrics.previousAverageMood!;
-        if (diff.abs() > 0.5) {
-          final direction = diff > 0 ? 'improved' : 'decreased';
-          insights.add(MetricsInsight(
-            text: 'Your mood has $direction compared to the previous period',
-            type: diff > 0 ? InsightType.positive : InsightType.negative,
-          ));
-        }
-      }
-    }
-
-    // Exercise insights
+    // Exercise
+    final previousExercises = exerciseMetrics.previousTotalExercises;
     if (exerciseMetrics.totalExercises > 0) {
-      if (exerciseMetrics.previousTotalExercises != null) {
-        final diff = exerciseMetrics.totalExercises - exerciseMetrics.previousTotalExercises!;
-        if (diff > 0) {
-          insights.add(MetricsInsight(
-            text: 'You exercised $diff more times this period. Great progress!',
-            type: InsightType.positive,
-          ));
-        }
-      }
-
+      final sessions = exerciseMetrics.totalExercises;
+      final comparison = previousExercises != null && previousExercises != sessions
+          ? ' ($previousExercises in the previous period)'
+          : '';
+      insights.add(MetricsInsight(
+        text: '$sessions exercise ${sessions == 1 ? 'entry' : 'entries'} logged$comparison',
+        type: InsightType.neutral,
+      ));
       if (exerciseMetrics.totalRunningDistance > 0) {
         insights.add(MetricsInsight(
           text: 'You ran ${exerciseMetrics.totalRunningDistance.toStringAsFixed(1)}km this period',
           type: InsightType.neutral,
         ));
       }
-    } else if (range.daysCount >= 7) {
-      insights.add(MetricsInsight(
-        text: 'No exercises logged this period. Physical activity can improve mood and sleep',
-        type: InsightType.neutral,
-      ));
-    }
-
-    // Correlation insight (basic)
-    if (sleepMetrics.averageHours >= 7.0 && moodMetrics.averageMood >= 4.0) {
-      insights.add(MetricsInsight(
-        text: 'Good sleep and positive mood are aligned. Keep maintaining this balance!',
-        type: InsightType.correlation,
-      ));
     }
 
     return insights;
@@ -292,18 +287,5 @@ class MetricsService {
       end: previousEnd,
       label: 'Previous Period',
     );
-  }
-
-  // ==================== Helper Methods ====================
-
-  TrendDirection calculateTrend(double current, double? previous) {
-    if (previous == null || current == 0) return TrendDirection.neutral;
-
-    final diff = current - previous;
-    final percentChange = (diff / previous).abs();
-
-    if (percentChange < 0.05) return TrendDirection.neutral; // Less than 5% change
-    if (diff > 0) return TrendDirection.up;
-    return TrendDirection.down;
   }
 }

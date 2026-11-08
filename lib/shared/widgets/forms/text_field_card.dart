@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../../core/theme/app_theme.dart';
 
 /// A reusable text input field wrapped in a Card
@@ -33,7 +33,6 @@ class TextFieldCard extends StatelessWidget {
           decoration: InputDecoration(
             labelText: labelText,
             hintText: hintText,
-            border: const OutlineInputBorder(),
           ),
           keyboardType: keyboardType,
           maxLines: maxLines,

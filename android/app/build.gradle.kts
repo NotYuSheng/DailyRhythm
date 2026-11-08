@@ -31,7 +31,8 @@ android {
 
     defaultConfig {
         applicationId = "com.dailyrhythm.dailyrhythm"
-        minSdk = flutter.minSdkVersion
+        // Health Connect needs Android 8.0 (API 26).
+        minSdk = maxOf(flutter.minSdkVersion, 26)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -71,4 +72,19 @@ android {
 
 flutter {
     source = "../.."
+}
+
+// A debug-signed release can't update an installed Play build, so fail
+// instead of silently falling back. Set ALLOW_DEBUG_SIGNED_RELEASE=true to
+// build one anyway for local testing.
+gradle.taskGraph.whenReady {
+    val buildsRelease = allTasks.any { it.name.contains("Release") }
+    val allowDebugSigning = System.getenv("ALLOW_DEBUG_SIGNED_RELEASE") == "true"
+    if (buildsRelease && !keystorePropertiesFile.exists() && !allowDebugSigning) {
+        throw GradleException(
+            "android/key.properties is missing, so this release build would be signed " +
+                "with the debug key. Add key.properties (see README) or set " +
+                "ALLOW_DEBUG_SIGNED_RELEASE=true for a local test build."
+        )
+    }
 }

@@ -1,8 +1,22 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../../shared/services/export/export_service.dart';
+import '../../../../shared/providers/common_providers.dart';
+import '../../../sleep/data/providers/sleep_providers.dart';
+import '../../../meals/data/providers/meal_providers.dart';
+import '../../../exercise/data/providers/exercise_providers.dart';
+import '../../../tags/data/providers/tag_providers.dart';
+import '../../../tags/presentation/screens/tags_screen.dart';
+import '../../../health/presentation/health_settings_card.dart';
+import '../../../garden/data/garden_providers.dart';
+import '../../../garden/data/plant_style_provider.dart';
+import '../../../garden/domain/plant_ink.dart';
+import '../../../spending/data/spending_providers.dart';
+import '../../../metrics/data/providers/metrics_providers.dart';
+import '../../../profile/presentation/profile_screen.dart';
 import 'backup_settings_screen.dart';
 import 'debug_database_screen.dart';
 
@@ -21,6 +35,28 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppTheme.spacePulse3),
         children: [
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.label_outline),
+              title: const Text('Tags'),
+              subtitle: const Text('Activities, symptoms and food sources'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const TagsScreen())),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacePulse3),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('Your profile'),
+              subtitle: const Text('Age, height and weight for typical ranges'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const ProfileScreen())),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacePulse3),
+          const HealthSettingsCard(),
+          const SizedBox(height: AppTheme.spacePulse3),
           Card(
             child: Column(
               children: [
@@ -42,7 +78,7 @@ class SettingsScreen extends ConsumerWidget {
                 ListTile(
                   leading: const Icon(Icons.download_outlined),
                   title: const Text('Export Data'),
-                  subtitle: const Text('Save to Downloads folder'),
+                  subtitle: const Text('Save all data as a zip of CSV files'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () => _handleExportData(context),
                 ),
@@ -50,9 +86,9 @@ class SettingsScreen extends ConsumerWidget {
                 ListTile(
                   leading: const Icon(Icons.upload_outlined),
                   title: const Text('Import Data'),
-                  subtitle: const Text('Load from CSV files'),
+                  subtitle: const Text('Load an export zip or CSV files'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () => _handleImportData(context),
+                  onTap: () => _handleImportData(context, ref),
                 ),
               ],
             ),
@@ -72,6 +108,20 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 const Divider(height: 1),
                 ListTile(
+                  leading: const Icon(Icons.local_florist_outlined),
+                  title: const Text('Plant style'),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: SegmentedButton<PlantStyle>(
+                      showSelectedIcon: false,
+                      segments: [for (final s in PlantStyle.values) ButtonSegment(value: s, label: Text(s.label))],
+                      selected: {ref.watch(plantStyleProvider)},
+                      onSelectionChanged: (s) => ref.read(plantStyleProvider.notifier).set(s.first),
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
                   leading: const Icon(Icons.notifications_outlined),
                   title: const Text('Notifications'),
                   subtitle: const Text('Reminders and alerts'),
@@ -87,21 +137,24 @@ class SettingsScreen extends ConsumerWidget {
           Card(
             child: Column(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.bug_report_outlined),
-                  title: const Text('Debug Database'),
-                  subtitle: const Text('View database contents'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const DebugDatabaseScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const Divider(height: 1),
+                // Raw database viewer is for development builds only
+                if (kDebugMode) ...[
+                  ListTile(
+                    leading: const Icon(Icons.bug_report_outlined),
+                    title: const Text('Debug Database'),
+                    subtitle: const Text('View database contents'),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DebugDatabaseScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const Divider(height: 1),
+                ],
                 ListTile(
                   leading: const Icon(Icons.info_outlined),
                   title: const Text('About'),
@@ -142,7 +195,7 @@ class SettingsScreen extends ConsumerWidget {
       builder: (context) => AlertDialog(
         title: const Text('Export Data'),
         content: const Text(
-          'This will export all your data (sleep, meals, and tags) to CSV files in your Downloads folder. Continue?',
+          'This will export all your data as a zip of CSV files. You choose where to save it next. Continue?',
         ),
         actions: [
           TextButton(
@@ -186,8 +239,8 @@ class SettingsScreen extends ConsumerWidget {
     try {
       final exportService = ExportService.instance;
 
-      // Export all data - this will automatically trigger the share sheet
-      final result = await exportService.exportAllDataToCsv();
+      // Export all data - this opens the system save dialog
+      final result = await exportService.exportAllData();
 
       // Close loading dialog
       if (context.mounted) {
@@ -196,11 +249,12 @@ class SettingsScreen extends ConsumerWidget {
 
       // Show success message with location
       if (context.mounted) {
-        final folderName = result.path.split('/').last;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Exported ${result.totalEntries} entries in ${result.fileCount} files to Downloads/$folderName',
+              result == null
+                  ? 'Export cancelled'
+                  : 'Exported ${result.totalEntries} entries in ${result.fileCount} files',
             ),
             duration: const Duration(seconds: 4),
             behavior: SnackBarBehavior.floating,
@@ -227,22 +281,32 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  Future<void> _handleImportData(BuildContext context) async {
-    // Show loading dialog
+  Future<void> _handleImportData(BuildContext context, WidgetRef ref) async {
+    // Rows applied so far and the total; null until the file is read.
+    final progress = ValueNotifier<(int, int)?>(null);
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
+      builder: (context) => Center(
         child: Card(
           child: Padding(
-            padding: EdgeInsets.all(AppTheme.spacePulse4),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: AppTheme.spacePulse3),
-                Text('Importing your data...'),
-              ],
+            padding: const EdgeInsets.all(AppTheme.spacePulse4),
+            child: SizedBox(
+              width: 240,
+              child: ValueListenableBuilder(
+                valueListenable: progress,
+                builder: (context, value, _) {
+                  final (done, total) = value ?? (0, 0);
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      LinearProgressIndicator(value: total == 0 ? null : done / total),
+                      const SizedBox(height: AppTheme.spacePulse3),
+                      Text(total == 0 ? 'Importing your data...' : 'Importing $done of $total entries'),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -252,36 +316,63 @@ class SettingsScreen extends ConsumerWidget {
     try {
       final exportService = ExportService.instance;
 
-      // Import data - this will open a directory picker
-      final importedCount = await exportService.importDataFromCsv();
+      // Opens a file picker, then imports in one transaction.
+      final result = await exportService.importData(
+        onProgress: (done, total) => progress.value = (done, total),
+      );
 
       // Close loading dialog
       if (context.mounted) {
         Navigator.pop(context);
       }
 
-      if (importedCount == 0) {
-        // User cancelled or no data was imported
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Import cancelled or no valid data found'),
-              duration: Duration(seconds: 3),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+      // Refresh every screen that shows imported data
+      if (result != null) {
+        for (final provider in [
+          sleepEntriesProvider,
+          mealEntriesProvider,
+          moodEntryProvider,
+          exerciseEntriesProvider,
+          taskEntriesProvider,
+          activityEntriesProvider,
+          tagsByCategoryProvider,
+          gardenDayProvider,
+          gardenMonthProvider,
+          monthRecapProvider,
+          gardenYearProvider,
+          periodOverviewProvider,
+          checkinProvider,
+          momentsProvider,
+          spendingProvider,
+          todaySleepEntriesProvider,
+          todayMealEntriesProvider,
+          todayMoodEntryProvider,
+          allTagsProvider,
+          allTagCategoriesProvider,
+        ]) {
+          ref.invalidate(provider);
         }
+        invalidateMetrics(ref);
+      }
+
+      final String message;
+      if (result == null) {
+        message = 'Import cancelled';
+      } else if (!result.foundFiles) {
+        message = 'No DailyRhythm export files found in that folder';
       } else {
-        // Show success message
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Successfully imported $importedCount entries'),
-              duration: const Duration(seconds: 3),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
+        message = 'Imported ${result.imported} entries'
+            '${result.duplicates > 0 ? ', skipped ${result.duplicates} already present' : ''}'
+            '${result.invalid > 0 ? ', ${result.invalid} unreadable rows' : ''}';
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     } catch (e) {
       // Close loading dialog

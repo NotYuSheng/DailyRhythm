@@ -13,9 +13,9 @@ class GoogleDriveService {
   GoogleDriveService._init();
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
+    // drive.file only covers files this app created (the backup folder).
     scopes: [
       drive.DriveApi.driveFileScope,
-      drive.DriveApi.driveAppdataScope,
     ],
     serverClientId: AppConfig.googleServerClientId,
   );
@@ -111,16 +111,17 @@ class GoogleDriveService {
     }
   }
 
+  /// Connects to Drive with the signed-in account if not yet connected.
+  Future<void> _ensureDriveApi() async {
+    if (_driveApi != null) return;
+    final authClient = await _googleSignIn.authenticatedClient();
+    if (authClient == null) throw Exception('Not authenticated');
+    _driveApi = drive.DriveApi(authClient);
+  }
+
   // Upload database file to Google Drive
   Future<String?> uploadBackup(File dbFile) async {
-    if (_driveApi == null) {
-      final authClient = await _googleSignIn.authenticatedClient();
-      if (authClient != null) {
-        _driveApi = drive.DriveApi(authClient);
-      } else {
-        throw Exception('Not authenticated');
-      }
-    }
+    await _ensureDriveApi();
 
     try {
       // Check if backup folder exists, create if not
@@ -156,14 +157,7 @@ class GoogleDriveService {
 
   // Download latest backup from Google Drive
   Future<File?> downloadLatestBackup() async {
-    if (_driveApi == null) {
-      final authClient = await _googleSignIn.authenticatedClient();
-      if (authClient != null) {
-        _driveApi = drive.DriveApi(authClient);
-      } else {
-        throw Exception('Not authenticated');
-      }
-    }
+    await _ensureDriveApi();
 
     try {
       // Get backup folder
@@ -181,15 +175,19 @@ class GoogleDriveService {
         return null;
       }
 
-      // Get the most recent backup
-      final latestFile = fileList.files!.first;
-      final fileId = latestFile.id;
+      final fileId = fileList.files!.first.id;
+      return fileId == null ? null : await downloadBackup(fileId);
+    } catch (e) {
+      debugPrint('Error downloading backup: $e');
+      return null;
+    }
+  }
 
-      if (fileId == null) {
-        return null;
-      }
+  // Download a specific backup from Google Drive
+  Future<File?> downloadBackup(String fileId) async {
+    await _ensureDriveApi();
 
-      // Download the file
+    try {
       final drive.Media media = await _driveApi!.files.get(
         fileId,
         downloadOptions: drive.DownloadOptions.fullMedia,
@@ -209,16 +207,19 @@ class GoogleDriveService {
     }
   }
 
+  /// Deletes all but the newest [keep] backups. Returns how many were deleted.
+  Future<int> pruneBackups({int keep = 10}) async {
+    final backups = await listBackups(); // newest first
+    var deleted = 0;
+    for (final backup in backups.skip(keep)) {
+      if (await deleteBackup(backup.id)) deleted++;
+    }
+    return deleted;
+  }
+
   // Get all backups from Google Drive
   Future<List<BackupFile>> listBackups() async {
-    if (_driveApi == null) {
-      final authClient = await _googleSignIn.authenticatedClient();
-      if (authClient != null) {
-        _driveApi = drive.DriveApi(authClient);
-      } else {
-        throw Exception('Not authenticated');
-      }
-    }
+    await _ensureDriveApi();
 
     try {
       final folderId = await _getOrCreateBackupFolder();
@@ -254,14 +255,7 @@ class GoogleDriveService {
 
   // Delete a specific backup
   Future<bool> deleteBackup(String fileId) async {
-    if (_driveApi == null) {
-      final authClient = await _googleSignIn.authenticatedClient();
-      if (authClient != null) {
-        _driveApi = drive.DriveApi(authClient);
-      } else {
-        throw Exception('Not authenticated');
-      }
-    }
+    await _ensureDriveApi();
 
     try {
       await _driveApi!.files.delete(fileId);

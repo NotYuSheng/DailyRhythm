@@ -1,91 +1,77 @@
-import 'package:flutter/material.dart';
-import '../../features/journal/presentation/screens/journal_screen.dart';
-import '../../features/journal/presentation/screens/calendar_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
+import '../../features/garden/presentation/screens/garden_month_screen.dart';
+import '../../features/garden/presentation/screens/garden_today_screen.dart';
+import '../../features/health/data/health_sync_service.dart';
+import '../../features/health/presentation/health_settings_card.dart';
+import '../../features/metrics/data/providers/metrics_providers.dart';
+import '../../shared/services/database/database_provider.dart';
 import '../../features/metrics/presentation/screens/metrics_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentIndex = 0;
-  DateTime? _selectedDate;
 
-  List<Widget> get _screens => [
-        JournalScreen(
-          initialDate: _selectedDate,
-          onTodayPressed: () {
-            setState(() {
-              _selectedDate = null;
-            });
-          },
-          onDateChanged: (date) {
-            setState(() {
-              _selectedDate = date;
-            });
-          },
-        ),
-        CalendarScreen(
-          onDateSelected: (date) {
-            setState(() {
-              _selectedDate = date;
-              _currentIndex = 0; // Switch to Journal tab
-            });
-          },
-        ),
-        const MetricsScreen(),
-        const SettingsScreen(),
-      ];
+  @override
+  void initState() {
+    super.initState();
+    // Picks up new steps, sleep and workouts when sync is on.
+    HealthSyncService(ref.read(databaseProvider)).syncIfEnabled().then((_) {
+      if (mounted) invalidateHealth(ref);
+    });
+  }
+
+  static const _screens = [
+    GardenTodayScreen(),
+    GardenMonthScreen(),
+    MetricsScreen(),
+    SettingsScreen(),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      body: _screens[_currentIndex],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              color: theme.colorScheme.outline,
-              width: 1,
-            ),
+      // Keeps each tab's state (such as the day being viewed) when switching.
+      body: IndexedStack(index: _currentIndex, children: _screens),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) {
+          // Metrics stays alive in the stack; refresh it for anything
+          // logged since.
+          if (index == 2 && _currentIndex != 2) invalidateMetrics(ref);
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.local_florist_outlined),
+            selectedIcon: Icon(Icons.local_florist),
+            label: 'Today',
           ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.book_outlined),
-              activeIcon: Icon(Icons.book),
-              label: 'Journal',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_today_outlined),
-              activeIcon: Icon(Icons.calendar_today),
-              label: 'Calendar',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.analytics_outlined),
-              activeIcon: Icon(Icons.analytics),
-              label: 'Metrics',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings),
-              label: 'Settings',
-            ),
-          ],
-        ),
+          NavigationDestination(
+            icon: Icon(Icons.grid_view_outlined),
+            selectedIcon: Icon(Icons.grid_view),
+            label: 'Garden',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.analytics_outlined),
+            selectedIcon: Icon(Icons.analytics),
+            label: 'Metrics',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
+        ],
       ),
     );
   }

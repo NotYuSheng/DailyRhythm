@@ -1,16 +1,29 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import '../../data/models/food_item.dart';
 import '../../data/models/meal_entry.dart';
+import '../../data/services/calorie_lookup.dart';
+import '../../domain/calorie_estimator.dart';
+import '../../domain/diet_score.dart';
+import '../../domain/portion.dart';
+import '../../domain/food_matcher.dart';
 import '../../../../shared/services/database/database_provider.dart';
+import '../../../../shared/services/database/repositories/catalog_repository.dart';
 import '../../data/providers/meal_providers.dart';
-import '../../../tags/data/providers/tag_providers.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/utils/date_utils.dart';
+import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
+import '../../../../shared/widgets/name_suggestions.dart';
+import '../../../../shared/models/spending_entry.dart';
+import '../../../../shared/services/database/repositories/spending_repository.dart';
+import '../../../spending/data/spending_providers.dart';
+import '../../../spending/presentation/add_spending_screen.dart';
 
 class AddMealScreen extends ConsumerStatefulWidget {
-  final MealEntry? entry;
+  final MealEntry? entry; // For editing existing entries
+  final DateTime? date; // Day to log a new meal on (defaults to today)
 
-  const AddMealScreen({super.key, this.entry});
+  const AddMealScreen({super.key, this.entry, this.date});
 
   @override
   ConsumerState<AddMealScreen> createState() => _AddMealScreenState();
@@ -23,34 +36,73 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _caloriesController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
-  final List<String> _selectedTags = [];
+  final FocusNode _nameFocus = FocusNode();
+  String? _foodSource;
 
-  // Available meal tags
-  final List<String> _availableTags = [
-    'Home Cooked',
-    'Fast Food',
-    'Restaurant',
-    'Takeout',
-    'Delivery',
-    'Food Court',
-    'Free',
-    'Cafe',
-    'Meal Prep',
-    'Special Occasion',
-  ];
+  /// Where typed calories came from: 'off' after a lookup, else the user.
+  String? _kcalSource;
+
+  /// A looked-up value per serving, so the calories follow the quantity.
+  double? _lookedUpPerServing;
+
+  /// Whether the calories were typed or looked up on this screen; only
+  /// then do they become the food's (editing an old meal shouldn't).
+  bool _caloriesChanged = false;
+
+  /// How big this meal was: scales the food's calories or the estimate, and
+  /// is saved as this meal's calories when not regular.
+  Portion _portion = Portion.regular;
+
+  /// Health score categories ticked on this screen; null until touched.
+  List<String>? _healthTags;
+
+  /// Whether ticked categories become the food's, for every meal of it, or
+  /// only this meal's. A meal tagged on its own opens as a one-off.
+  late bool _rememberTags = widget.entry?.healthTags == null;
+
+  /// What the health score uses: ticked here, else this meal's own, else
+  /// the food's; null leaves it to the name.
+  List<String>? get _currentTags =>
+      _healthTags ?? widget.entry?.healthTags ?? _matcher.exact(_nameController.text)?.item.healthTags;
+
+  /// The user's foods, for suggestions; empty until loaded.
+  FoodMatcher _matcher = FoodMatcher(const []);
+  CalorieEstimator _estimator = CalorieEstimator(yourFoods: const [], reference: const []);
+  List<FoodChoice> _usual = const [];
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _date = widget.entry?.date ?? DateTime(now.year, now.month, now.day);
+    _date = dayOf(widget.entry?.date ?? widget.date ?? DateTime.now());
     _nameController.text = widget.entry?.name ?? '';
     _quantityController.text = widget.entry?.quantity.toString() ?? '1';
-    _priceController.text = widget.entry?.price.toString() ?? '';
+    _priceController.text = widget.entry?.price?.toString() ?? '';
     _caloriesController.text = widget.entry?.calories?.toString() ?? '';
     _notesController.text = widget.entry?.notes ?? '';
-    if (widget.entry != null) {
-      _selectedTags.addAll(widget.entry!.tags);
+    _foodSource = widget.entry?.foodSource;
+    _nameController.addListener(() => setState(() {}));
+    _quantityController.addListener(() => setState(() {
+          if (_lookedUpPerServing case final kcal?) _caloriesController.text = '${(kcal * _quantity).round()}';
+        }));
+    _loadFoods();
+  }
+
+  Future<void> _loadFoods() async {
+    final catalog = CatalogRepository(ref.read(databaseProvider));
+    final foods = await catalog.foodsWithUses();
+    final usual = widget.entry == null ? await catalog.usualFoods(_date) : const <FoodChoice>[];
+    if (mounted) {
+      setState(() {
+        _matcher = FoodMatcher(foods);
+        _estimator = CalorieEstimator(yourFoods: [for (final f in foods) f.item], reference: const []);
+        _usual = usual;
+      });
+    }
+    // The common foods table comes after: suggestions needn't wait for it.
+    if (!mounted) return;
+    final reference = await ref.read(referenceFoodsProvider.future);
+    if (mounted && reference.isNotEmpty) {
+      setState(() => _estimator = CalorieEstimator(yourFoods: [for (final f in foods) f.item], reference: reference));
     }
   }
 
@@ -61,11 +113,171 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     _priceController.dispose();
     _caloriesController.dispose();
     _notesController.dispose();
+    _nameFocus.dispose();
     super.dispose();
   }
 
+  /// Fills the form from a known food: its name and, if none is typed yet,
+  /// the price it was last logged at.
+  void _choose(FoodItem food) {
+    setState(() {
+      _nameController.text = food.name;
+      _nameController.selection = TextSelection.collapsed(offset: food.name.length);
+      if (_priceController.text.trim().isEmpty && food.lastPrice != null) {
+        _priceController.text = _formatPrice(food.lastPrice!);
+      }
+    });
+  }
+
+  int get _quantity => switch (int.tryParse(_quantityController.text.trim())) {
+        final n? when n > 0 => n,
+        _ => 1,
+      };
+
+  /// The known food's calories for this quantity, when it has them.
+  double? get _inheritedCalories => switch (_matcher.exact(_nameController.text)?.item.kcal) {
+        final kcal? => kcal * _quantity,
+        null => null,
+      };
+
+  /// A suggested calories-per-serving for a food that has none yet. Only
+  /// for a new entry: editing an old meal never sets its food's calories.
+  CalorieEstimate? get _estimate {
+    final text = _nameController.text.trim();
+    if (widget.entry != null || text.isEmpty || _inheritedCalories != null) return null;
+    return _estimator.estimate(text);
+  }
+
+  /// Asks Open Food Facts (only when tapped; only the name is sent) and
+  /// fills the calories from the match the user picks.
+  Future<void> _lookUpCalories() async {
+    final name = _nameController.text.trim();
+    // Asked once; the sheet may rebuild while it waits.
+    final results = ref.read(calorieLookupProvider).search(name);
+    final picked = await showModalBottomSheet<CalorieMatch>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: FutureBuilder<List<CalorieMatch>>(
+          future: results,
+          builder: (context, snapshot) {
+            final theme = Theme.of(context);
+            return ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                    child: Text('Calories for “$name”', style: theme.textTheme.titleLarge),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      'From Open Food Facts (ODbL). Estimates, not nutrition advice.',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (snapshot.connectionState != ConnectionState.done)
+                    const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
+                  else if (snapshot.hasError)
+                    const Padding(padding: EdgeInsets.all(20), child: Text('Couldn’t reach Open Food Facts. Check the connection and try again.'))
+                  else if (snapshot.data!.isEmpty)
+                    const Padding(padding: EdgeInsets.all(20), child: Text('No matches. You can type the calories instead.'))
+                  else
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          for (final m in snapshot.data!)
+                            ListTile(
+                              title: Text(m.name),
+                              subtitle: m.brand == null ? null : Text(m.brand!),
+                              trailing: Text('${m.kcal.round()} kcal\nper ${m.basis}', textAlign: TextAlign.right),
+                              onTap: () => Navigator.pop(context, m),
+                            ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    final perServing = picked.basis == 'serving';
+    setState(() {
+      _caloriesChanged = true;
+      if (perServing) {
+        _lookedUpPerServing = picked.kcal;
+        _caloriesController.text = '${(picked.kcal * _quantity).round()}';
+        _kcalSource = picked.source;
+      } else {
+        // Per 100 g isn't a serving: a starting point for the user to adjust,
+        // so it's saved as theirs.
+        _lookedUpPerServing = null;
+        _caloriesController.text = '${picked.kcal.round()}';
+        _kcalSource = null;
+      }
+    });
+    if (!perServing) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('That’s per 100 g. Adjust it to what you had.')),
+      );
+    }
+  }
+
+  /// How healthy this meal is and why; opens to change what's in it.
+  Widget _healthPanel(String name, String health) {
+    final selected = (_currentTags ?? DietScore.detect(name)).toSet();
+    final food = _matcher.exact(name)?.item.name ?? name.trim();
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: const EdgeInsets.only(bottom: 8),
+      title: Text(health),
+      subtitle: const Text('What’s in it? Change it if the name doesn’t say'),
+      children: [
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final c in DietScore.categories)
+              FilterChip(
+                label: Text(c.label),
+                selected: selected.contains(c.key),
+                onSelected: (on) => setState(() {
+                  // From the state now, not when this chip was built.
+                  final next = {...(_currentTags ?? DietScore.detect(_nameController.text))};
+                  on ? next.add(c.key) : next.remove(c.key);
+                  _healthTags = [for (final c in DietScore.categories) if (next.contains(c.key)) c.key];
+                }),
+              ),
+          ],
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text('Remember for $food'),
+          subtitle: Text(_rememberTags ? 'Every $food counts this way' : 'Only this meal'),
+          value: _rememberTags,
+          onChanged: (v) => setState(() => _rememberTags = v),
+        ),
+      ],
+    );
+  }
+
+  static String _formatPrice(double price) =>
+      price == price.roundToDouble() ? price.toStringAsFixed(0) : price.toStringAsFixed(2);
+
   @override
   Widget build(BuildContext context) {
+    final text = _nameController.text;
+    final estimate = _estimate;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.entry == null ? 'Add Meal' : 'Edit Meal'),
@@ -84,18 +296,39 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       body: ListView(
         padding: const EdgeInsets.all(AppTheme.spacePulse3),
         children: [
-          // Meal Name (Full Width)
           Card(
             child: Padding(
               padding: const EdgeInsets.all(AppTheme.spacePulse3),
-              child: TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Meal Name',
-                  hintText: 'What did you eat?',
-                  border: OutlineInputBorder(),
-                ),
-                textCapitalization: TextCapitalization.sentences,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Focus(
+                    onFocusChange: (_) => setState(() {}),
+                    child: TextField(
+                      controller: _nameController,
+                      focusNode: _nameFocus,
+                      autofocus: widget.entry == null,
+                      decoration: const InputDecoration(
+                        labelText: 'Meal Name',
+                        hintText: 'What did you eat?',
+                      ),
+                      textCapitalization: TextCapitalization.sentences,
+                      textInputAction: TextInputAction.next,
+                    ),
+                  ),
+                  NameSuggestions<FoodItem>(
+                    text: text,
+                    focused: _nameFocus.hasFocus,
+                    matcher: _matcher,
+                    usual: _usual,
+                    trailing: (f) => f.lastPrice == null ? null : '\$${_formatPrice(f.lastPrice!)}',
+                    onChoose: (f) {
+                      _choose(f);
+                      _nameFocus.unfocus();
+                    },
+                  ),
+                  if (DietScore.describe(text, tags: _currentTags) case final health?) _healthPanel(text, health),
+                ],
               ),
             ),
           ),
@@ -105,7 +338,6 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Quantity (Smaller)
               Expanded(
                 flex: 1,
                 child: Card(
@@ -113,18 +345,13 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                     padding: const EdgeInsets.all(AppTheme.spacePulse3),
                     child: TextField(
                       controller: _quantityController,
-                      decoration: const InputDecoration(
-                        labelText: 'Qty',
-                        hintText: '1',
-                        border: OutlineInputBorder(),
-                      ),
+                      decoration: const InputDecoration(labelText: 'Qty', hintText: '1'),
                       keyboardType: TextInputType.number,
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: AppTheme.spacePulse3),
-              // Price (Larger)
               Expanded(
                 flex: 2,
                 child: Card(
@@ -133,9 +360,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                     child: TextField(
                       controller: _priceController,
                       decoration: const InputDecoration(
-                        labelText: 'Price',
+                        labelText: 'Price (optional)',
                         hintText: 'Enter amount',
-                        border: OutlineInputBorder(),
                         prefixText: '\$ ',
                       ),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -147,55 +373,53 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
           ),
           const SizedBox(height: AppTheme.spacePulse3),
 
-          // Calories (Optional)
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(AppTheme.spacePulse3),
-              child: TextField(
-                controller: _caloriesController,
-                decoration: const InputDecoration(
-                  labelText: 'Calories (Optional)',
-                  hintText: 'Enter calories',
-                  border: OutlineInputBorder(),
-                  suffixText: 'cal',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacePulse3),
-
-          // Tags
+          // Calories: the food's own, an estimate for a new one, or typed.
           Card(
             child: Padding(
               padding: const EdgeInsets.all(AppTheme.spacePulse3),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'Tags',
-                    style: Theme.of(context).textTheme.titleMedium,
+                  TextField(
+                    controller: _caloriesController,
+                    decoration: InputDecoration(
+                      labelText: 'Calories (optional)',
+                      // A known food's calories apply unless one is typed.
+                      hintText: switch ((_inheritedCalories, estimate)) {
+                        (final kcal?, _) => '≈ ${(kcal * _portion.factor).round()} from ${_matcher.exact(text)!.item.name}',
+                        (_, final e?) => '≈ ${(e.kcal * _quantity * _portion.factor).round()} (estimate)',
+                        _ => 'Enter calories',
+                      },
+                      // A new food gets this estimate unless something is typed.
+                      helperText: _inheritedCalories == null && estimate != null && _caloriesController.text.isEmpty
+                          ? 'An estimate, ${estimate.basis}. Type your own to change it.'
+                          : null,
+                      helperMaxLines: 2,
+                      suffixText: 'kcal',
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => setState(() {
+                      _kcalSource = null;
+                      _lookedUpPerServing = null;
+                      _caloriesChanged = true;
+                    }),
                   ),
-                  const SizedBox(height: AppTheme.spacePulse2),
-                  Wrap(
-                    spacing: AppTheme.spacePulse2,
-                    runSpacing: AppTheme.spacePulse2,
-                    children: _availableTags.map((tag) {
-                      final isSelected = _selectedTags.contains(tag);
-                      return FilterChip(
-                        label: Text(tag),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          setState(() {
-                            if (selected) {
-                              _selectedTags.add(tag);
-                            } else {
-                              _selectedTags.remove(tag);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
+                  const SizedBox(height: 10),
+                  // Bigger or smaller than the usual serving.
+                  SegmentedButton<Portion>(
+                    showSelectedIcon: false,
+                    segments: [for (final p in Portion.values) ButtonSegment(value: p, label: Text(p.label))],
+                    selected: {_portion},
+                    onSelectionChanged: (s) => setState(() => _portion = s.first),
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+                      onPressed: text.trim().isEmpty ? null : _lookUpCalories,
+                      icon: const Icon(Icons.search, size: 18),
+                      label: const Text('Look up calories'),
+                    ),
                   ),
                 ],
               ),
@@ -203,25 +427,119 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
           ),
           const SizedBox(height: AppTheme.spacePulse3),
 
-          // Notes
+          // Where it came from (one choice)
           Card(
             child: Padding(
               padding: const EdgeInsets.all(AppTheme.spacePulse3),
-              child: TextField(
-                controller: _notesController,
-                decoration: const InputDecoration(
-                  labelText: 'Notes (Optional)',
-                  hintText: 'Any additional details...',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-                textCapitalization: TextCapitalization.sentences,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('From', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: AppTheme.spacePulse2),
+                  Wrap(
+                    spacing: AppTheme.spacePulse2,
+                    runSpacing: AppTheme.spacePulse2,
+                    children: [
+                      for (final MapEntry(key: source, value: label) in FoodSource.labels.entries)
+                        ChoiceChip(
+                          label: Text(label),
+                          selected: _foodSource == source,
+                          onSelected: (on) => setState(() => _foodSource = on ? source : null),
+                        ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
+          const SizedBox(height: AppTheme.spacePulse3),
+
+          // Rarely needed details, folded away to keep logging quick.
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: ExpansionTile(
+              title: const Text('More'),
+              subtitle: const Text('Notes'),
+              initiallyExpanded: widget.entry?.notes?.isNotEmpty ?? false,
+              childrenPadding: const EdgeInsets.fromLTRB(
+                AppTheme.spacePulse3, 0, AppTheme.spacePulse3, AppTheme.spacePulse3),
+              children: [
+                TextField(
+                  controller: _notesController,
+                  decoration: const InputDecoration(
+                    labelText: 'Notes (Optional)',
+                    hintText: 'Any additional details...',
+                  ),
+                  maxLines: 3,
+                  textCapitalization: TextCapitalization.sentences,
+                ),
+              ],
+            ),
+          ),
+          // Imported history mixes in group events and gifts; this moves one
+          // out of food spending.
+          if (widget.entry?.id != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppTheme.spacePulse2),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+                  onPressed: _moveToSpending,
+                  icon: const Icon(Icons.celebration_outlined),
+                  label: const Text('Not a meal: move to events & gifts'),
+                ),
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  /// Turns this meal into an event or gift entry and removes the meal,
+  /// after asking: the meal's food link, tags and calories don't carry over.
+  Future<void> _moveToSpending() async {
+    final meal = widget.entry!;
+    final container = ProviderScope.containerOf(context, listen: false);
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Move to events & gifts?'),
+        content: Text('“${meal.name}” stops counting as food. Its amount moves; its food link, tags and calories don’t.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Move')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final SpendingEntry moved;
+    try {
+      moved = await SpendingRepository(container.read(databaseProvider)).moveMeal(
+        meal.id!,
+        SpendingEntry(
+          date: meal.date,
+          // Imported meals have a placeholder time; don't pass it on as real.
+          time: meal.timeKnown ? meal.time : null,
+          label: meal.name,
+          amount: meal.price ?? 0,
+          currency: meal.currency,
+          notes: meal.notes,
+          rawText: meal.rawText,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Couldn’t move it: $e')));
+      return;
+    }
+    container.invalidate(mealEntriesProvider(dayOf(meal.date)));
+    container.invalidate(todayMealEntriesProvider);
+    container.invalidate(spendingProvider(dayOf(meal.date)));
+    if (!mounted) return;
+    // Straight into the new entry, to pick event or gift.
+    await navigator.pushReplacement(MaterialPageRoute<void>(builder: (_) => AddSpendingScreen(entry: moved)));
   }
 
   Future<void> _saveMeal() async {
@@ -233,52 +551,89 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       return;
     }
 
-    if (_priceController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a price')),
-      );
-      return;
+    // Price is optional (fruit, snacks and free food often have none)
+    double? price;
+    final priceText = _priceController.text.trim();
+    if (priceText.isNotEmpty) {
+      price = double.tryParse(priceText);
+      if (price == null || price < 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a valid price')),
+        );
+        return;
+      }
     }
 
-    final price = double.tryParse(_priceController.text.trim());
-    if (price == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid price')),
-      );
+    // Keep the original time when editing; new meals use the current clock
+    // time on the selected day.
+    final now = DateTime.now();
+    final time = widget.entry?.time ?? atTimeOfDay(_date, now.hour, now.minute);
+
+    final quantityText = _quantityController.text.trim();
+    final quantity = quantityText.isEmpty ? 1 : int.tryParse(quantityText) ?? 0;
+    if (quantity < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Quantity must be at least 1')));
       return;
-    }
-
-    // Use current time if editing existing entry, otherwise use entry's time
-    final time = widget.entry?.time ?? DateTime.now();
-
-    // Parse quantity (default to 1)
-    int quantity = 1;
-    if (_quantityController.text.trim().isNotEmpty) {
-      quantity = int.tryParse(_quantityController.text.trim()) ?? 1;
     }
 
     // Parse calories (optional)
     int? calories;
     if (_caloriesController.text.trim().isNotEmpty) {
       calories = int.tryParse(_caloriesController.text.trim());
+      if (calories == null || calories < 0) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid calories')));
+        return;
+      }
     }
-
-    final entry = MealEntry(
-      id: widget.entry?.id,
-      date: _date,
-      time: time,
-      name: _nameController.text.trim(),
-      quantity: quantity,
-      price: price,
-      calories: calories,
-      tags: _selectedTags,
-      notes: _notesController.text.trim().isNotEmpty
-          ? _notesController.text.trim()
-          : null,
-    );
+    final teach = calories != null && _caloriesChanged;
 
     try {
       final db = ref.read(databaseProvider);
+
+      // Link to the canonical food (by name or alias), adding a new one if
+      // needed, and remember the price for next time.
+      final name = _nameController.text.trim();
+      final known = _matcher.exact(name)?.item;
+      final estimate = calories == null && known?.kcal == null ? _estimate : null;
+      // A small or large portion: this meal's own calories, the food's kept.
+      var mealCalories = calories;
+      if (calories == null && _portion != Portion.regular) {
+        final base = known?.kcal == null ? (estimate == null ? null : estimate.kcal * quantity) : known!.kcal! * quantity;
+        if (base != null) mealCalories = (base * _portion.factor).round();
+      }
+      // Typed calories become the food's, per serving, for next time.
+      final foodItemId = await CatalogRepository(db).saveFood(
+        FoodItem(
+          name: known?.name ?? name,
+          lastPrice: price,
+          // Else a food without calories starts from the estimate.
+          kcal: teach ? calories / quantity : estimate?.kcal,
+          kcalSource: teach ? _kcalSource ?? 'user' : (estimate == null ? null : 'estimate'),
+        ),
+      );
+
+      // Ticked categories: the food's for every meal of it, or this meal's.
+      final tags = _healthTags ?? widget.entry?.healthTags;
+      if (tags != null && _rememberTags) await CatalogRepository(db).setFoodHealthTags(foodItemId, tags);
+
+      final entry = MealEntry(
+        id: widget.entry?.id,
+        date: _date,
+        time: time,
+        name: known?.name ?? name,
+        quantity: quantity,
+        price: price,
+        calories: mealCalories,
+        // Legacy free-text tags on older meals are kept as they were.
+        tags: widget.entry?.tags ?? const [],
+        notes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
+        foodSource: _foodSource,
+        foodItemId: foodItemId,
+        currency: widget.entry?.currency ?? 'SGD',
+        rawText: widget.entry?.rawText,
+        timeKnown: widget.entry?.timeKnown ?? true,
+        healthTags: _rememberTags ? null : tags,
+      );
 
       if (widget.entry == null) {
         await db.createMealEntry(entry);
@@ -290,6 +645,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       final normalizedDate = DateTime(entry.date.year, entry.date.month, entry.date.day);
       ref.invalidate(mealEntriesProvider(normalizedDate));
       ref.invalidate(todayMealEntriesProvider);
+      ref.invalidate(foodCaloriesProvider);
+      ref.invalidate(foodHealthTagsProvider);
 
       if (mounted) {
         Navigator.pop(context);
@@ -306,45 +663,25 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     }
   }
 
-  void _confirmDelete() {
-    showDialog(
+  Future<void> _confirmDelete() async {
+    // Read before awaiting: ref can't be used once the screen is gone.
+    final container = ProviderScope.containerOf(context, listen: false);
+    final confirmed = await showDeleteConfirmationDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Delete Meal'),
-          content: const Text('Are you sure you want to delete this meal entry?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                if (widget.entry?.id != null) {
-                  final db = ref.read(databaseProvider);
-                  await db.deleteMealEntry(widget.entry!.id!);
+      title: 'Delete Meal',
+      message: 'Are you sure you want to delete this meal entry?',
+    );
+    if (!confirmed || widget.entry?.id == null) return;
 
-                  if (mounted) {
-                    // Invalidate the provider to refresh the list
-                    ref.invalidate(mealEntriesProvider(widget.entry!.date));
+    await container.read(databaseProvider).deleteMealEntry(widget.entry!.id!);
+    container.invalidate(mealEntriesProvider(dayOf(widget.entry!.date)));
+    container.invalidate(todayMealEntriesProvider);
+    if (!mounted) return;
 
-                    Navigator.pop(context); // Close dialog
-                    Navigator.pop(context); // Close edit screen
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Meal deleted'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Delete', style: TextStyle(color: AppTheme.rhythmBlack)),
-            ),
-          ],
-        );
-      },
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.pop(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Meal deleted'), duration: Duration(seconds: 2)),
     );
   }
 }

@@ -25,7 +25,7 @@ Delete Local App Data
 4. Confirm the deletion
 
 .. note::
-   This deletes all mood tracking data, activities, and app settings stored on your device.
+   This deletes all your entries (moods, moments, meals, exercise, health data), and app settings stored on your device.
 
 Option 2: Delete Account & All Data
 ------------------------------------
@@ -78,10 +78,10 @@ Need Help?
 If you need assistance with deleting your data or have questions about this policy, please:
 
 * Open an issue on our `GitHub repository <https://github.com/NotYuSheng/DailyRhythm/issues>`_
-* Review our `privacy practices <https://github.com/NotYuSheng/DailyRhythm>`_
+* Read our :doc:`privacy-policy`
 
 ----
 
 *Last updated: December 25, 2025*
 
-*DailyRhythm - Daily stats tracking app with rhythm aesthetic*
+*DailyRhythm - A local-first daily journal that grows a memory garden*

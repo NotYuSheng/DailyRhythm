@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../../core/theme/app_theme.dart';
 
 /// A reusable numeric input field wrapped in a Card
@@ -29,7 +29,6 @@ class NumberFieldCard extends StatelessWidget {
           decoration: InputDecoration(
             labelText: labelText,
             hintText: hintText,
-            border: const OutlineInputBorder(),
             suffixText: suffixText,
           ),
           keyboardType: TextInputType.numberWithOptions(decimal: allowDecimals),

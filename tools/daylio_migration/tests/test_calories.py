@@ -1,0 +1,105 @@
+import csv
+from collections import Counter
+
+from daylio_migration.app_export import build
+from daylio_migration.calories import accept, load_calories, write_calories
+
+
+def test_only_answers_for_foods_asked_about_with_sane_numbers_are_kept():
+    answer = [
+        {"food": "chicken rice", "kcal": 607.4, "serving": "1 plate"},
+        {"food": "Kopi", "kcal": 0},
+        {"food": "Invented", "kcal": 300},
+        {"food": "Haircut", "kcal": None},
+        {"food": "Buffet", "kcal": 9000},
+        "junk",
+    ]
+    out = accept(["Chicken rice", "Kopi", "Haircut", "Buffet"], answer)
+    assert out == {"Chicken rice": {"kcal": 607, "serving": "1 plate"}, "Haircut": {"kcal": None, "serving": ""}}
+
+
+def test_a_tidied_name_still_lines_up():
+    foods = ["Chyrsthamum tea", "Teh tarik"]
+    answer = [{"food": "Chrysanthemum tea", "kcal": 90}, {"food": "teh-tarik", "kcal": 150}]
+    assert {k: v["kcal"] for k, v in accept(foods, answer).items()} == {"Chyrsthamum tea": 90, "Teh tarik": 150}
+    # Out of step (an item missing): only exact names count.
+    assert list(accept(foods, answer[:1] + [{"food": "Other", "kcal": 1}, {"food": "x", "kcal": 1}])) == []
+
+
+def test_corrections_survive_a_rerun(tmp_path):
+    path = tmp_path / "calories.csv"
+    counts = Counter({"Chicken rice": 5, "Laksa": 2})
+    cache = {"chicken rice": {"kcal": 600, "serving": "1 plate"}, "laksa": {"kcal": 590, "serving": "1 bowl"}}
+    write_calories(path, counts, cache)
+    rows = list(csv.DictReader(open(path)))
+    rows[1]["kcal"] = "650"  # a person corrects laksa
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+    hows = write_calories(path, counts, cache)
+    assert load_calories(path) == {"chicken rice": {"kcal": 600.0, "how": "estimate"}, "laksa": {"kcal": 650.0, "how": "user"}}
+    assert hows == Counter({"estimate": 1, "user": 1})
+
+
+def test_a_number_typed_where_there_was_none_and_a_cleared_row_are_kept(tmp_path):
+    path = tmp_path / "calories.csv"
+    counts = Counter({"Kueh lapis": 2, "Buffet": 1})
+    cache = {"kueh lapis": {"kcal": None, "serving": ""}, "buffet": {"kcal": 2500, "serving": "1 buffet"}}
+    write_calories(path, counts, cache)
+    rows = list(csv.DictReader(open(path)))
+    rows[0]["kcal"] = "150"  # typed where the model said "not food"
+    rows[1]["kcal"] = ""  # a wrong estimate cleared
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+    write_calories(path, counts, cache)
+    write_calories(path, counts, cache)
+    after = {r["food"]: (r["kcal"], r["how"]) for r in csv.DictReader(open(path))}
+    assert after == {"Kueh lapis": ("150", "user"), "Buffet": ("", "user")}
+    assert load_calories(path) == {"kueh lapis": {"kcal": 150.0, "how": "user"}}
+
+
+def test_foods_get_their_calories_and_source_in_the_export():
+    day = {"date": "2024-03-05", "mood": 3, "wake": None, "bed": None, "journal": [], "activities": [],
+           "food_sources": [], "symptoms": [], "exercises": [], "supplements": [], "entries": [],
+           "meals": [{"text": "chicken rice 4", "name": "chicken rice", "canonical": "Chicken rice", "food": "Chicken rice",
+                      "quantity": None, "price": 4, "currency": "SGD", "comment": None, "price_approx": False}]}
+    files = build([day], None, {"chicken rice": {"kcal": 600.0, "how": "estimate"}})
+    food = list(csv.DictReader(files["food_items.csv"].splitlines()))[0]
+    assert (food["Kcal"], food["Kcal Source"]) == ("600", "estimate")
+
+
+def test_common_foods_table_keeps_only_well_formed_entries():
+    from daylio_migration.common_foods import clean
+
+    items = [
+        {"name": "Laksa", "aliases": ["curry laksa", "laksa", ""], "kcal": 589.6},
+        {"name": "laksa", "kcal": 500},
+        {"name": "Air", "kcal": 0},
+        {"name": "Feast", "kcal": 5000},
+        {"name": "", "kcal": 100},
+        {"name": "Kopi", "kcal": "120"},
+        "junk",
+    ]
+    assert clean(items) == [
+        {"name": "Laksa", "aliases": ["curry laksa"], "kcal": 590},
+        {"name": "Kopi", "aliases": [], "kcal": 120},
+    ]
+
+
+def test_a_food_without_an_answer_takes_one_from_a_later_run(tmp_path):
+    path = tmp_path / "calories.csv"
+    counts = Counter({"Mee pok": 3, "Tau huay": 1})
+    write_calories(path, counts, {})  # the model hadn't answered yet
+    hows = write_calories(path, counts, {"mee pok": {"kcal": 420, "serving": "1 bowl"}})
+    assert load_calories(path) == {"mee pok": {"kcal": 420.0, "how": "estimate"}}
+    assert hows == Counter({"estimate": 1, "unknown": 1})
+
+
+def test_an_alias_naming_another_food_is_dropped():
+    from daylio_migration.common_foods import clean
+
+    table = clean([{"name": "Kopi", "aliases": ["Kopi-O", "coffee"], "kcal": 120}, {"name": "Kopi-O", "kcal": 15}])
+    assert table[0]["aliases"] == ["coffee"]

@@ -1,3 +1,8 @@
+/// One day's sleep record.
+///
+/// [sleepTime] is that day's bedtime, so it belongs to the following night.
+/// [totalHours] runs from the previous day's [sleepTime] to this day's
+/// [wakeUpTime], and is null when the previous bedtime is unknown.
 class SleepEntry {
   final int? id;
   final DateTime date;
@@ -16,22 +21,6 @@ class SleepEntry {
     this.napHours,
     this.tags = const [],
   });
-
-  // Calculate total hours from wake up and sleep time
-  // Sleep time should be from the previous day/night, wake time is from this date
-  double get calculatedHours {
-    if (wakeUpTime == null || sleepTime == null) return totalHours ?? 0;
-
-    var duration = wakeUpTime!.difference(sleepTime!);
-
-    // Sleep time should always be before wake time (from previous night)
-    // If duration is negative, the times are incorrectly set
-    if (duration.isNegative) {
-      duration = duration + const Duration(days: 1);
-    }
-
-    return duration.inMinutes / 60.0;
-  }
 
   // Convert to Map for database
   Map<String, dynamic> toMap() {

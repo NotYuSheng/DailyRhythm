@@ -5,7 +5,7 @@
     "display": "standalone",
     "background_color": "#000000",
     "theme_color": "#000000",
-    "description": "Daily stats tracking app with rhythm aesthetic",
+    "description": "A local-first daily journal that grows a memory garden",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

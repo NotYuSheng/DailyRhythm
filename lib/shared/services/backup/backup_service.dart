@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'google_drive_service.dart';
 import '../database/database_service.dart';
@@ -14,6 +13,9 @@ class BackupService {
   final GoogleDriveService _driveService = GoogleDriveService.instance;
   final DatabaseService _dbService = DatabaseService.instance;
 
+  /// Number of backups kept in Google Drive; older ones are deleted.
+  static const int backupsToKeep = 10;
+
   // Backup database to Google Drive
   Future<BackupResult> backupToGoogleDrive() async {
     try {
@@ -25,11 +27,9 @@ class BackupService {
         );
       }
 
-      // Get database file path
       // Note: We don't need external storage permissions for Google Drive backup
       // since we're uploading from app-specific storage directly to Google Drive
-      final dbPath = await getDatabasesPath();
-      final dbFile = File(join(dbPath, 'dailyrhythm.db'));
+      final dbFile = await _databaseFile();
 
       if (!await dbFile.exists()) {
         return BackupResult(
@@ -38,34 +38,32 @@ class BackupService {
         );
       }
 
-      // Create a copy of the database to avoid locking issues
-      final tempDir = Directory.systemTemp;
-      final tempDbFile = File('${tempDir.path}/dailyrhythm_backup_temp.db');
+      final tempDbFile = File('${Directory.systemTemp.path}/dailyrhythm_backup_temp.db');
 
       try {
-        // Copy database to temp location
-        await dbFile.copy(tempDbFile.path);
+        // A snapshot from the open connection: closing it would break
+        // queries the app is running, such as at launch.
+        await _dbService.snapshotTo(tempDbFile.path);
 
-        // Upload the temp file to Google Drive
         final fileId = await _driveService.uploadBackup(tempDbFile);
-
-        // Clean up temp file
-        if (await tempDbFile.exists()) {
-          await tempDbFile.delete();
-        }
-
-        if (fileId != null) {
-          return BackupResult(
-            success: true,
-            message: 'Backup completed successfully',
-            fileId: fileId,
-          );
-        } else {
+        if (fileId == null) {
           return BackupResult(
             success: false,
             message: 'Failed to upload backup',
           );
         }
+
+        // The backup is saved; failing to tidy old ones isn't a failure.
+        try {
+          await _driveService.pruneBackups(keep: backupsToKeep);
+        } catch (e) {
+          debugPrint('Pruning old backups failed: $e');
+        }
+        return BackupResult(
+          success: true,
+          message: 'Backup completed successfully',
+          fileId: fileId,
+        );
       } finally {
         // Ensure temp file is cleaned up
         if (await tempDbFile.exists()) {
@@ -81,7 +79,7 @@ class BackupService {
     }
   }
 
-  // Restore database from Google Drive
+  /// Restores the backup with [fileId], or the newest backup if null.
   Future<BackupResult> restoreFromGoogleDrive({String? fileId}) async {
     try {
       // Check if signed in
@@ -92,8 +90,9 @@ class BackupService {
         );
       }
 
-      // Download backup file
-      final backupFile = await _driveService.downloadLatestBackup();
+      final backupFile = fileId == null
+          ? await _driveService.downloadLatestBackup()
+          : await _driveService.downloadBackup(fileId);
 
       if (backupFile == null || !await backupFile.exists()) {
         return BackupResult(
@@ -102,38 +101,76 @@ class BackupService {
         );
       }
 
-      // Get current database path
-      final dbPath = await getDatabasesPath();
-      final currentDbFile = File(join(dbPath, 'dailyrhythm.db'));
-
-      // Create backup of current database before restoring
-      if (await currentDbFile.exists()) {
-        final backupPath = join(dbPath, 'dailyrhythm_backup_before_restore.db');
-        await currentDbFile.copy(backupPath);
+      try {
+        return await restoreFromFile(backupFile);
+      } finally {
+        if (await backupFile.exists()) {
+          await backupFile.delete();
+        }
       }
-
-      // Close current database
-      await _dbService.close();
-
-      // Replace current database with downloaded backup
-      await backupFile.copy(currentDbFile.path);
-
-      // Delete temporary file
-      await backupFile.delete();
-
-      // Re-initialize database
-      await _dbService.database;
-
-      return BackupResult(
-        success: true,
-        message: 'Restore completed successfully. Please restart the app.',
-      );
     } catch (e) {
       return BackupResult(
         success: false,
         message: 'Error during restore: $e',
       );
     }
+  }
+
+  /// Replaces the current database with [backupFile].
+  ///
+  /// The file is checked before anything is replaced, and the current
+  /// database is kept as `dailyrhythm_backup_before_restore.db`. If the
+  /// restored database fails to open, the previous one is put back.
+  @visibleForTesting
+  Future<BackupResult> restoreFromFile(File backupFile) async {
+    final problem = await DatabaseService.checkRestorable(backupFile.path);
+    if (problem != null) {
+      return BackupResult(success: false, message: problem);
+    }
+
+    final currentDbFile = await _databaseFile();
+    final previousCopy = File(join(currentDbFile.parent.path, 'dailyrhythm_backup_before_restore.db'));
+
+    await _dbService.close();
+    // With no current data, an older safety copy stays as it is: it may be
+    // the only copy left of earlier data.
+    final hadData = await currentDbFile.exists();
+    if (hadData) {
+      await currentDbFile.copy(previousCopy.path);
+    }
+    await backupFile.copy(currentDbFile.path);
+
+    try {
+      // Opening runs any upgrades needed for an older backup.
+      await _dbService.database;
+    } catch (e) {
+      await _dbService.close();
+      // Put the previous data back, or with none, start empty rather than
+      // keep a database that can't open.
+      if (hadData) {
+        await previousCopy.copy(currentDbFile.path);
+      } else {
+        await currentDbFile.delete();
+      }
+      try {
+        await _dbService.database;
+      } catch (reopen) {
+        debugPrint('Reopening after a failed restore failed: $reopen');
+      }
+      return BackupResult(
+        success: false,
+        message: hadData ? 'Restore failed and your previous data was kept: $e' : 'Restore failed: $e',
+      );
+    }
+
+    return BackupResult(
+      success: true,
+      message: 'Restore completed successfully. Please restart the app.',
+    );
+  }
+
+  Future<File> _databaseFile() async {
+    return File(await DatabaseService.databaseFilePath());
   }
 
   // Get auto-backup settings
@@ -195,8 +232,7 @@ class BackupService {
     final frequency = await getAutoBackupFrequency();
 
     // Get database size
-    final dbPath = await getDatabasesPath();
-    final dbFile = File(join(dbPath, 'dailyrhythm.db'));
+    final dbFile = await _databaseFile();
     int dbSize = 0;
     if (await dbFile.exists()) {
       dbSize = await dbFile.length();

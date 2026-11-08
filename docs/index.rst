@@ -1,13 +1,15 @@
 DailyRhythm Documentation
 =========================
 
-Welcome to DailyRhythm's documentation. DailyRhythm is a daily stats tracking app with a rhythm aesthetic.
+Welcome to DailyRhythm's documentation. DailyRhythm is a local-first daily journal that grows a memory garden.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
+   privacy-policy
    deletion-policy
+   calories
 
 Indices and tables
 ==================
