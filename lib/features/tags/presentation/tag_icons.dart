@@ -6,10 +6,12 @@ import '../data/models/tag.dart';
 /// whatever shows the tag, never in their own colours, so they sit in the
 /// garden palette in light and dark mode.
 ///
-/// Matched on the tag's name first (imported tags carry an icon name from
-/// another app that doesn't always fit, e.g. a cab drawn as a house), then
-/// on that stored icon name, then by kind.
+/// An icon the user picked wins. Otherwise it's matched on the tag's name
+/// (imported tags carry an icon name from another app that doesn't always
+/// fit, e.g. a cab drawn as a house), then on that stored icon name, then
+/// by kind.
 IconData tagIcon(Tag tag) {
+  if (pickedIcon(tag) case final picked?) return picked;
   final name = tag.name.toLowerCase();
   for (final (pattern, icon) in _byName) {
     if (pattern.hasMatch(name)) return icon;
@@ -87,4 +89,73 @@ const _byStoredIcon = <String, IconData>{
   'hospital': Icons.local_hospital_outlined,
   'sick': Icons.sick_outlined,
   'tear': Icons.water_drop_outlined,
+};
+
+/// Stored in a tag's icon field when the user picked the icon.
+const pickedIconPrefix = 'pick:';
+
+/// The icon the user picked for [tag], if they did.
+IconData? pickedIcon(Tag tag) =>
+    tag.emoji.startsWith(pickedIconPrefix) ? tagIconChoices[tag.emoji.substring(pickedIconPrefix.length)] : null;
+
+/// Icons a tag can be given, by the key stored after [pickedIconPrefix]:
+/// outline icons in the app's style, grouped loosely by what they're for.
+const tagIconChoices = <String, IconData>{
+  // Moving and outdoors
+  'fitness': Icons.fitness_center,
+  'run': Icons.directions_run,
+  'walk': Icons.directions_walk,
+  'bike': Icons.directions_bike,
+  'swim': Icons.pool,
+  'sports': Icons.sports_soccer_outlined,
+  'hike': Icons.hiking,
+  'park': Icons.park_outlined,
+  'beach': Icons.beach_access_outlined,
+  // Work and learning
+  'work': Icons.work_outline,
+  'study': Icons.menu_book_outlined,
+  'school': Icons.school_outlined,
+  'laptop': Icons.laptop_outlined,
+  'meeting': Icons.groups_2_outlined,
+  'test': Icons.quiz_outlined,
+  'money': Icons.payments_outlined,
+  // Fun
+  'games': Icons.sports_esports_outlined,
+  'video': Icons.smart_display_outlined,
+  'music': Icons.music_note_outlined,
+  'art': Icons.brush_outlined,
+  'camera': Icons.photo_camera_outlined,
+  'read': Icons.auto_stories_outlined,
+  'shopping': Icons.shopping_bag_outlined,
+  'travel': Icons.flight_outlined,
+  // People
+  'friends': Icons.groups_outlined,
+  'family': Icons.family_restroom,
+  'heart': Icons.favorite_outline,
+  'party': Icons.celebration_outlined,
+  'call': Icons.call_outlined,
+  'pet': Icons.pets_outlined,
+  // Home and errands
+  'home': Icons.home_outlined,
+  'clean': Icons.cleaning_services_outlined,
+  'laundry': Icons.local_laundry_service_outlined,
+  'bed': Icons.bed_outlined,
+  'cook': Icons.soup_kitchen_outlined,
+  'groceries': Icons.local_grocery_store_outlined,
+  'car': Icons.directions_car_outlined,
+  'taxi': Icons.local_taxi_outlined,
+  'bus': Icons.directions_bus_outlined,
+  // Care and appointments
+  'haircut': Icons.content_cut,
+  'doctor': Icons.medical_services_outlined,
+  'medicine': Icons.medication_outlined,
+  'spa': Icons.spa_outlined,
+  'sleep': Icons.bedtime_outlined,
+  'calendar': Icons.event_outlined,
+  // Feelings and body
+  'happy': Icons.sentiment_satisfied_outlined,
+  'sad': Icons.sentiment_dissatisfied_outlined,
+  'sick': Icons.sick_outlined,
+  'pain': Icons.personal_injury_outlined,
+  'star': Icons.star_outline,
 };

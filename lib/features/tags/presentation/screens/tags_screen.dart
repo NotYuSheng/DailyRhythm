@@ -238,6 +238,11 @@ class _TagSheetState extends ConsumerState<TagSheet> {
   late final _group = TextEditingController(text: widget.tag?.category ?? 'General');
   final _groupFocus = FocusNode();
   late String _kind = widget.tag?.kind ?? TagKind.activity;
+
+  /// The icon picked (a key of [tagIconChoices]); null for automatic.
+  late String? _icon = widget.tag != null && pickedIcon(widget.tag!) != null
+      ? widget.tag!.emoji.substring(pickedIconPrefix.length)
+      : null;
   String? _error;
   bool _busy = false;
 
@@ -247,6 +252,14 @@ class _TagSheetState extends ConsumerState<TagSheet> {
     _group.dispose();
     _groupFocus.dispose();
     super.dispose();
+  }
+
+  /// What goes in the tag's icon field: the picked icon, or back to the
+  /// imported icon name (never a stale pick) when automatic.
+  String get _emoji {
+    if (_icon case final key?) return '$pickedIconPrefix$key';
+    final old = widget.tag?.emoji;
+    return old == null || old.startsWith(pickedIconPrefix) ? 'tag' : old;
   }
 
   Future<void> _save() async {
@@ -265,10 +278,10 @@ class _TagSheetState extends ConsumerState<TagSheet> {
     await _run((db) async {
       final tag = widget.tag;
       if (tag == null) {
-        await db.createTag(Tag(name: name, emoji: 'tag', category: group, kind: _kind));
+        await db.createTag(Tag(name: name, emoji: _emoji, category: group, kind: _kind));
         await db.moveTagsToGroup(const [], group); // makes sure the group exists
       } else {
-        await db.updateTag(tag.copyWith(name: name, kind: _kind));
+        await db.updateTag(tag.copyWith(name: name, kind: _kind, emoji: _emoji));
         await db.moveTagsToGroup([tag.id!], group);
       }
     });
@@ -379,6 +392,13 @@ class _TagSheetState extends ConsumerState<TagSheet> {
               onChanged: (_) => setState(() => _error = null),
             ),
             const SizedBox(height: 14),
+            _IconPicker(
+              preview: Tag(name: _name.text.trim(), emoji: _emoji, category: '', kind: _kind),
+              picked: _icon,
+              colors: colors,
+              onPick: (key) => setState(() => _icon = key),
+            ),
+            const SizedBox(height: 14),
             Text('Kind', style: nunito(15, FontWeight.w800, colors.leaf)),
             const SizedBox(height: 8),
             SegmentedButton<String>(
@@ -455,6 +475,86 @@ class _TagSheetState extends ConsumerState<TagSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Chooses a tag's icon: automatic (from its name) or one of
+/// [tagIconChoices], with the result shown as it will look.
+class _IconPicker extends StatelessWidget {
+  const _IconPicker({required this.preview, required this.picked, required this.colors, required this.onPick});
+
+  /// The tag as it would be saved.
+  final Tag preview;
+  final String? picked;
+  final GardenColors colors;
+  final ValueChanged<String?> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    Widget option({required String? key, required IconData icon, required String label}) {
+      final selected = picked == key;
+      return Semantics(
+        button: true,
+        selected: selected,
+        label: label,
+        excludeSemantics: true,
+        child: Material(
+          color: selected ? scheme.primaryContainer : colors.ground,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => onPick(key),
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Icon(icon, size: 22, color: selected ? scheme.onPrimaryContainer : colors.leaf),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Icon', style: nunito(15, FontWeight.w800, colors.leaf)),
+            const SizedBox(width: 10),
+            Icon(tagIcon(preview), size: 20, color: colors.ink),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                picked == null ? 'Automatic, from the name' : 'Your pick',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: nunito(13, FontWeight.w700, colors.muted),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            Semantics(
+              button: true,
+              selected: picked == null,
+              label: 'Automatic icon',
+              excludeSemantics: true,
+              child: ChoiceChip(
+                label: const Text('Auto'),
+                selected: picked == null,
+                onSelected: (_) => onPick(null),
+              ),
+            ),
+            for (final MapEntry(key: key, value: icon) in tagIconChoices.entries) option(key: key, icon: icon, label: '$key icon'),
+          ],
+        ),
+      ],
     );
   }
 }
