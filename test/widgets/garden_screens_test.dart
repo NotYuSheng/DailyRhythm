@@ -17,6 +17,7 @@ import 'package:daily_rhythm/shared/services/database/repositories/checkin_repos
 import 'package:daily_rhythm/shared/services/database/repositories/journal_repository.dart';
 import 'package:daily_rhythm/shared/utils/date_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -38,8 +39,13 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     db = await openTestDatabase();
+    // Midday, so a run in the small hours doesn't open on yesterday.
+    GardenTodayScreen.clock = () => today.add(const Duration(hours: 12));
   });
-  tearDown(closeTestDatabase);
+  tearDown(() async {
+    GardenTodayScreen.clock = DateTime.now;
+    await closeTestDatabase();
+  });
 
   Future<void> pump(WidgetTester tester, Widget screen) async {
     tester.view.physicalSize = const Size(1170, 2532); // 390×844 at 3×
@@ -159,6 +165,26 @@ void main() {
     expect(find.text('Social Event'), findsOneWidget);
     // The plant follows what the day held (the caption is back at the top).
     await tester.scrollUntilVisible(find.text('A tulip for time with people. From Social Event.'), -300, scrollable: scrollable);
+  });
+
+  testWidgets('in the small hours Today opens on yesterday until yesterday has its mood', (tester) async {
+    final yesterday = today.subtract(const Duration(days: 1));
+    GardenTodayScreen.clock = () => today.add(const Duration(hours: 1, minutes: 30));
+    await pump(tester, const GardenTodayScreen());
+    expect(find.text(DateFormat('EEEE d MMMM').format(yesterday)), findsOneWidget);
+    expect(find.text('It’s past midnight, so this is still yesterday.'), findsOneWidget);
+
+    await db.upsertMoodEntry(MoodEntry(date: yesterday, timestamp: yesterday, moodLevel: 4, emoji: ''));
+    await pump(tester, const SizedBox());
+    await pump(tester, const GardenTodayScreen());
+    expect(find.text(DateFormat('EEEE d MMMM').format(today)), findsOneWidget, reason: 'yesterday was wrapped up');
+    expect(find.text('It’s past midnight, so this is still yesterday.'), findsNothing);
+  });
+
+  testWidgets('from 5am Today opens on today', (tester) async {
+    GardenTodayScreen.clock = () => today.add(const Duration(hours: 5));
+    await pump(tester, const GardenTodayScreen());
+    expect(find.text(DateFormat('EEEE d MMMM').format(today)), findsOneWidget);
   });
 
   testWidgets('going back from Activities without Save keeps the day as it was', (tester) async {

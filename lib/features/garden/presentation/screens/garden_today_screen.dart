@@ -26,23 +26,58 @@ import 'garden_month_screen.dart';
 class GardenTodayScreen extends ConsumerStatefulWidget {
   const GardenTodayScreen({super.key, this.day});
 
-  /// The day shown first; today when null.
+  /// The day shown first; today when null (yesterday in the small hours,
+  /// until yesterday has its mood).
   final DateTime? day;
+
+  /// The time now; replaced in tests.
+  @visibleForTesting
+  static DateTime Function() clock = DateTime.now;
 
   @override
   ConsumerState<GardenTodayScreen> createState() => _GardenTodayScreenState();
 }
 
 class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
-  late DateTime _day = dayOf(widget.day ?? DateTime.now());
+  /// Before this hour the night isn't over: opening the app is still
+  /// yesterday for someone who hasn't slept yet.
+  static const _nightEndsHour = 5;
 
-  void _go(int days) => setState(() => _day = DateTime(_day.year, _day.month, _day.day + days));
+  /// Whether it opened on yesterday because it's the small hours.
+  late bool _lateNight = widget.day == null && GardenTodayScreen.clock().hour < _nightEndsHour;
+
+  late DateTime _day = _lateNight
+      ? dayOf(GardenTodayScreen.clock()).subtract(const Duration(days: 1))
+      : dayOf(widget.day ?? GardenTodayScreen.clock());
+
+  @override
+  void initState() {
+    super.initState();
+    if (_lateNight) _todayIfYesterdayDone();
+  }
+
+  /// Yesterday already has its mood: it was wrapped up, so open on today.
+  Future<void> _todayIfYesterdayDone() async {
+    final yesterday = _day;
+    if (await ref.read(databaseProvider).getMoodEntryByDate(yesterday) == null) return;
+    if (mounted && _day == yesterday) {
+      setState(() {
+        _day = dayOf(GardenTodayScreen.clock());
+        _lateNight = false;
+      });
+    }
+  }
+
+  void _go(int days) => setState(() {
+        _day = DateTime(_day.year, _day.month, _day.day + days);
+        _lateNight = false;
+      });
 
   @override
   Widget build(BuildContext context) {
     final colors = GardenColors.of(context);
     final today = _day;
-    final now = dayOf(DateTime.now());
+    final now = dayOf(GardenTodayScreen.clock());
     final isToday = today == now;
     final mood = ref.watch(moodEntryProvider(today)).value;
     final garden = ref.watch(gardenDayProvider(today));
@@ -78,6 +113,8 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
                       children: [
                         Text(DateFormat('EEEE d MMMM').format(today), style: nunito(15, FontWeight.w700, colors.muted)),
                         Semantics(header: true, child: Text(isToday ? 'Today’s plant' : 'This day’s plant', style: nunito(30, FontWeight.w900, colors.ink))),
+                        if (_lateNight)
+                          Text('It’s past midnight, so this is still yesterday.', style: nunito(14, FontWeight.w700, colors.muted)),
                       ],
                     ),
                   ),
@@ -96,7 +133,14 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
                   ),
                   const Spacer(),
                   if (!isToday) ...[
-                    _PillButton(label: 'Today', colors: colors, onPressed: () => setState(() => _day = now)),
+                    _PillButton(
+                      label: 'Today',
+                      colors: colors,
+                      onPressed: () => setState(() {
+                        _day = now;
+                        _lateNight = false;
+                      }),
+                    ),
                     const SizedBox(width: 8),
                   ],
                   _PillButton(
