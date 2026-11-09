@@ -1,5 +1,6 @@
 import 'package:daily_rhythm/core/theme/app_theme.dart';
 import 'package:daily_rhythm/features/tags/presentation/screens/tags_screen.dart';
+import 'package:daily_rhythm/features/garden/presentation/screens/garden_today_screen.dart';
 import 'package:daily_rhythm/main.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -43,6 +44,11 @@ void main() {
         // The plant sways unless reduced motion is on; tests can't settle on a loop.
         tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
         addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+
+        // Midday, so a run in the small hours doesn't open on yesterday.
+        final now = DateTime.now();
+        GardenTodayScreen.clock = () => DateTime(now.year, now.month, now.day, 12);
+        addTearDown(() => GardenTodayScreen.clock = DateTime.now);
 
         await tester.pumpWidget(const ProviderScope(child: DailyRhythmApp()));
         await tester.pumpAndSettle();

@@ -181,6 +181,15 @@ void main() {
     expect(find.text('It’s past midnight, so this is still yesterday.'), findsNothing);
   });
 
+  testWidgets('a past day\'s buttons fit a 360dp phone with large text', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await pump(tester, GardenTodayScreen(day: today.subtract(const Duration(days: 3))));
+    expect(tester.takeException(), isNull);
+    expect(find.text('Today'), findsWidgets);
+  });
+
   testWidgets('from 5am Today opens on today', (tester) async {
     GardenTodayScreen.clock = () => today.add(const Duration(hours: 5));
     await pump(tester, const GardenTodayScreen());
