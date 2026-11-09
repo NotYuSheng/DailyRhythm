@@ -125,6 +125,13 @@ adb install build/app/outputs/flutter-apk/app-release.apk
 
 Release builds need `android/key.properties` (keystore path, alias and passwords) and fail without it, rather than silently signing with the debug key. For a throwaway local test build, run `ALLOW_DEBUG_SIGNED_RELEASE=true flutter build apk`.
 
+**Google Sign-In setup (Drive backups):** the Google Cloud project needs three OAuth clients:
+- a **Web application** client: its client ID is the app's `googleServerClientId` (`lib/core/constants/app_config.dart`, or the `GOOGLE_SERVER_CLIENT_ID` secret in CI). A placeholder here fails with error 10 (`DEVELOPER_ERROR`).
+- an **Android** client for the upload key's SHA-1 (builds you install yourself), and
+- an **Android** client for the Play app signing key's SHA-1 (installs from Google Play; see Play Console → App signing).
+
+Sign-in uses `google_sign_in` 7 (Credential Manager). Signing in asks once for access to the app's own Drive files; later backups get a fresh token silently.
+
 **Important for Google Sign-In with release builds:**
 - Release builds use your custom keystore (configured in `android/key.properties`)
 - You must add your release keystore's SHA-1 to Google Cloud Console

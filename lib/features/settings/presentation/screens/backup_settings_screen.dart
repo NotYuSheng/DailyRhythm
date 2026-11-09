@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart' show GoogleSignInException;
 import 'package:material_ui/material_ui.dart';
 import 'package:intl/intl.dart';
 import '../../../../shared/services/backup/google_drive_service.dart';
@@ -85,6 +86,15 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
             ),
           );
         }
+      }
+    } on GoogleSignInException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Couldn’t sign in to Google${e.description == null ? '' : ': ${e.description}'}'),
+            duration: const Duration(seconds: 6),
+          ),
+        );
       }
     } on UnsupportedError catch (e) {
       if (mounted) {
