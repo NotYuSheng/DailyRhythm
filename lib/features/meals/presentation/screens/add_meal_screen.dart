@@ -182,7 +182,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
-                      'From Open Food Facts (ODbL). Estimates, not nutrition advice.',
+                      'From USDA FoodData Central (public domain, works offline) and Open Food Facts (ODbL). Estimates, not nutrition advice.',
                       style: theme.textTheme.bodySmall,
                     ),
                   ),
@@ -190,7 +190,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                   if (snapshot.connectionState != ConnectionState.done)
                     const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
                   else if (snapshot.hasError)
-                    const Padding(padding: EdgeInsets.all(20), child: Text('Couldn’t reach Open Food Facts. Check the connection and try again.'))
+                    const Padding(padding: EdgeInsets.all(20), child: Text('No offline match, and Open Food Facts couldn’t be reached. Check the connection or type the calories.'))
                   else if (snapshot.data!.isEmpty)
                     const Padding(padding: EdgeInsets.all(20), child: Text('No matches. You can type the calories instead.'))
                   else
@@ -201,7 +201,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                           for (final m in snapshot.data!)
                             ListTile(
                               title: Text(m.name),
-                              subtitle: m.brand == null ? null : Text(m.brand!),
+                              subtitle: Text([?m.brand, ?m.serving, m.source == 'usda' ? 'USDA' : 'Open Food Facts'].join(' · ')),
                               trailing: Text('${m.kcal.round()} kcal\nper ${m.basis}', textAlign: TextAlign.right),
                               onTap: () => Navigator.pop(context, m),
                             ),

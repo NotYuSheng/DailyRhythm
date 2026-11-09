@@ -117,6 +117,8 @@ flutter:
   assets:
     # Common foods' calories per serving, for estimates (docs/calories.rst).
     - assets/data/common_foods.json
+    # USDA FoodData Central foods, kcal per 100 g and portions, for offline lookup (docs/calories.rst).
+    - assets/data/usda_foods.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

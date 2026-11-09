@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 
 /// A food's calories from a reference source, for the user to confirm.
 class CalorieMatch {
-  const CalorieMatch({required this.name, required this.kcal, required this.basis, required this.source, this.brand});
+  const CalorieMatch({required this.name, required this.kcal, required this.basis, required this.source, this.brand, this.serving});
 
   final String name;
   final String? brand;
@@ -14,6 +14,9 @@ class CalorieMatch {
 
   /// "serving" when the source gives a serving size, otherwise "100 g".
   final String basis;
+
+  /// What a serving is, when the source says ("1 cup (240 g)").
+  final String? serving;
 
   /// Where the value came from (see `docs/calories.rst`): usda, sgfoodid,
   /// off, estimate or user.
