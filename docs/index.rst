@@ -8,6 +8,7 @@ Welcome to DailyRhythm's documentation. DailyRhythm is a local-first daily journ
    :caption: Contents:
 
    privacy-policy
+   ai
    deletion-policy
    calories
 

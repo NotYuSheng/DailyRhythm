@@ -1,6 +1,8 @@
+import '../../../ai/presentation/ai_settings_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/app_version.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../../shared/services/export/export_service.dart';
@@ -52,6 +54,16 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: const Text('Age, height and weight for typical ranges'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const ProfileScreen())),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacePulse3),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.auto_awesome_outlined),
+              title: const Text('AI assistant'),
+              subtitle: const Text('Optional: your own AI model for estimates'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const AiSettingsScreen())),
             ),
           ),
           const SizedBox(height: AppTheme.spacePulse3),
@@ -158,10 +170,11 @@ class SettingsScreen extends ConsumerWidget {
                 ListTile(
                   leading: const Icon(Icons.info_outlined),
                   title: const Text('About'),
-                  subtitle: const Text('Version 1.0.0'),
+                  subtitle: Text('Version ${ref.watch(appVersionProvider).value ?? '…'}\nCreated by NotYuSheng'),
+                  isThreeLine: true,
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () {
-                    _showAboutDialog(context);
+                    _showAboutDialog(context, ref.read(appVersionProvider).value ?? '');
                   },
                 ),
               ],
@@ -172,12 +185,12 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showAboutDialog(BuildContext context) {
+  void _showAboutDialog(BuildContext context, String version) {
     showAboutDialog(
       context: context,
       applicationName: 'DailyRhythm',
-      applicationVersion: '1.0.0',
-      applicationLegalese: '© 2025 DailyRhythm\nRhythm-inspired daily tracking',
+      applicationVersion: version,
+      applicationLegalese: 'Created by NotYuSheng\n© 2025–2026 DailyRhythm',
       children: [
         const SizedBox(height: AppTheme.spacePulse3),
         Text(
@@ -338,7 +351,6 @@ class SettingsScreen extends ConsumerWidget {
           tagsByCategoryProvider,
           gardenDayProvider,
           gardenMonthProvider,
-          monthRecapProvider,
           gardenYearProvider,
           periodOverviewProvider,
           checkinProvider,

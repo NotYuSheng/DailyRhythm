@@ -1,7 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../domain/garden_day.dart';
-import '../../domain/plant.dart';
 import 'plant_view.dart';
 
 /// A month's plants, small, in calendar order (Monday first).
@@ -24,7 +23,7 @@ class MiniGarden extends StatelessWidget {
               for (final d in days)
                 SizedBox(
                   width: cell,
-                  child: PlantView(spec: d.plant, width: cell, potColor: potColors[d.date.day % potColors.length]),
+                  child: PlantView(spec: d.plant, width: cell),
                 ),
             ],
           );

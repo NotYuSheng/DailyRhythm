@@ -3,39 +3,47 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/services/database/repositories/journal_repository.dart';
+import '../../../../shared/widgets/dialogs/delete_confirmation_dialog.dart';
 import '../../../journal/data/models/journal_entry.dart';
 import '../../../tags/data/models/tag.dart';
 import '../../../tags/data/providers/tag_providers.dart';
+import '../../../tags/presentation/tag_icons.dart';
 import '../garden_style.dart';
 
 const momentMoodWords = {1: 'Awful', 2: 'Bad', 3: 'Meh', 4: 'Good', 5: 'Great'};
 
-/// Opens the sheet for logging a moment on [day]. Returns true if saved.
-Future<bool> showMomentSheet(BuildContext context, DateTime day) async {
+/// Opens the sheet for logging a moment on [day], or changing [entry].
+/// Returns true if it was saved or deleted.
+Future<bool> showMomentSheet(BuildContext context, DateTime day, {JournalEntry? entry}) async {
   final saved = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (context) => MomentSheet(day: day),
+    builder: (context) => MomentSheet(day: day, entry: entry),
   );
   return saved ?? false;
 }
 
 /// A moment: what happened, an optional mood of its own and what it was about.
 class MomentSheet extends ConsumerStatefulWidget {
-  const MomentSheet({super.key, required this.day});
+  const MomentSheet({super.key, required this.day, this.entry});
 
   final DateTime day;
+
+  /// The moment being changed; null for a new one.
+  final JournalEntry? entry;
 
   @override
   ConsumerState<MomentSheet> createState() => _MomentSheetState();
 }
 
 class _MomentSheetState extends ConsumerState<MomentSheet> {
-  final _text = TextEditingController();
-  int? _mood;
-  final _tagIds = <int>{};
+  late final _text = TextEditingController(text: widget.entry?.text ?? '');
+  late int? _mood = widget.entry?.mood;
+  late final _tagIds = <int>{...?widget.entry?.tagIds};
   bool _saving = false;
+
+  bool get _editing => widget.entry != null;
 
   @override
   void dispose() {
@@ -47,13 +55,17 @@ class _MomentSheetState extends ConsumerState<MomentSheet> {
 
   Future<void> _save() async {
     setState(() => _saving = true);
-    final now = DateTime.now();
     final day = widget.day;
-    final isToday = day.year == now.year && day.month == now.month && day.day == now.day;
     try {
+      final old = widget.entry;
       await JournalRepository(ref.read(databaseProvider)).save(JournalEntry(
-        date: day,
-        time: isToday ? now : null,
+        // A moment is dropped on its day, with no clock time. A change
+        // keeps its day and where it came from.
+        id: old?.id,
+        date: old?.date ?? day,
+        time: old?.time,
+        source: old?.source ?? 'app',
+        createdAt: old?.createdAt,
         text: _text.text.trim(),
         mood: _mood,
         tagIds: _tagIds.toList(),
@@ -64,6 +76,14 @@ class _MomentSheetState extends ConsumerState<MomentSheet> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Couldn’t save the moment. Try again.')));
       return;
     }
+    if (mounted) Navigator.pop(context, true);
+  }
+
+  Future<void> _delete() async {
+    final sure = await showDeleteConfirmationDialog(context: context, title: 'Delete this moment?', message: 'It can’t be brought back.');
+    if (!sure || !mounted) return;
+    setState(() => _saving = true);
+    await JournalRepository(ref.read(databaseProvider)).delete(widget.entry!.id!);
     if (mounted) Navigator.pop(context, true);
   }
 
@@ -93,11 +113,12 @@ class _MomentSheetState extends ConsumerState<MomentSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('A moment', style: nunito(22, FontWeight.w900, colors.ink)),
+            Text(_editing ? 'Edit moment' : 'A moment', style: nunito(22, FontWeight.w900, colors.ink)),
             const SizedBox(height: 12),
             TextField(
               controller: _text,
-              autofocus: true,
+              // Straight to typing for a new moment; a change may be just a tag.
+              autofocus: !_editing,
               minLines: 2,
               maxLines: 5,
               textCapitalization: TextCapitalization.sentences,
@@ -132,6 +153,8 @@ class _MomentSheetState extends ConsumerState<MomentSheet> {
                   children: [
                     for (final tag in groups[category]!)
                       FilterChip(
+                        avatar: Icon(tagIcon(tag), size: 18),
+                        showCheckmark: false,
                         label: Text(tag.name),
                         selected: _tagIds.contains(tag.id),
                         onSelected: (on) => setState(() => on ? _tagIds.add(tag.id!) : _tagIds.remove(tag.id)),
@@ -148,8 +171,17 @@ class _MomentSheetState extends ConsumerState<MomentSheet> {
                 backgroundColor: colors.accent,
                 foregroundColor: colors.onAccent,
               ),
-              child: Text('Save moment', style: nunito(15, FontWeight.w900, colors.onAccent)),
+              child: Text(_editing ? 'Save changes' : 'Save moment', style: nunito(15, FontWeight.w900, colors.onAccent)),
             ),
+            if (_editing) ...[
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: _saving ? null : _delete,
+                style: TextButton.styleFrom(minimumSize: const Size.fromHeight(44), foregroundColor: Theme.of(context).colorScheme.error),
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Delete moment'),
+              ),
+            ],
           ],
         ),
       ),

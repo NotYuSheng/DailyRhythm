@@ -1,8 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../../shared/services/database/database_service.dart';
 import '../../../../shared/utils/date_utils.dart';
+import '../../../exercise/data/models/exercise_entry.dart';
+import '../../../exercise/domain/effort.dart';
 import '../../../garden/data/garden_repository.dart';
 import '../../../garden/domain/plant.dart';
 import '../../../../shared/services/database/repositories/health_repository.dart';
@@ -14,15 +18,59 @@ enum FactKind { food, newFood, spend, events, exercise, distance, sleep, logging
 /// One light-hearted observation about a period: a headline value and a
 /// line of detail. Facts state what was logged; they never give advice.
 class FunFact {
-  const FunFact({required this.kind, required this.title, required this.value, required this.detail});
+  const FunFact({required this.kind, required this.title, required this.value, required this.detail, this.details});
 
   final FactKind kind;
   final String title;
   final String value;
   final String detail;
 
+  /// Everything behind the fact, loaded when its card is tapped.
+  final Future<FactDetail> Function()? details;
+
   @override
   String toString() => '$title: $value ($detail)';
+}
+
+/// One line in a fact's full list: a food and how often, a meal and its
+/// price, a night and its length.
+class FactRow {
+  const FactRow({required this.label, this.sub, this.date, this.value, this.valueText, this.group, this.count});
+
+  final String label;
+  final String? sub;
+
+  /// The day it happened, when it was one day; tapping opens that day.
+  final DateTime? date;
+
+  /// What "Biggest" and "Smallest" sort by.
+  final num? value;
+  final String? valueText;
+
+  /// A heading the row sits under (a weekday), in the order rows give.
+  final String? group;
+
+  /// How many times it happened, when [value] is something else (a
+  /// share); "Most times" sorts by it.
+  final int? count;
+}
+
+/// The list behind a fact, sorted biggest first unless [byDate].
+class FactDetail {
+  const FactDetail({required this.title, required this.rows, this.byDate = false, this.note, this.valueSort});
+
+  final String title;
+  final List<FactRow> rows;
+
+  /// Opens sorted newest first (a list of days) rather than biggest first.
+  final bool byDate;
+
+  /// A line above the list saying what it holds.
+  final String? note;
+
+  /// What to call sorting by value, when "Biggest" doesn't fit ("Highest
+  /// share").
+  final String? valueSort;
 }
 
 /// Distances from around the world for picturing kilometres, each phrased
@@ -76,7 +124,8 @@ class FunFactsService {
   static final _money = NumberFormat('#,##0.00');
   static final _count = NumberFormat('#,##0');
 
-  Future<List<FunFact>> factsFor(DateRange range, {DateTime? today}) async {
+  /// [weightKg] is the profile's, for calories burned.
+  Future<List<FunFact>> factsFor(DateRange range, {DateTime? today, double? weightKg}) async {
     final db = await _db.database;
     // All time starts at the first entry, not an arbitrary early date.
     final first = range.isAllTime ? await _db.firstLoggedDay() : null;
@@ -97,6 +146,22 @@ class FunFactsService {
       facts.add(FunFact(
         kind: FactKind.food,
         title: 'Go-to food',
+        details: () async => FactDetail(
+          title: 'Foods eaten',
+          rows: [
+            for (final r in await db.rawQuery('''
+              SELECT COALESCE(f.name, m.name) AS name, COUNT(*) AS n, MAX(m.date) AS last FROM meal_entries m
+              LEFT JOIN food_items f ON f.id = m.food_item_id
+              WHERE m.$inRange GROUP BY lower(COALESCE(f.name, m.name))
+            ''', args))
+              FactRow(
+                label: r['name'] as String,
+                sub: 'Last on ${_day.format(DateTime.parse(r['last'] as String))}',
+                value: r['n'] as int,
+                valueText: '${r['n']}×',
+              ),
+          ],
+        ),
         value: top.first['name'] as String,
         detail: '${top.first['n']} times',
       ));
@@ -115,6 +180,18 @@ class FunFactsService {
       facts.add(FunFact(
         kind: FactKind.newFood,
         title: 'New foods tried',
+        details: () async => FactDetail(
+          title: 'New foods tried',
+          byDate: true,
+          rows: [
+            for (final r in await db.rawQuery('''
+              SELECT f.name, MIN(m.date) AS first FROM food_items f
+              JOIN meal_entries m ON m.food_item_id = f.id
+              GROUP BY f.id HAVING MIN(m.date) >= ? AND MIN(m.date) < ?
+            ''', args))
+              FactRow(label: r['name'] as String, date: DateTime.parse(r['first'] as String)),
+          ],
+        ),
         value: '${names.length}',
         detail: names.length == 1 ? names.single : 'Including ${names.take(2).join(' and ')}',
       ));
@@ -130,14 +207,53 @@ class FunFactsService {
       SELECT name, price * 1.0 / MAX(quantity, 1) AS price, date FROM meal_entries
       WHERE $inRange AND price IS NOT NULL AND currency = 'SGD' ORDER BY price * 1.0 / MAX(quantity, 1) DESC LIMIT 1
     ''', args);
-    if ((spend.first['priced'] as int) >= 5 && priciest.isNotEmpty) {
+    final priced = spend.first['priced'] as int;
+    if (priced >= 5 && priciest.isNotEmpty) {
       final p = priciest.first;
+      // Every priced meal, by its price per item.
+      Future<List<FactRow>> pricedMeals() async => [
+            for (final r in await db.rawQuery('''
+              SELECT name, price * 1.0 / MAX(quantity, 1) AS each, quantity, date FROM meal_entries
+              WHERE $inRange AND price IS NOT NULL AND currency = 'SGD'
+            ''', args))
+              FactRow(
+                label: r['name'] as String,
+                sub: (r['quantity'] as int) > 1 ? '${r['quantity']} of them' : null,
+                date: DateTime.parse(r['date'] as String),
+                value: r['each'] as num,
+                valueText: '\$${_money.format(r['each'])}',
+              ),
+          ];
       facts.add(FunFact(
         kind: FactKind.spend,
         title: 'Biggest treat',
         value: '\$${_money.format(p['price'])}',
-        detail: '${p['name']}, ${_day.format(DateTime.parse(p['date'] as String))}. '
-            '\$${_money.format(spend.first['total'])} on food in all',
+        detail: '${p['name']}, ${_day.format(DateTime.parse(p['date'] as String))}',
+        details: () async => FactDetail(title: 'Meals by price', rows: await pricedMeals()),
+      ));
+      final total = spend.first['total'] as num;
+      facts.add(FunFact(
+        kind: FactKind.spend,
+        title: 'Food spending',
+        value: '\$${_money.format(total)}',
+        detail: '$priced priced meals, \$${_money.format(total / priced)} each on average',
+        details: () async => FactDetail(
+          title: 'Spending by food',
+          rows: [
+            for (final r in await db.rawQuery('''
+              SELECT COALESCE(f.name, m.name) AS name, SUM(m.price) AS total, COUNT(*) AS n FROM meal_entries m
+              LEFT JOIN food_items f ON f.id = m.food_item_id
+              WHERE m.$inRange AND m.price IS NOT NULL AND m.currency = 'SGD'
+              GROUP BY lower(COALESCE(f.name, m.name))
+            ''', args))
+              FactRow(
+                label: r['name'] as String,
+                sub: '${r['n']} ${r['n'] == 1 ? 'time' : 'times'}',
+                value: r['total'] as num,
+                valueText: '\$${_money.format(r['total'])}',
+              ),
+          ],
+        ),
       ));
     }
 
@@ -154,6 +270,20 @@ class FunFactsService {
       facts.add(FunFact(
         kind: FactKind.events,
         title: 'Events & gifts',
+        details: () async => FactDetail(
+          title: 'Events & gifts',
+          rows: [
+            for (final r in await db.rawQuery('''
+              SELECT label, amount, date FROM spending_entries WHERE $inRange AND currency = 'SGD' AND amount > 0
+            ''', args))
+              FactRow(
+                label: r['label'] as String,
+                date: DateTime.parse(r['date'] as String),
+                value: r['amount'] as num,
+                valueText: '\$${_money.format(r['amount'])}',
+              ),
+          ],
+        ),
         value: '\$${_money.format(events['total'])}',
         detail: events['n'] == 1
             ? '${top['label']}, ${_day.format(DateTime.parse(top['date'] as String))}'
@@ -161,19 +291,60 @@ class FunFactsService {
       ));
     }
 
-    // Most repeated exercise by total reps.
-    final reps = await db.rawQuery('''
-      SELECT COALESCE(x.name, e.exerciseName) AS name, SUM(e.reps * MAX(COALESCE(e.sets, 1), 1)) AS total
-      FROM exercise_entries e LEFT JOIN exercise_items x ON x.id = e.exercise_item_id
-      WHERE e.$inRange AND e.reps IS NOT NULL AND COALESCE(x.name, e.exerciseName) IS NOT NULL
-      GROUP BY lower(COALESCE(x.name, e.exerciseName)) ORDER BY total DESC LIMIT 1
-    ''', args);
-    if (reps.isNotEmpty && (reps.first['total'] as num) >= 50) {
+    // Favourite exercise: the one done on the most days, with what all
+    // exercise added up to (calories at the profile's weight).
+    final byExercise = <String, ({String name, Set<DateTime> days, int reps, double kcal})>{};
+    var allKcal = 0.0;
+    for (final r in await db.rawQuery('''
+      SELECT e.*, COALESCE(x.name, e.exerciseName) AS shown FROM exercise_entries e
+      LEFT JOIN exercise_items x ON x.id = e.exercise_item_id WHERE e.$inRange
+    ''', args)) {
+      final x = ExerciseEntry.fromMap(r);
+      final kcal = Effort.kcalBurned(
+        run: x.type == ExerciseType.run,
+        weightKg: weightKg ?? Effort.defaultWeightKg,
+        name: x.exerciseName,
+        reps: x.reps,
+        sets: x.sets,
+        km: x.distance,
+        notes: x.notes,
+        duration: x.duration,
+      );
+      allKcal += kcal;
+      final name = (r['shown'] as String?) ?? (x.type == ExerciseType.run ? 'Run' : 'Weights');
+      final key = name.toLowerCase();
+      final was = byExercise[key];
+      byExercise[key] = (
+        name: was?.name ?? name,
+        days: {...?was?.days, dayOf(x.date)},
+        reps: (was?.reps ?? 0) + (x.reps ?? 0) * math.max(x.sets ?? 1, 1),
+        kcal: (was?.kcal ?? 0) + kcal,
+      );
+    }
+    final ranked = byExercise.values.toList()..sort((a, b) => b.days.length.compareTo(a.days.length));
+    if (ranked.isNotEmpty && ranked.first.days.length >= 2) {
+      final fav = ranked.first;
+      final sessionDays = {for (final e in byExercise.values) ...e.days}.length;
+      String reps(int n) => n > 0 ? ' · ${_count.format(n)} reps' : '';
       facts.add(FunFact(
         kind: FactKind.exercise,
-        title: 'Most reps',
-        value: _count.format(reps.first['total']),
-        detail: '${reps.first['name']}',
+        title: 'Favourite exercise',
+        value: fav.name,
+        detail: 'On ${fav.days.length} days${reps(fav.reps)}. ≈${_count.format(allKcal.round())} kcal burned in all',
+        details: () async => FactDetail(
+          title: 'Your exercise',
+          note: '${byExercise.length} ${byExercise.length == 1 ? 'exercise' : 'exercises'} on $sessionDays '
+              '${sessionDays == 1 ? 'day' : 'days'}, ≈${_count.format(allKcal.round())} kcal burned in all.',
+          rows: [
+            for (final e in ranked)
+              FactRow(
+                label: e.name,
+                sub: 'On ${e.days.length} ${e.days.length == 1 ? 'day' : 'days'}${reps(e.reps)}',
+                value: e.kcal,
+                valueText: '≈${_count.format(e.kcal.round())} kcal',
+              ),
+          ],
+        ),
       ));
     }
 
@@ -192,6 +363,32 @@ class FunFactsService {
       facts.add(FunFact(
         kind: FactKind.distance,
         title: hasSteps ? 'Distance on foot' : 'Distance run',
+        details: () async => FactDetail(
+          title: hasSteps ? 'Distance on foot by day' : 'Runs',
+          rows: hasSteps
+              ? [
+                  for (final m in stepDays)
+                    FactRow(
+                      label: DateFormat('EEE d MMM y').format(m.date),
+                      sub: '${_count.format(m.value)} steps',
+                      date: m.date,
+                      value: m.value * 0.00075,
+                      valueText: '${(m.value * 0.00075).toStringAsFixed(1)} km',
+                    ),
+                ]
+              : [
+                  for (final r in await db.rawQuery(
+                    "SELECT date, distance FROM exercise_entries WHERE $inRange AND type LIKE '%run%' AND distance IS NOT NULL",
+                    args,
+                  ))
+                    FactRow(
+                      label: DateFormat('EEE d MMM y').format(DateTime.parse(r['date'] as String)),
+                      date: DateTime.parse(r['date'] as String),
+                      value: r['distance'] as num,
+                      valueText: '${(r['distance'] as num).toStringAsFixed(1)} km',
+                    ),
+                ],
+        ),
         value: '${_count.format(onFoot.round())} km',
         detail: '${comparison[0].toUpperCase()}${comparison.substring(1)}'
             '${hasSteps ? ' (${_count.format(steps)} steps)' : ''}',
@@ -213,6 +410,22 @@ class FunFactsService {
       facts.add(FunFact(
         kind: FactKind.sleep,
         title: 'Longest night',
+        details: () async => FactDetail(
+          title: 'Nights by length',
+          rows: [
+            for (final r in await db.rawQuery(
+              'SELECT date, totalHours, sleepTime, wakeUpTime FROM sleep_entries WHERE $inRange AND totalHours IS NOT NULL',
+              args,
+            ))
+              FactRow(
+                label: DateFormat('EEE d MMM y').format(DateTime.parse(r['date'] as String)),
+                sub: r['wakeUpTime'] == null ? null : 'Woke ${DateFormat('HH:mm').format(DateTime.parse(r['wakeUpTime'] as String))}',
+                date: DateTime.parse(r['date'] as String),
+                value: r['totalHours'] as num,
+                valueText: _hours(r['totalHours'] as num),
+              ),
+          ],
+        ),
         value: '${minutes ~/ 60}h ${minutes % 60}m',
         detail: '${_day.format(DateTime.parse(longest.first['date'] as String))}'
             '${mornings.isEmpty ? '' : '. Earliest start: ${DateFormat('HH:mm').format(wakeOf(mornings.first))} '
@@ -231,9 +444,19 @@ class FunFactsService {
         run = g.plant.logged ? run + 1 : 0;
         if (run > best) best = run;
       }
+      final missed = [
+        for (final g in garden)
+          if (!g.plant.logged && !g.date.isAfter(dayOf(today ?? DateTime.now()))) g.date,
+      ];
       facts.add(FunFact(
         kind: FactKind.logging,
         title: 'Days logged',
+        details: () async => FactDetail(
+          title: 'Days not logged',
+          byDate: true,
+          note: missed.isEmpty ? 'Every day in this period has something logged.' : null,
+          rows: [for (final d in missed) FactRow(label: DateFormat('EEEE d MMMM y').format(d), date: d)],
+        ),
         value: '${logged.length} of $days',
         detail: best >= 3 ? 'Longest run: $best days in a row' : 'Every day logged adds a plant',
       ));
@@ -254,11 +477,17 @@ class FunFactsService {
     final habits = [
       for (final MapEntry(key: (weekday, name), value: n) in byWeekday.entries)
         if (n >= 3 && n / perFood[name]! >= 0.5) (weekday, name, n),
-    ]..sort((a, b) => b.$3.compareTo(a.$3));
+    ]..sort((a, b) => b.$3 != a.$3 ? b.$3.compareTo(a.$3) : (b.$3 / perFood[b.$2]!).compareTo(a.$3 / perFood[a.$2]!));
     if (habits.isNotEmpty) {
       final (weekday, name, n) = habits.first;
       final dayName = DateFormat('EEEE').format(DateTime(2024, 1, weekday)); // 1 Jan 2024 was a Monday
-      facts.add(FunFact(kind: FactKind.weekday, title: '${dayName}s are for', value: name, detail: '$n of ${perFood[name]} times on a $dayName'));
+      facts.add(FunFact(
+        kind: FactKind.weekday,
+        title: '${dayName}s are for',
+        value: name,
+        detail: '$n of ${perFood[name]} times on a $dayName',
+        details: () async => _weekdays(db, inRange, args),
+      ));
     }
 
     // The garden's mix of plants.
@@ -269,11 +498,20 @@ class FunFactsService {
         counts[p.species] = (counts[p.species] ?? 0) + 1;
       }
       final mix = counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+      // Named as they grew in a week or month; a longer period uses the family's summer name.
+      final season = last.difference(from).inDays <= 92 ? Season.of(from.add(Duration(days: last.difference(from).inDays ~/ 2))) : Season.summer;
       facts.add(FunFact(
         kind: FactKind.garden,
         title: 'The garden grew',
+        details: () async => FactDetail(
+          title: 'Plants by kind',
+          rows: [
+            for (final e in mix)
+              FactRow(label: e.key.label, sub: e.key.pluralIn(season), value: e.value, valueText: '${e.value}'),
+          ],
+        ),
         value: '${grown.length} ${grown.length == 1 ? 'plant' : 'plants'}',
-        detail: mix.take(3).map((e) => '${e.value} ${e.value == 1 ? e.key.plantName : e.key.pluralName}').join(', '),
+        detail: mix.take(3).map((e) => '${e.value} ${e.value == 1 ? e.key.nameIn(season) : e.key.pluralIn(season)}').join(', '),
       ));
     }
 
@@ -285,6 +523,58 @@ class FunFactsService {
     }
 
     return facts;
+  }
+
+  static String _hours(num hours) {
+    final minutes = (hours * 60).round();
+    return '${minutes ~/ 60}h ${minutes % 60}m';
+  }
+
+  /// For each weekday, the foods and activities that lean to it: done at
+  /// least 3 times on that day and at least twice as often as an even
+  /// spread over the week would give.
+  Future<FactDetail> _weekdays(DatabaseExecutor db, String inRange, List<Object?> args) async {
+    final onDay = <(int, String, String), int>{}; // (weekday, kind, name)
+    final total = <(String, String), int>{};
+    void count(String date, String kind, String name) {
+      final weekday = DateTime.parse(date).weekday;
+      onDay[(weekday, kind, name)] = (onDay[(weekday, kind, name)] ?? 0) + 1;
+      total[(kind, name)] = (total[(kind, name)] ?? 0) + 1;
+    }
+
+    for (final r in await db.rawQuery('''
+      SELECT m.date, COALESCE(f.name, m.name) AS name FROM meal_entries m
+      LEFT JOIN food_items f ON f.id = m.food_item_id WHERE m.$inRange
+    ''', args)) {
+      count(r['date'] as String, 'food', r['name'] as String);
+    }
+    for (final r in await db.rawQuery('''
+      SELECT a.date, t.name FROM activity_entries a JOIN tags t ON t.id = a.tagId WHERE a.$inRange
+    ''', args)) {
+      count(r['date'] as String, 'activity', r['name'] as String);
+    }
+
+    final leaning = [
+      for (final MapEntry(key: (weekday, kind, name), value: n) in onDay.entries)
+        if (n >= 3 && n / total[(kind, name)]! >= 2 / 7) (weekday, kind, name, n, total[(kind, name)]!),
+    ]..sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : b.$4 != a.$4 ? b.$4.compareTo(a.$4) : (b.$4 / b.$5).compareTo(a.$4 / a.$5));
+    String dayName(int weekday) => DateFormat('EEEE').format(DateTime(2024, 1, weekday)); // 1 Jan 2024 was a Monday
+    return FactDetail(
+      title: 'What each weekday is for',
+      note: 'Foods and activities done at least twice as often on one weekday as the others.',
+      valueSort: 'Highest share',
+      rows: [
+        for (final (weekday, kind, name, n, all) in leaning)
+          FactRow(
+            label: name,
+            sub: '${kind == 'food' ? 'Food' : 'Activity'} · $n of $all times',
+            count: n,
+            value: n / all,
+            valueText: '${(n / all * 100).round()}%',
+            group: '${dayName(weekday)}s',
+          ),
+      ],
+    );
   }
 
   /// The most recent earlier year with something logged on this date: a

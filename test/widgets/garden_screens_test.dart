@@ -5,6 +5,7 @@ import 'package:daily_rhythm/features/garden/presentation/screens/garden_month_s
 import 'package:daily_rhythm/features/garden/presentation/screens/garden_today_screen.dart';
 import 'package:daily_rhythm/features/garden/presentation/widgets/garden_chip.dart';
 import 'package:daily_rhythm/features/garden/presentation/widgets/moment_sheet.dart';
+import 'package:daily_rhythm/features/garden/domain/plant.dart';
 import 'package:daily_rhythm/features/garden/presentation/widgets/plant_view.dart';
 import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
 import 'package:daily_rhythm/features/exercise/presentation/screens/add_exercise_screen.dart';
@@ -17,6 +18,8 @@ import 'package:daily_rhythm/shared/services/database/repositories/checkin_repos
 import 'package:daily_rhythm/shared/services/database/repositories/journal_repository.dart';
 import 'package:daily_rhythm/shared/utils/date_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:daily_rhythm/features/sleep/data/models/sleep_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -34,12 +37,22 @@ Future<void> tapVisible(WidgetTester tester, Finder finder) async {
 void main() {
   late DatabaseService db;
   final today = dayOf(DateTime.now());
+  // The plant a kind of day grows today, as the caption names it.
+  String grows(PlantSpecies s) {
+    final a = PlantSpec.on(today, species: s).aName;
+    return '${a[0].toUpperCase()}${a.substring(1)}';
+  }
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     db = await openTestDatabase();
+    // Midday, so a run in the small hours doesn't open on yesterday.
+    GardenTodayScreen.clock = () => today.add(const Duration(hours: 12));
   });
-  tearDown(closeTestDatabase);
+  tearDown(() async {
+    GardenTodayScreen.clock = DateTime.now;
+    await closeTestDatabase();
+  });
 
   Future<void> pump(WidgetTester tester, Widget screen) async {
     tester.view.physicalSize = const Size(1170, 2532); // 390×844 at 3×
@@ -55,24 +68,24 @@ void main() {
   testWidgets('today starts as an empty pot', (tester) async {
     await pump(tester, const GardenTodayScreen());
     expect(find.text('Today’s plant'), findsOneWidget);
-    expect(find.text('An empty pot, ready for whatever today brings.'), findsOneWidget);
+    expect(find.text('An empty pot, ready for today'), findsOneWidget);
     expect(find.bySemanticsLabel(RegExp('Empty pot: nothing logged that day')), findsOneWidget);
   });
 
   testWidgets('"today was mostly" picks the plant, and picking it again goes back to automatic', (tester) async {
     await db.upsertMoodEntry(MoodEntry(date: today, timestamp: DateTime.now(), moodLevel: 3, emoji: ''));
     await pump(tester, const GardenTodayScreen());
-    expect(find.textContaining('A sprout'), findsOneWidget);
+    expect(find.textContaining(grows(PlantSpecies.sprout)), findsOneWidget);
 
     await tester.tap(find.text('Work'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('A cactus'), findsOneWidget);
-    expect(find.textContaining('(your pick)', findRichText: true), findsOneWidget);
+    expect(find.textContaining(grows(PlantSpecies.cactus)), findsOneWidget);
+    expect(find.textContaining('Picked for you'), findsNothing, reason: 'your own pick isn’t explained');
     expect((await CheckinRepository(db).forDay(today))?.plantOverride, 'cactus');
 
     await tester.tap(find.text('Work'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('A sprout'), findsOneWidget);
+    expect(find.textContaining(grows(PlantSpecies.sprout)), findsOneWidget);
     expect((await CheckinRepository(db).forDay(today))?.plantOverride, isNull);
   });
 
@@ -81,10 +94,12 @@ void main() {
     await pump(tester, const GardenTodayScreen());
     GardenChip chip() => tester.widget<GardenChip>(find.widgetWithText(GardenChip, 'A bit of everything'));
     expect((chip().selected, chip().suggested), (false, true));
+    
 
     await tester.tap(find.text('A bit of everything'));
     await tester.pumpAndSettle();
     expect((chip().selected, chip().suggested), (true, false));
+    expect(find.textContaining('Picked for you'), findsNothing, reason: 'your own pick isn’t explained');
 
     await tester.tap(find.text('A bit of everything'));
     await tester.pumpAndSettle();
@@ -117,9 +132,38 @@ void main() {
     await tester.pumpAndSettle();
 
     final saved = (await JournalRepository(db).forDay(today)).single;
-    expect((saved.text, saved.mood, saved.time != null), ('Coffee with an old friend', 5, true));
+    expect((saved.text, saved.mood, saved.time), ('Coffee with an old friend', 5, null));
     final scrollable = find.byType(Scrollable).first;
     await tester.scrollUntilVisible(find.text('Coffee with an old friend'), 200, scrollable: scrollable);
+  });
+
+  testWidgets('a moment can be changed, keeping its time, and deleted', (tester) async {
+    final time = DateTime(today.year, today.month, today.day, 9, 15);
+    await JournalRepository(db).save(JournalEntry(date: today, time: time, text: 'Coffe with Sam', mood: 4));
+    await pump(tester, const GardenTodayScreen());
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('Coffe with Sam'), 200, scrollable: scrollable);
+    await tapVisible(tester, find.text('Coffe with Sam'));
+    expect(find.text('Edit moment'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Coffee with Sam');
+    await tester.tap(find.descendant(of: find.byType(MomentSheet), matching: find.text('Great')));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Save changes'));
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+    final changed = (await JournalRepository(db).forDay(today)).single;
+    expect((changed.text, changed.mood, changed.time), ('Coffee with Sam', 5, time));
+    expect(find.text('09:15', findRichText: true), findsNothing, reason: 'moments show no clock time');
+
+    await tester.scrollUntilVisible(find.text('Coffee with Sam'), 200, scrollable: scrollable);
+    await tapVisible(tester, find.text('Coffee with Sam'));
+    await tester.ensureVisible(find.text('Delete moment'));
+    await tester.tap(find.text('Delete moment'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+    await tester.pumpAndSettle();
+    expect(await JournalRepository(db).forDay(today), isEmpty);
+    expect(find.text('Coffee with Sam'), findsNothing);
   });
 
   testWidgets('a moment’s tags are grouped by category, symptoms last', (tester) async {
@@ -128,11 +172,11 @@ void main() {
     await tapVisible(tester, find.text('Log a moment'));
 
     final sheet = find.byType(MomentSheet);
-    final general = find.descendant(of: sheet, matching: find.text('General'));
+    final appointments = find.descendant(of: sheet, matching: find.text('Appointments'));
     final health = find.descendant(of: sheet, matching: find.text('Health'));
-    expect(general, findsOneWidget);
+    expect(appointments, findsOneWidget);
     expect(health, findsOneWidget);
-    expect(tester.getTopLeft(health).dy, greaterThan(tester.getTopLeft(general).dy));
+    expect(tester.getTopLeft(health).dy, greaterThan(tester.getTopLeft(appointments).dy));
     expect(find.descendant(of: sheet, matching: find.widgetWithText(FilterChip, 'Work')), findsOneWidget);
   });
 
@@ -148,23 +192,105 @@ void main() {
     await tester.tap(find.widgetWithText(FilterChip, 'Work'));
     await tester.pumpAndSettle();
     expect(tester.widget<FilterChip>(find.widgetWithText(FilterChip, 'Work')).selected, isTrue);
+    expect(await db.getActivityEntriesByDate(today), isEmpty, reason: 'nothing is saved before Save');
     await tester.tap(find.widgetWithText(FilterChip, 'Work'));
-    await tester.pumpAndSettle();
-    expect(await db.getActivityEntriesByDate(today), isEmpty, reason: 'tapping again removes it');
     await tester.tap(find.widgetWithText(FilterChip, 'Social Event'));
     await tester.pumpAndSettle();
-    Navigator.of(tester.element(find.text('What today included'))).pop();
+    await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
+    expect([for (final e in await db.getActivityEntriesByDate(today)) e.tagId].length, 1, reason: 'Work was unpicked');
 
     expect(find.text('Social Event'), findsOneWidget);
     // The plant follows what the day held (the caption is back at the top).
-    await tester.scrollUntilVisible(find.text('A tulip for time with people. From Social Event.'), -300, scrollable: scrollable);
+    await tester.scrollUntilVisible(find.text('${grows(PlantSpecies.tulip)} for time with people'), -300, scrollable: scrollable);
+  });
+
+  testWidgets('in the small hours Today opens on yesterday until yesterday has its mood', (tester) async {
+    final yesterday = today.subtract(const Duration(days: 1));
+    GardenTodayScreen.clock = () => today.add(const Duration(hours: 1, minutes: 30));
+    await pump(tester, const GardenTodayScreen());
+    expect(find.text(DateFormat('EEEE d MMMM').format(yesterday)), findsOneWidget);
+    expect(find.text('It’s past midnight, so this is still yesterday.'), findsOneWidget);
+
+    await db.upsertMoodEntry(MoodEntry(date: yesterday, timestamp: yesterday, moodLevel: 4, emoji: ''));
+    await pump(tester, const SizedBox());
+    await pump(tester, const GardenTodayScreen());
+    expect(find.text(DateFormat('EEEE d MMMM').format(today)), findsOneWidget, reason: 'yesterday was wrapped up');
+    expect(find.text('It’s past midnight, so this is still yesterday.'), findsNothing);
+  });
+
+  testWidgets('a past day\'s buttons fit a 360dp phone with large text', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await pump(tester, GardenTodayScreen(day: today.subtract(const Duration(days: 3))));
+    expect(tester.takeException(), isNull);
+    expect(find.text('Today'), findsWidgets);
+  });
+
+  testWidgets('from 5am Today opens on today', (tester) async {
+    GardenTodayScreen.clock = () => today.add(const Duration(hours: 5));
+    await pump(tester, const GardenTodayScreen());
+    expect(find.text(DateFormat('EEEE d MMMM').format(today)), findsOneWidget);
+  });
+
+  testWidgets('Activities groups tags, chores on their own, and the day shows what was picked', (tester) async {
+    await pump(tester, const GardenTodayScreen());
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('Activities'), 200, scrollable: scrollable);
+    await tapVisible(tester, find.text('Activities'));
+    expect(find.text('Chores'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilterChip, 'Change Bedsheets'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('1 tag'), 200, scrollable: scrollable);
+    expect(find.descendant(of: find.byType(DayLogCard), matching: find.text('Change Bedsheets')), findsOneWidget, reason: 'the picked tag shows as a chip');
+  });
+
+  testWidgets('Sleep reads as last night: bed and wake times, how long, then tonight\'s bedtime', (tester) async {
+    final yesterday = DateTime(today.year, today.month, today.day - 1);
+    await db.saveSleepEntry(SleepEntry(date: yesterday, sleepTime: DateTime(yesterday.year, yesterday.month, yesterday.day, 23, 30)));
+    await db.saveSleepEntry(SleepEntry(
+      date: today,
+      wakeUpTime: DateTime(today.year, today.month, today.day, 7),
+      totalHours: 7.5,
+      sleepTime: DateTime(today.year, today.month, today.day, 23, 45),
+    ));
+    await pump(tester, const GardenTodayScreen());
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('23:30 → 07:00'), 200, scrollable: scrollable);
+    expect(find.text('7h 30m asleep last night'), findsOneWidget);
+    expect(find.text('Bedtime tonight'), findsOneWidget);
+    expect(find.text('23:45'), findsOneWidget);
+  });
+
+  testWidgets('going back from Activities without Save keeps the day as it was', (tester) async {
+    await pump(tester, const GardenTodayScreen());
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('Activities'), 200, scrollable: scrollable);
+    await tapVisible(tester, find.text('Activities'));
+    await tester.tap(find.widgetWithText(FilterChip, 'Work'));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(await db.getActivityEntriesByDate(today), isEmpty);
+  });
+
+  testWidgets('meals are listed in the order they were added, first at the top', (tester) async {
+    for (final (i, name) in ['Kaya toast', 'Chicken rice', 'Laksa'].indexed) {
+      await db.createMealEntry(MealEntry(date: today, time: today.add(Duration(hours: 8 + i * 4)), name: name));
+    }
+    await pump(tester, const GardenTodayScreen());
+    await tester.scrollUntilVisible(find.text('Laksa'), 200, scrollable: find.byType(Scrollable).first);
+    final ys = [for (final n in ['Kaya toast', 'Chicken rice', 'Laksa']) tester.getTopLeft(find.text(n)).dy];
+    expect(ys, orderedEquals([...ys]..sort()));
   });
 
   testWidgets('the exercise row shows how hard the day was and what it burned', (tester) async {
     await db.createExerciseEntry(ExerciseEntry(date: today, timestamp: today, type: ExerciseType.run, distance: 5));
     await pump(tester, const GardenTodayScreen());
-    await tester.scrollUntilVisible(find.text('1 logged · Hard effort · ≈350 kcal burned'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.scrollUntilVisible(find.text('1 logged · ≈350 kcal burned'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.text('≈350 kcal burned'), findsOneWidget, reason: '5 km at the default 70 kg');
   });
 
@@ -174,7 +300,8 @@ void main() {
     final scrollable = find.byType(Scrollable).first;
 
     await tester.scrollUntilVisible(find.text('Chicken rice'), 200, scrollable: scrollable);
-    expect(find.text('1 meal \u00b7 \$4.50 \u00b7 health 3/5'), findsOneWidget, reason: 'chicken rice: a typical plate');
+    expect(find.text('1 meal \u00b7 health 3/5'), findsOneWidget, reason: 'chicken rice: a typical plate');
+    expect(find.text('\$4.50'), findsNWidgets(2), reason: 'the day\'s spend in the headline, and the meal\'s price');
     expect(find.text('Health 3/5 · a typical plate'), findsOneWidget, reason: 'each meal says its own');
     await tester.ensureVisible(find.text('Chicken rice'));
     await tester.pumpAndSettle();
@@ -223,7 +350,7 @@ void main() {
 
     await tester.scrollUntilVisible(find.text('Apple'), 200, scrollable: scrollable);
     expect(find.text('Chicken rice'), findsOneWidget);
-    expect(find.text('\$4.00'), findsOneWidget);
+    expect(find.text('\$4.00'), findsNWidgets(2), reason: 'headline and the meal');
 
     await tester.ensureVisible(find.text('Meals'));
     await tester.pumpAndSettle();
@@ -255,7 +382,7 @@ void main() {
 
     expect(find.text('2 plants'), findsOneWidget);
     expect(find.byType(PlantView), findsNWidgets(30));
-    expect(find.text('A sprout: a bit of everything'), findsOneWidget);
+    expect(find.textContaining(': a bit of everything'), findsOneWidget);
 
     await tester.tap(find.bySemanticsLabel(RegExp(r'^5 June, nothing logged')));
     await tester.pumpAndSettle();
@@ -267,24 +394,24 @@ void main() {
     expect(find.text('0 plants'), findsOneWidget);
   });
 
-  testWidgets('the month in review and the year of gardens open from the Garden tab', (tester) async {
+  testWidgets('the month opens in Metrics, with its moments; the year of gardens opens months', (tester) async {
     await db.upsertMoodEntry(MoodEntry(date: DateTime(2025, 6, 3), timestamp: DateTime(2025, 6, 3), moodLevel: 4, emoji: ''));
     await JournalRepository(db).save(JournalEntry(date: DateTime(2025, 6, 3), text: 'Picnic at the reservoir', mood: 5));
     await pump(tester, GardenMonthScreen(month: DateTime(2025, 6, 4)));
 
-    await tapVisible(tester, find.text('June in review'));
-    expect(find.text('Month in review'), findsOneWidget);
-    expect(find.text('1 plant'), findsOneWidget);
+    await tapVisible(tester, find.text('June in Metrics'));
+    expect(find.text('June 2025'), findsWidgets, reason: 'Metrics opens on that month');
+    expect(find.text('June’s garden'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('“Picnic at the reservoir”'), 200, scrollable: find.byType(Scrollable).first);
-    expect(find.text('Tue 3 Jun · Great'), findsOneWidget);
+    expect(find.text('Tue 3 Jun 2025 · Great'), findsOneWidget);
+    expect(find.text('1 moment written'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     await tapVisible(tester, find.text('2025’s gardens'));
     expect(find.text('A year of gardens'), findsOneWidget);
-    expect(find.text('2025'), findsOneWidget);
-    expect(find.text('1 plant'), findsOneWidget);
-    expect(find.text('Every day of the year'), findsNothing, reason: 'the year’s numbers are in Metrics');
     await tester.scrollUntilVisible(find.bySemanticsLabel('June: 1 plant'), 300, scrollable: find.byType(Scrollable).first);
     await tapVisible(tester, find.bySemanticsLabel('June: 1 plant'));
-    expect(find.text('Month in review'), findsOneWidget, reason: 'a month tile opens its review');
+    expect(find.byType(GardenMonthScreen), findsWidgets, reason: 'a month tile opens its calendar');
   });
 }

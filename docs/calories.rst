@@ -33,11 +33,20 @@ on it's yours (``user``).
        under the Database Contents License. The app shows "From Open Food
        Facts (ODbL)" with every lookup. Share-alike applies if the data is
        redistributed.
-     - Available, online and opt-in
+     - Available, online and opt-in: search by name, or scan a packaged
+       food's barcode
    * - `USDA FoodData Central <https://fdc.nal.usda.gov>`_
      - ``usda``
-     - Public domain (CC0 1.0).
-     - Planned: bundled for offline search
+     - Public domain (CC0 1.0). SR Legacy (April 2018), 7,283 foods with
+       kcal per 100 g and common portions, bundled as
+       ``assets/data/usda_foods.json`` (built by
+       ``tool/usda/build_usda_foods.py``). Source: U.S. Department of
+       Agriculture, Agricultural Research Service, FoodData Central.
+     - Available, offline: listed first in **Look up calories**
+   * - Your AI model (:doc:`ai`)
+     - ``estimate``
+     - Whatever model you connect. Saved as an estimate.
+     - Available, optional: **Estimate with AI** on a meal
    * - SG FoodID (Health Promotion Board, Singapore)
      - ``sgfoodid``
      - Its terms allow use in apps with a conspicuous attribution notice and a
@@ -66,5 +75,7 @@ Privacy
 -------
 
 Looking up calories is optional and only happens when you tap **Look up
-calories**. Only the food's name is sent to Open Food Facts; nothing else
-about you or your log leaves the device.
+calories** or **Scan barcode**. Only the food's name, or the barcode number,
+is sent to Open Food Facts; nothing else about you or your log leaves the
+device. The camera reads the barcode on the phone; no images are sent.
+**Estimate with AI** sends only the food's name to the AI model you set up.

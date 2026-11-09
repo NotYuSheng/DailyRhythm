@@ -62,9 +62,9 @@ dependencies:
   file_picker: ^8.1.6
 
   # Google Drive Backup
-  google_sign_in: ^6.2.2
+  google_sign_in: ^7.2.0
   googleapis: ^13.2.0
-  extension_google_sign_in_as_googleapis_auth: ^2.0.12
+  extension_google_sign_in_as_googleapis_auth: ^3.0.0
   permission_handler: ^11.3.1
 
   # Material widgets (moved out of the Flutter SDK in 3.47)
@@ -72,6 +72,8 @@ dependencies:
   flex_color_scheme: ^9.0.0
   archive: ^4.0.7
   flutter_svg: ^2.3.0
+  mobile_scanner: ^7.5.0
+  package_info_plus: ^9.0.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -116,6 +118,8 @@ flutter:
   assets:
     # Common foods' calories per serving, for estimates (docs/calories.rst).
     - assets/data/common_foods.json
+    # USDA FoodData Central foods, kcal per 100 g and portions, for offline lookup (docs/calories.rst).
+    - assets/data/usda_foods.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

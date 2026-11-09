@@ -48,6 +48,17 @@ What leaves your device, and only when you ask
 * **Calorie lookup.** When you tap "Look up" on a food, only the food's
   name is sent to `Open Food Facts <https://world.openfoodfacts.org>`_ to
   search for calories.
+* **Barcode lookup.** When you scan or type a packaged food's barcode, only the
+  number is sent to `Open Food Facts <https://world.openfoodfacts.org>`_. The
+  camera is used on the phone to read the code; no images are kept or sent.
+* **AI assistant (optional).** If you connect an AI model in Settings and tap
+  "Estimate with AI" on a meal, only that food's name is sent to the AI service
+  you chose (a cloud provider or a server you run). To find the published
+  figure, the AI may have your phone search for that food in Open Food Facts
+  and, if you set it up, the web search service you chose; it may also open a
+  web page from the results. Their terms apply. Your journal, moods and health
+  data are never sent. Your API keys stay on your phone and are never exported
+  or backed up. See :doc:`ai`.
 * **Export.** Files you export go wherever you save or share them.
 
 Nothing is sent in the background.
@@ -70,4 +81,4 @@ issue on `GitHub <https://github.com/NotYuSheng/DailyRhythm/issues>`_.
 
 ----
 
-*Last updated: October 29, 2026*
+*Last updated: November 9, 2026*

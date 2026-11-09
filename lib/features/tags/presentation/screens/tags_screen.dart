@@ -5,6 +5,7 @@ import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/services/database/database_service.dart';
 import '../../../garden/data/garden_providers.dart';
 import '../../../garden/presentation/garden_style.dart';
+import '../tag_icons.dart';
 import '../../data/models/tag.dart';
 import '../../data/providers/tag_providers.dart';
 
@@ -64,7 +65,7 @@ class TagsScreen extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
           children: [
             Text(
-              'Tap a tag to rename it, change its kind, merge it into another or delete it.',
+              'Tap a tag to rename it, change its kind, group or icon, merge it or delete it. Tap a group’s name to rename, move or delete it.',
               style: nunito(14, FontWeight.w600, colors.muted),
             ),
             for (final (kind, title, subtitle) in tagKinds) ...[
@@ -97,8 +98,8 @@ class _KindCard extends ConsumerWidget {
     }
     final order = {for (final c in ref.watch(allTagCategoriesProvider).value ?? const <TagCategory>[]) c.name: c.sortOrder};
     final categories = byCategory.keys.toList()..sort((a, b) => _byOrder(order[a], order[b], a, b));
-    // Groups are optional: only shown when a kind has more than one.
-    final showGroups = categories.length > 1;
+    // Group headings always show, so every group can be managed.
+    const showGroups = true;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
@@ -113,7 +114,7 @@ class _KindCard extends ConsumerWidget {
                     if (i > 0) const SizedBox(height: 12),
                     InkWell(
                       borderRadius: BorderRadius.circular(8),
-                      onTap: () => _renameCategory(context, ref, category),
+                      onTap: () => _groupMenu(context, ref, category, categories),
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(minHeight: 32),
                         child: Row(
@@ -121,7 +122,7 @@ class _KindCard extends ConsumerWidget {
                           children: [
                             Text(category, style: nunito(13, FontWeight.w800, colors.leaf)),
                             const SizedBox(width: 4),
-                            Icon(Icons.edit_outlined, size: 14, color: colors.leaf, semanticLabel: 'Rename group'),
+                            Icon(Icons.more_horiz, size: 16, color: colors.leaf, semanticLabel: 'Group options'),
                           ],
                         ),
                       ),
@@ -142,24 +143,68 @@ class _KindCard extends ConsumerWidget {
     );
   }
 
+  /// A group's options: rename, move up or down, or delete (its tags move
+  /// to the default group).
+  Future<void> _groupMenu(BuildContext context, WidgetRef ref, String group, List<String> shown) async {
+    final container = ProviderScope.containerOf(context, listen: false);
+    final at = shown.indexOf(group);
+    final count = tags.where((t) => t.category == group).length;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+              child: Text(group, style: nunito(20, FontWeight.w900, colors.ink)),
+            ),
+            ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Rename group'), onTap: () => Navigator.pop(context, 'rename')),
+            ListTile(
+              leading: const Icon(Icons.arrow_upward),
+              title: const Text('Move up'),
+              enabled: at > 0,
+              onTap: () => Navigator.pop(context, 'up'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.arrow_downward),
+              title: const Text('Move down'),
+              enabled: at < shown.length - 1,
+              onTap: () => Navigator.pop(context, 'down'),
+            ),
+            if (group != DatabaseService.defaultGroup)
+              ListTile(
+                leading: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+                title: Text('Delete group', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                subtitle: Text('Its $count ${count == 1 ? 'tag moves' : 'tags move'} to ${DatabaseService.defaultGroup}'),
+                onTap: () => Navigator.pop(context, 'delete'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted || choice == null) return;
+    final db = container.read(databaseProvider);
+    switch (choice) {
+      case 'rename':
+        await _renameCategory(context, ref, group);
+        return;
+      case 'up' || 'down':
+        await db.moveGroup(group, choice == 'up' ? -1 : 1, shown);
+      case 'delete':
+        await db.deleteGroup(group, kind);
+    }
+    _invalidateTags(container);
+  }
+
   /// Renames a group for this kind's tags only; renaming to a group that
   /// already exists joins it.
   Future<void> _renameCategory(BuildContext context, WidgetRef ref, String name) async {
     final container = ProviderScope.containerOf(context, listen: false);
     final messenger = ScaffoldMessenger.of(context);
-    final controller = TextEditingController(text: name);
-    final renamed = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rename group'),
-        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'Name')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Rename')),
-        ],
-      ),
-    );
-    controller.dispose();
+    final renamed = await showNameDialog(context, title: 'Rename group', action: 'Rename', initial: name);
     if (renamed == null || renamed.isEmpty || renamed == name) return;
     try {
       await container.read(databaseProvider).moveTagsToGroup([for (final t in tags) if (t.category == name) t.id!], renamed);
@@ -196,6 +241,8 @@ class _TagPill extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Icon(tagIcon(tag), size: 18, color: colors.leaf),
+                  const SizedBox(width: 6),
                   Text(tag.name, style: nunito(14, FontWeight.w800, colors.ink)),
                   if (uses > 0) ...[
                     const SizedBox(width: 6),
@@ -232,23 +279,39 @@ class TagSheet extends ConsumerStatefulWidget {
 
 class _TagSheetState extends ConsumerState<TagSheet> {
   late final _name = TextEditingController(text: widget.tag?.name ?? '');
-  late final _group = TextEditingController(text: widget.tag?.category ?? 'General');
-  final _groupFocus = FocusNode();
+  late String _group = widget.tag?.category ?? DatabaseService.defaultGroup;
+
+  /// Groups made in this sheet, offered until the tag is saved into one.
+  final _newGroups = <String>[];
+
+  /// The dropdown item that makes a new group.
+  static const _makeGroup = '\u0000new';
   late String _kind = widget.tag?.kind ?? TagKind.activity;
+
+  /// The icon picked (a key of [tagIconChoices]); null for automatic.
+  late String? _icon = widget.tag != null && pickedIcon(widget.tag!) != null
+      ? widget.tag!.emoji.substring(pickedIconPrefix.length)
+      : null;
   String? _error;
   bool _busy = false;
 
   @override
   void dispose() {
     _name.dispose();
-    _group.dispose();
-    _groupFocus.dispose();
     super.dispose();
+  }
+
+  /// What goes in the tag's icon field: the picked icon, or back to the
+  /// imported icon name (never a stale pick) when automatic.
+  String get _emoji {
+    if (_icon case final key?) return '$pickedIconPrefix$key';
+    final old = widget.tag?.emoji;
+    return old == null || old.startsWith(pickedIconPrefix) ? 'tag' : old;
   }
 
   Future<void> _save() async {
     final name = _name.text.trim();
-    final group = _group.text.trim().isEmpty ? 'General' : _group.text.trim();
+    final group = _group.trim().isEmpty ? DatabaseService.defaultGroup : _group.trim();
     if (name.isEmpty) {
       setState(() => _error = 'Give the tag a name');
       return;
@@ -262,13 +325,20 @@ class _TagSheetState extends ConsumerState<TagSheet> {
     await _run((db) async {
       final tag = widget.tag;
       if (tag == null) {
-        await db.createTag(Tag(name: name, emoji: 'tag', category: group, kind: _kind));
+        await db.createTag(Tag(name: name, emoji: _emoji, category: group, kind: _kind));
         await db.moveTagsToGroup(const [], group); // makes sure the group exists
       } else {
-        await db.updateTag(tag.copyWith(name: name, kind: _kind));
+        await db.updateTag(tag.copyWith(name: name, kind: _kind, emoji: _emoji));
         await db.moveTagsToGroup([tag.id!], group);
       }
     });
+  }
+
+  /// Asks for a new group's name; an existing one (any case) is reused.
+  Future<String?> _askGroupName(List<String> existing) async {
+    final name = await showNameDialog(context, title: 'New group', action: 'Add', hint: 'e.g. Errands');
+    if (name == null || name.isEmpty) return null;
+    return existing.firstWhere((g) => g.toLowerCase() == name.toLowerCase(), orElse: () => name);
   }
 
   /// Runs one change with the sheet disabled, refreshes, and closes;
@@ -354,8 +424,15 @@ class _TagSheetState extends ConsumerState<TagSheet> {
     final colors = GardenColors.of(context);
     final tag = widget.tag;
     final uses = tag == null ? 0 : ref.watch(tagUseCountsProvider).value?[tag.id] ?? 0;
-    // Groups in use, so a mistyped one goes away once nothing uses it.
-    final groups = {for (final t in ref.watch(allTagsProvider).value ?? const <Tag>[]) t.category}.toList()..sort();
+    // This kind's groups in their order, the default, and any made here.
+    final order = {for (final c in ref.watch(allTagCategoriesProvider).value ?? const <TagCategory>[]) c.name: c.sortOrder};
+    final groups = {
+      for (final t in ref.watch(allTagsProvider).value ?? const <Tag>[]) if (kindOf(t) == _kind) t.category,
+      DatabaseService.defaultGroup,
+      _group,
+      ..._newGroups,
+    }.toList()
+      ..sort((a, b) => _byOrder(order[a], order[b], a, b));
 
     return Padding(
       padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
@@ -376,6 +453,13 @@ class _TagSheetState extends ConsumerState<TagSheet> {
               onChanged: (_) => setState(() => _error = null),
             ),
             const SizedBox(height: 14),
+            _IconPicker(
+              preview: Tag(name: _name.text.trim(), emoji: _emoji, category: '', kind: _kind),
+              picked: _icon,
+              colors: colors,
+              onPick: (key) => setState(() => _icon = key),
+            ),
+            const SizedBox(height: 14),
             Text('Kind', style: nunito(15, FontWeight.w800, colors.leaf)),
             const SizedBox(height: 8),
             SegmentedButton<String>(
@@ -388,32 +472,30 @@ class _TagSheetState extends ConsumerState<TagSheet> {
               onSelectionChanged: (s) => setState(() => _kind = s.first),
             ),
             const SizedBox(height: 14),
-            RawAutocomplete<String>(
-              textEditingController: _group,
-              focusNode: _groupFocus,
-              optionsBuilder: (value) => groups.where((g) => g.toLowerCase().contains(value.text.toLowerCase())),
-              optionsViewBuilder: (context, onSelected, options) => Align(
-                alignment: Alignment.topLeft,
-                child: Material(
-                  elevation: 4,
-                  borderRadius: BorderRadius.circular(16),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 220, maxWidth: 320),
-                    child: ListView(
-                      padding: EdgeInsets.zero,
-                      shrinkWrap: true,
-                      children: [for (final o in options) ListTile(title: Text(o), onTap: () => onSelected(o))],
-                    ),
-                  ),
+            DropdownButtonFormField<String>(
+              // Rebuilt when the kind changes, so its groups are the ones offered.
+              key: ValueKey(('group', _kind, _group, _newGroups.length)),
+              initialValue: _group,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Group', helperText: 'Groups sort tags within a kind'),
+              items: [
+                for (final g in groups) DropdownMenuItem(value: g, child: Text(g, overflow: TextOverflow.ellipsis)),
+                const DropdownMenuItem(
+                  value: _makeGroup,
+                  child: Row(children: [Icon(Icons.add, size: 18), SizedBox(width: 6), Text('New group…')]),
                 ),
-              ),
-              fieldViewBuilder: (context, controller, focus, onSubmitted) {
-                return TextField(
-                  controller: controller,
-                  focusNode: focus,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(labelText: 'Group (optional)', helperText: 'Groups sort tags within a kind'),
-                );
+              ],
+              onChanged: (value) async {
+                if (value == null) return;
+                if (value != _makeGroup) {
+                  setState(() => _group = value);
+                  return;
+                }
+                final made = await _askGroupName(groups);
+                setState(() {
+                  if (made != null && !groups.contains(made)) _newGroups.add(made);
+                  if (made != null) _group = made;
+                });
               },
             ),
             const SizedBox(height: 18),
@@ -452,6 +534,135 @@ class _TagSheetState extends ConsumerState<TagSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Chooses a tag's icon: automatic (from its name) or one of
+/// [tagIconChoices], with the result shown as it will look.
+class _IconPicker extends StatelessWidget {
+  const _IconPicker({required this.preview, required this.picked, required this.colors, required this.onPick});
+
+  /// The tag as it would be saved.
+  final Tag preview;
+  final String? picked;
+  final GardenColors colors;
+  final ValueChanged<String?> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    Widget option({required String? key, required IconData icon, required String label}) {
+      final selected = picked == key;
+      return Semantics(
+        button: true,
+        selected: selected,
+        label: label,
+        excludeSemantics: true,
+        child: Material(
+          color: selected ? scheme.primaryContainer : colors.ground,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () => onPick(key),
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Icon(icon, size: 22, color: selected ? scheme.onPrimaryContainer : colors.leaf),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Icon', style: nunito(15, FontWeight.w800, colors.leaf)),
+            const SizedBox(width: 10),
+            Icon(tagIcon(preview), size: 20, color: colors.ink),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                picked == null ? 'Automatic, from the name' : 'Your pick',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: nunito(13, FontWeight.w700, colors.muted),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            Semantics(
+              button: true,
+              selected: picked == null,
+              label: 'Automatic icon',
+              excludeSemantics: true,
+              child: ChoiceChip(
+                label: const Text('Auto'),
+                selected: picked == null,
+                onSelected: (_) => onPick(null),
+              ),
+            ),
+            for (final MapEntry(key: key, value: icon) in tagIconChoices.entries) option(key: key, icon: icon, label: '$key icon'),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Asks for a name in a dialog; null if cancelled. The dialog owns its text
+/// field, so nothing is used after it closes.
+Future<String?> showNameDialog(BuildContext context, {required String title, required String action, String initial = '', String? hint}) {
+  return showDialog<String>(
+    context: context,
+    builder: (_) => _NameDialog(title: title, action: action, initial: initial, hint: hint),
+  );
+}
+
+class _NameDialog extends StatefulWidget {
+  const _NameDialog({required this.title, required this.action, required this.initial, this.hint});
+
+  final String title;
+  final String action;
+  final String initial;
+  final String? hint;
+
+  @override
+  State<_NameDialog> createState() => _NameDialogState();
+}
+
+class _NameDialogState extends State<_NameDialog> {
+  late final _controller = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textCapitalization: TextCapitalization.sentences,
+        decoration: InputDecoration(labelText: 'Name', hintText: widget.hint),
+        onSubmitted: (v) => Navigator.pop(context, v.trim()),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(context, _controller.text.trim()), child: Text(widget.action)),
+      ],
     );
   }
 }

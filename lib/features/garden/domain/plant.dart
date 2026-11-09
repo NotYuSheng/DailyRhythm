@@ -1,8 +1,11 @@
 import 'dart:math' as math;
 
+import 'more_plants.dart';
 import 'plant_ink.dart';
+import 'seasonal_plants.dart';
 
 export 'plant_ink.dart' show PlantStyle;
+export 'seasonal_plants.dart' show Season, colourCount, speciesPerSeason, varietyCount, varietyOf;
 
 /// What a day was mostly about, shown as the plant it grows.
 enum PlantSpecies {
@@ -24,6 +27,37 @@ enum PlantSpecies {
 
   String get pluralName => this == cactus ? 'cacti' : '${plantName}s';
 
+  /// What days of this kind are, in the plural: "work days".
+  String get daysWord => switch (this) {
+        sunflower => 'exercise days',
+        succulent => 'rest days',
+        tulip => 'days with people',
+        cactus => 'work days',
+        fern => 'study days',
+        monstera => 'game and video days',
+        tree => 'big days out',
+        sprout => 'mixed days',
+      };
+
+  /// The plant this kind of day grows in [season] ([member] 0 or 1): the
+  /// same family all year (work is always a cactus), different members
+  /// each season.
+  String nameIn(Season season, {int member = 0}) => _seasonal[this]![season.index][member];
+
+  String pluralIn(Season season, {int member = 0}) {
+    final name = nameIn(season, member: member);
+    return switch (name) {
+      'cactus' || 'barrel cactus' || 'Christmas cactus' || 'snowball cactus' || 'bunny ear cactus' => '${name.substring(0, name.length - 2)}i',
+      'ivy' => 'ivies',
+      'rosemary' || 'basil' || 'bracken' || 'mistletoe' || 'clover' || 'winter jasmine' || 'hens and chicks' => name,
+      'cherry blossom' => 'cherry blossoms',
+      'cosmos' => 'cosmos',
+      'birch' => 'birches',
+      'pea shoot' => 'pea shoots',
+      _ => '${name}s',
+    };
+  }
+
   static PlantSpecies? byName(String? name) {
     for (final s in values) {
       if (s.name == name) return s;
@@ -32,24 +66,58 @@ enum PlantSpecies {
   }
 }
 
-/// One day's plant. It says only what kind of day it was; the numbers
-/// (sleep, steps, mood) live in Metrics.
+/// Spring, summer, autumn and winter plants for each kind of day: two
+/// each season.
+const _seasonal = {
+  PlantSpecies.sunflower: [['daffodil', 'crocus'], ['sunflower', 'zinnia'], ['chrysanthemum', 'marigold'], ['snowdrop', 'winter jasmine']],
+  PlantSpecies.succulent: [['echeveria', 'hens and chicks'], ['succulent', 'aloe'], ['sedum', 'kalanchoe'], ['jade plant', 'haworthia']],
+  PlantSpecies.tulip: [['tulip', 'hyacinth'], ['hibiscus', 'cosmos'], ['aster', 'dahlia'], ['poinsettia', 'cyclamen']],
+  PlantSpecies.cactus: [['barrel cactus', 'bunny ear cactus'], ['cactus', 'saguaro'], ['prickly pear', 'golden barrel'], ['Christmas cactus', 'snowball cactus']],
+  PlantSpecies.fern: [['fiddlehead fern', 'maidenhair fern'], ['fern', 'basil'], ['rosemary', 'bracken'], ['ivy', 'staghorn fern']],
+  PlantSpecies.monstera: [['calathea', 'pilea'], ['monstera', 'bird of paradise'], ['croton', 'rubber plant'], ['snake plant', 'ZZ plant']],
+  PlantSpecies.tree: [['cherry blossom', 'magnolia'], ['little tree', 'palm'], ['maple', 'ginkgo'], ['snowy pine', 'birch']],
+  PlantSpecies.sprout: [['seedling', 'clover'], ['sprout', 'pea shoot'], ['oak seedling', 'pumpkin sprout'], ['holly sprig', 'mistletoe']],
+};
+
+/// One day's plant. It says only what kind of day it was (its family) and
+/// when (the season picks the family member); the variety only keeps
+/// neighbouring days from looking alike. The numbers live in Metrics.
 class PlantSpec {
-  const PlantSpec({required this.species, this.logged = true});
+  const PlantSpec({required this.species, this.logged = true, this.season = Season.summer, this.variety = 0});
+
+  /// The plant a kind of day grows on [day]: its season's plant, in the
+  /// variety that day's place in the year picks.
+  factory PlantSpec.on(DateTime day, {required PlantSpecies species, bool logged = true}) =>
+      PlantSpec(species: species, logged: logged, season: Season.of(day), variety: varietyOf(day));
 
   final PlantSpecies species;
 
   /// False draws an empty pot.
   final bool logged;
+  final Season season;
+
+  /// 0 to [varietyCount] − 1: which of the season's plants, in which colours.
+  final int variety;
+
+  int get member => variety % varietyCount ~/ colourCount;
+  int get colour => variety % colourCount;
+
+  String get name => species.nameIn(season, member: member);
+
+  /// "a cactus", "an oak seedling".
+  String get aName => '${RegExp('^[aeiou]', caseSensitive: false).hasMatch(name) ? 'an' : 'a'} $name';
 
   @override
-  bool operator ==(Object other) => other is PlantSpec && other.species == species && other.logged == logged;
+  bool operator ==(Object other) =>
+      other is PlantSpec && other.species == species && other.logged == logged && other.season == season && other.variety == variety;
 
   @override
-  int get hashCode => Object.hash(species, logged);
+  int get hashCode => Object.hash(species, logged, season, variety);
 
-  String get semanticLabel => logged ? 'A ${species.plantName}: ${species.dayWord}' : 'Empty pot: nothing logged that day';
+  String get semanticLabel => logged ? '${_capital(aName)}: ${species.dayWord}' : 'Empty pot: nothing logged that day';
 }
+
+String _capital(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
 const potColors = ['#F2A27E', '#B7A8F2', '#8CC8FF', '#9FDCB9'];
 const _potShades = {'#F2A27E': '#E08A64', '#B7A8F2': '#9C8BE6', '#8CC8FF': '#6FB2EE', '#9FDCB9': '#83CBA2'};
@@ -73,14 +141,43 @@ class PlantSvg {
   static String pot(String color, {PlantStyle style = PlantStyle.soft}) =>
       style == PlantStyle.ink ? PlantInk.inked(_pot(color)) : _pot(color);
 
-  static String _pot(String color) {
-    final rim = _potShades[color] ?? color;
+  /// The pot for a day: its colour follows the season (pink in spring,
+  /// terracotta in summer, mustard in autumn, navy in winter), its shade the
+  /// day's colour, with blossom, a fallen leaf or snow on the rim.
+  static String seasonalPot(PlantSpec spec, {PlantStyle style = PlantStyle.soft}) {
+    final colour = _seasonPots[spec.season]![spec.colour];
+    final extra = switch (spec.season) {
+      Season.spring => '<circle cx="74" cy="204" r="3.4" fill="#FFFFFF" opacity="0.85"/><circle cx="100" cy="216" r="3.4" fill="#FFFFFF" opacity="0.85"/>'
+          '<circle cx="126" cy="204" r="3.4" fill="#FFFFFF" opacity="0.85"/>',
+      Season.autumn => '<path d="M128 186 C132 180 140 180 142 186 C140 192 132 192 128 186 Z" fill="#D7713F"/>',
+      Season.winter => '<path d="M46 178 C56 168 72 172 84 168 C98 164 118 170 154 174 L154 180 L46 180 Z" fill="#FFFFFF"/>',
+      Season.summer => '',
+    };
+    final svg = _pot(colour, rim: _darken(colour), extra: extra);
+    return style == PlantStyle.ink ? PlantInk.inked(svg) : svg;
+  }
+
+  static const _seasonPots = {
+    Season.spring: ['#F7C8D6', '#E2D3F5', '#CDEFD8'],
+    Season.summer: ['#F2A27E', '#8CC8FF', '#9FDCB9'],
+    Season.autumn: ['#E8B04A', '#D98A4E', '#C9A27A'],
+    Season.winter: ['#5B7BA6', '#7A8FA8', '#4E7A7A'],
+  };
+
+  static String _darken(String hex) {
+    final v = int.parse(hex.substring(1), radix: 16);
+    String c(int x) => (x * 0.88).round().clamp(0, 255).toRadixString(16).padLeft(2, '0');
+    return '#${c(v >> 16 & 0xFF)}${c(v >> 8 & 0xFF)}${c(v & 0xFF)}';
+  }
+
+  static String _pot(String color, {String? rim, String extra = ''}) {
+    rim ??= _potShades[color] ?? color;
     return _wrap(
       '<ellipse cx="100" cy="236" rx="56" ry="4" fill="#2B2440" opacity="0.08"/>'
       '<path d="M52 182 L148 182 L138 230 C137 234 134 236 130 236 L70 236 C66 236 63 234 62 230 Z" fill="$color"/>'
       '<path d="M60 190 L66 226" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" opacity="0.35"/>'
       '<rect x="46" y="172" width="108" height="16" rx="8" fill="$rim"/>'
-      '<ellipse cx="100" cy="176" rx="46" ry="5" fill="#7A513D"/>',
+      '<ellipse cx="100" cy="176" rx="46" ry="5" fill="#7A513D"/>$extra',
     );
   }
 
@@ -97,8 +194,104 @@ class PlantSvg {
 
   static String? _plant(PlantSpec spec) {
     if (!spec.logged) return null;
+    final v = spec.colour;
+    if (spec.member == 1) {
+      final art = switch ((spec.species, spec.season)) {
+        (PlantSpecies.sunflower, Season.spring) => MoreArt.crocus(v),
+        (PlantSpecies.sunflower, Season.summer) => MoreArt.zinnia(v),
+        (PlantSpecies.sunflower, Season.autumn) => MoreArt.marigold(v),
+        (PlantSpecies.sunflower, Season.winter) => MoreArt.winterJasmine(v),
+        (PlantSpecies.succulent, Season.spring) => MoreArt.hensAndChicks(v),
+        (PlantSpecies.succulent, Season.summer) => MoreArt.aloe(v),
+        (PlantSpecies.succulent, Season.autumn) => MoreArt.kalanchoe(v),
+        (PlantSpecies.succulent, Season.winter) => MoreArt.haworthia(v),
+        (PlantSpecies.tulip, Season.spring) => MoreArt.hyacinth(v),
+        (PlantSpecies.tulip, Season.summer) => MoreArt.cosmos(v),
+        (PlantSpecies.tulip, Season.autumn) => MoreArt.dahlia(v),
+        (PlantSpecies.tulip, Season.winter) => MoreArt.cyclamen(v),
+        (PlantSpecies.cactus, Season.spring) => MoreArt.bunnyEar(v),
+        (PlantSpecies.cactus, Season.summer) => MoreArt.saguaro(v),
+        (PlantSpecies.cactus, Season.autumn) => MoreArt.goldenBarrel(v),
+        (PlantSpecies.cactus, Season.winter) => MoreArt.snowballCactus(v),
+        (PlantSpecies.fern, Season.spring) => MoreArt.maidenhair(v),
+        (PlantSpecies.fern, Season.summer) => MoreArt.basil(v),
+        (PlantSpecies.fern, Season.autumn) => MoreArt.bracken(v),
+        (PlantSpecies.fern, Season.winter) => MoreArt.staghorn(v),
+        (PlantSpecies.monstera, Season.spring) => MoreArt.pilea(v),
+        (PlantSpecies.monstera, Season.summer) => MoreArt.birdOfParadise(v),
+        (PlantSpecies.monstera, Season.autumn) => MoreArt.rubberPlant(v),
+        (PlantSpecies.monstera, Season.winter) => MoreArt.zzPlant(v),
+        (PlantSpecies.tree, Season.spring) => MoreArt.magnolia(v),
+        (PlantSpecies.tree, Season.summer) => MoreArt.palm(v),
+        (PlantSpecies.tree, Season.autumn) => MoreArt.ginkgo(v),
+        (PlantSpecies.tree, Season.winter) => MoreArt.birch(v),
+        (PlantSpecies.sprout, Season.spring) => MoreArt.clover(v),
+        (PlantSpecies.sprout, Season.summer) => MoreArt.peaShoot(v),
+        (PlantSpecies.sprout, Season.autumn) => MoreArt.pumpkinSprout(v),
+        (PlantSpecies.sprout, Season.winter) => MoreArt.mistletoe(v),
+      };
+      return _wrap(_scaled(art));
+    }
+    // People: tulips in spring, hibiscus in summer.
+    final seasonal = spec.season != Season.summer || spec.species == PlantSpecies.tulip;
+    if (seasonal) {
+      final art = switch ((spec.species, spec.season)) {
+        (PlantSpecies.sunflower, Season.spring) => SeasonalArt.daffodil(v),
+        (PlantSpecies.sunflower, Season.autumn) => SeasonalArt.chrysanthemum(v),
+        (PlantSpecies.sunflower, _) => SeasonalArt.snowdrop(v),
+        (PlantSpecies.succulent, Season.spring) => SeasonalArt.echeveria(v),
+        (PlantSpecies.succulent, Season.autumn) => SeasonalArt.sedum(v),
+        (PlantSpecies.succulent, _) => SeasonalArt.jade(v),
+        (PlantSpecies.tulip, Season.spring) => _summerArt(PlantSpecies.tulip, v),
+        (PlantSpecies.tulip, Season.summer) => SeasonalArt.hibiscus(v),
+        (PlantSpecies.tulip, Season.autumn) => SeasonalArt.aster(v),
+        (PlantSpecies.tulip, _) => SeasonalArt.poinsettia(v),
+        (PlantSpecies.cactus, Season.spring) => SeasonalArt.barrel(v),
+        (PlantSpecies.cactus, Season.autumn) => SeasonalArt.pricklyPear(v),
+        (PlantSpecies.cactus, _) => SeasonalArt.christmasCactus(v),
+        (PlantSpecies.fern, Season.spring) => SeasonalArt.fiddlehead(v),
+        (PlantSpecies.fern, Season.autumn) => SeasonalArt.rosemary(v),
+        (PlantSpecies.fern, _) => SeasonalArt.ivy(v),
+        (PlantSpecies.monstera, Season.spring) => SeasonalArt.calathea(v),
+        (PlantSpecies.monstera, Season.autumn) => SeasonalArt.croton(v),
+        (PlantSpecies.monstera, _) => SeasonalArt.snakePlant(v),
+        (PlantSpecies.tree, Season.spring) => SeasonalArt.cherry(v),
+        (PlantSpecies.tree, Season.autumn) => SeasonalArt.maple(v),
+        (PlantSpecies.tree, _) => SeasonalArt.pine(v),
+        (PlantSpecies.sprout, Season.spring) => SeasonalArt.seedling(v),
+        (PlantSpecies.sprout, Season.autumn) => SeasonalArt.oak(v),
+        (PlantSpecies.sprout, _) => SeasonalArt.holly(v),
+      };
+      return _wrap(_scaled(art));
+    }
+    return _wrap(_summerArt(spec.species, v, scaled: true));
+  }
+
+  static String _scaled(String art) => '<g transform="translate(100 176) scale(${_scale.toStringAsFixed(2)}) translate(-100 -176)">$art</g>';
+
+  /// Bloom colours for the summer plants' varieties.
+  static const _summerVarieties = {
+    PlantSpecies.sunflower: [<String, String>{}, {'#FFC93C': '#F49A3C'}, {'#FFC93C': '#D9534F', '#8A5A35': '#4A2E1E'}],
+    PlantSpecies.tulip: [<String, String>{}, {'#FF7A8A': '#B7A0E8', '#FFA3AE': '#D6C8F4'}, {'#FF7A8A': '#FFC93C', '#FFA3AE': '#FFE08A'}],
+    PlantSpecies.succulent: [<String, String>{}, {'#FF9EB5': '#FFD27A', '#F2A7BE': '#F7C26B'}, {'#7CC4A0': '#A9C8E8', '#A8DDBF': '#C3D8EE'}],
+    PlantSpecies.cactus: [<String, String>{}, {'#FF9EB5': '#FFD45C'}, {'#FF9EB5': '#F07B6A'}],
+    PlantSpecies.fern: [<String, String>{}, {'#E5484D': '#FFC93C'}, {'#5BB884': '#7FB57A', '#7CCB9A': '#9FD08A'}],
+    PlantSpecies.monstera: [<String, String>{}, {'#FFF3D6': '#FFFFFF', '#F2D27E': '#F7B733'}, {'#3F9E6A': '#2F7F5A', '#4FAE78': '#3F9E6A'}],
+    PlantSpecies.tree: [<String, String>{}, {'#FFB3C7': '#F07B6A'}, {'#FFB3C7': '#FFFFFF', '#5BB884': '#6FB5A5'}],
+    PlantSpecies.sprout: [<String, String>{}, {'#FF9EB5': '#FFD45C'}, {'#FF9EB5': '#B7A0E8'}],
+  };
+
+  static String _summerArt(PlantSpecies species, int variety, {bool scaled = false}) {
+    var art = _summerBody(species);
+    for (final MapEntry(:key, :value) in _summerVarieties[species]![variety].entries) {
+      art = art.replaceAll(key, value);
+    }
+    return scaled ? '<g transform="translate(100 176) scale(${_scale.toStringAsFixed(2)}) translate(-100 -176)">$art</g>' : art;
+  }
+
+  static String _summerBody(PlantSpecies species) {
+    final spec = PlantSpec(species: species);
     const move = _growth;
-    const g = _scale;
     final b = StringBuffer();
     const greens = ['#5BB884', '#7CCB9A'];
 
@@ -201,8 +394,7 @@ class PlantSvg {
 
     final top = _tops[spec.species]!;
     b.write('<g transform="translate(${top.$1} ${top.$2})">${_bloom(spec.species)}</g>');
-
-    return _wrap('<g transform="translate(100 176) scale(${g.toStringAsFixed(2)}) translate(-100 -176)">$b</g>');
+    return b.toString();
   }
 
   static const _tops = {

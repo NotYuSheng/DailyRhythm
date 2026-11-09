@@ -48,8 +48,33 @@ void main() {
     expect(facts['Go-to food']!.value, anyOf('Wing rice', 'Chicken rice'));
     expect(facts['New foods tried']!.value, '2', reason: 'Wing rice and Wagyu don; Chicken rice was eaten in February');
     expect(facts['Biggest treat']!.value, '\$28.00');
-    expect(facts['Biggest treat']!.detail, contains('Wagyu don, 12 Mar'));
+    expect(facts['Biggest treat']!.detail, 'Wagyu don, 12 Mar', reason: 'the total is its own fact');
+    expect(facts['Food spending']!.value, '\$60.50');
+    expect(facts['Food spending']!.detail, '8 priced meals, \$7.56 each on average');
     expect((facts['Mondays are for']!.value, facts['Mondays are for']!.detail), ('Wing rice', '4 of 4 times on a Monday'));
+
+    // Each fact opens the list behind it.
+    final treats = await facts['Biggest treat']!.details!();
+    expect(treats.rows.length, 8);
+    expect(treats.rows.map((r) => r.value).reduce((a, b) => a! > b! ? a : b), 28);
+    final foods = await facts['Go-to food']!.details!();
+    expect({for (final r in foods.rows) r.label: r.value}, {'Wing rice': 4, 'Chicken rice': 3, 'Wagyu don': 1});
+    final spending = await facts['Food spending']!.details!();
+    expect({for (final r in spending.rows) r.label: r.value}['Wing rice'], 20);
+    final weekdays = await facts['Mondays are for']!.details!();
+    expect([for (final r in weekdays.rows) (r.group, r.label)], contains(('Mondays', 'Wing rice')));
+  });
+
+  test('days logged lists the days with nothing logged', () async {
+    for (var d = 1; d <= 10; d++) {
+      if (d == 4 || d == 7) continue;
+      await db.upsertMoodEntry(MoodEntry(date: DateTime(2026, 3, d), timestamp: DateTime(2026, 3, d, 21), moodLevel: 3, emoji: ''));
+    }
+    final ten = DateRange(start: DateTime(2026, 3, 1), end: DateTime(2026, 3, 10), label: 'x');
+    final facts = byTitle(await FunFactsService(db).factsFor(ten, today: DateTime(2026, 3, 10)));
+    expect(facts['Days logged']!.value, '8 of 10');
+    final missed = await facts['Days logged']!.details!();
+    expect([for (final r in missed.rows) r.date], [DateTime(2026, 3, 4), DateTime(2026, 3, 7)]);
   });
 
   test('movement and sleep records', () async {
@@ -67,8 +92,14 @@ void main() {
       await db.saveSleepEntry(SleepEntry(date: DateTime(2026, 3, d), wakeUpTime: DateTime(2026, 3, d, d == 4 ? 9 : 6, d == 5 ? 10 : 30), sleepTime: DateTime(2026, 3, d, 23)));
     }
 
-    final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
-    expect(facts['Most reps']!.value, '100');
+    await db.createExerciseEntry(ExerciseEntry(date: DateTime(2026, 3, 5), timestamp: DateTime(2026, 3, 5), type: ExerciseType.run, distance: 5));
+    final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31), weightKg: 60));
+    expect(facts['Favourite exercise']!.value, 'Sit ups', reason: 'done on the most days');
+    expect(facts['Favourite exercise']!.detail, startsWith('On 2 days · 100 reps. ≈'));
+    final exercise = await facts['Favourite exercise']!.details!();
+    expect([for (final r in exercise.rows) r.label], ['Sit ups', 'Run']);
+    expect(exercise.rows.last.value, 300, reason: '5 km at 60 kg');
+    expect(exercise.note, contains('2 exercises on 3 days'));
     expect(facts['Distance on foot']!.value, '233 km', reason: '310,000 steps at 0.75 m');
     expect(facts['Distance on foot']!.detail, matches(RegExp(r'^About .* \(310,000 steps\)$')), reason: 'a comparison, then the steps');
     expect(facts['Longest night']!.value, '10h 30m');
@@ -81,7 +112,7 @@ void main() {
     }
     final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
     expect((facts['Days logged']!.value, facts['Days logged']!.detail), ('5 of 31', 'Longest run: 4 days in a row'));
-    expect(facts['The garden grew']!.detail, '5 sprouts');
+    expect(facts['The garden grew']!.detail, '5 seedlings');
 
     final quiet = await FunFactsService(db).factsFor(
       DateRange(start: DateTime(2026, 4, 1), end: DateTime(2026, 4, 30), label: 'April'), today: DateTime(2026, 4, 30));
@@ -110,7 +141,7 @@ void main() {
       await db.createMealEntry(MealEntry(date: DateTime(2026, 3, d), time: DateTime(2026, 3, d, 12), name: 'Kopi', price: 3, quantity: 2));
     }
     final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
-    expect(facts['Biggest treat']!.detail, endsWith('\$15.00 on food in all'));
+    expect(facts['Food spending']!.value, '\$15.00');
   });
 
   test('nights just under an hour round up, and work days grow cacti', () async {
@@ -124,7 +155,7 @@ void main() {
     }
     final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
     expect(facts['Longest night']!.value, '8h 0m');
-    expect(facts['The garden grew']!.detail, contains('3 cacti'));
+    expect(facts['The garden grew']!.detail, contains('3 barrel cacti'));
   });
 
   test('events and gifts are their own fact, not food spending', () async {
@@ -135,7 +166,7 @@ void main() {
     await SpendingRepository(db).save(SpendingEntry(date: DateTime(2026, 3, 9), label: 'Farewell dinner', amount: 60));
     await SpendingRepository(db).save(SpendingEntry(date: DateTime(2026, 3, 10), label: 'Unpriced', amount: 0));
     final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
-    expect(facts['Biggest treat']!.detail, endsWith('\$20.00 on food in all'));
+    expect(facts['Food spending']!.value, '\$20.00');
     expect((facts['Events & gifts']!.value, facts['Events & gifts']!.detail), ('\$260.00', '2 of them. The biggest: A wedding'));
   });
 

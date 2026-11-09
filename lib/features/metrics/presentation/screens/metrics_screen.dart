@@ -5,13 +5,19 @@ import '../../data/models/metric_data.dart';
 import '../../data/providers/metrics_providers.dart';
 import '../../../garden/presentation/garden_style.dart';
 import '../widgets/day_ratings_section.dart';
+import '../widgets/level_sections.dart';
 import '../widgets/fun_facts_section.dart';
+import '../widgets/garden_scene_card.dart';
+import '../widgets/moments_section.dart';
 import '../../data/models/period_overview.dart';
 import '../widgets/period_overview_section.dart';
 import '../widgets/weight_section.dart';
 
 class MetricsScreen extends ConsumerStatefulWidget {
-  const MetricsScreen({super.key});
+  const MetricsScreen({super.key, this.month});
+
+  /// Opens on this month (from the garden); the current month when null.
+  final DateTime? month;
 
   @override
   ConsumerState<MetricsScreen> createState() => _MetricsScreenState();
@@ -22,7 +28,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
 
   /// Any day in the period shown; arrows move it back and forward. Null
   /// follows today, so a screen left open shows the new month when it comes.
-  DateTime? _anchor;
+  late DateTime? _anchor = widget.month;
 
   DateRange get _selectedRange => _selectedRangeFor(_anchor ?? DateTime.now());
 
@@ -67,6 +73,14 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
             _buildTimeRangeSelector(),
             const SizedBox(height: AppTheme.spacePulse4),
 
+            // The period's plants at a glance; tap for the calendar.
+            GardenSceneCard(range: _selectedRange),
+            const SizedBox(height: AppTheme.spacePulse4),
+
+            // What was written, and a few moments worth seeing again.
+            MomentsSection(range: _selectedRange),
+            const SizedBox(height: AppTheme.spacePulse4),
+
             FunFactsSection(range: _selectedRange),
             const SizedBox(height: AppTheme.spacePulse4),
 
@@ -82,6 +96,12 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
 
             // Weight over the period, and logging today's.
             WeightSection(range: _selectedRange),
+            const SizedBox(height: AppTheme.spacePulse3),
+
+            // How hard the exercise days were, and how much was eaten
+            EffortSection(range: _selectedRange),
+            const SizedBox(height: AppTheme.spacePulse3),
+            FoodSection(range: _selectedRange),
             const SizedBox(height: AppTheme.spacePulse3),
 
             // Mood, energy, stress and focus; tag comparisons; watch

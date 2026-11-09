@@ -7,43 +7,55 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/app_config.dart';
 
+/// The Google account backups go to, as shown in Settings.
+class DriveAccount {
+  const DriveAccount({required this.email, this.displayName, this.photoUrl});
+
+  final String email;
+  final String? displayName;
+  final String? photoUrl;
+}
+
+/// Google Drive backups through Google Sign-In (Credential Manager on
+/// Android). Signing in authenticates once and grants Drive access to the
+/// files this app creates; after that each Drive call asks for a fresh
+/// access token silently, so the app never signs in again at start-up.
 class GoogleDriveService {
   static final GoogleDriveService instance = GoogleDriveService._init();
 
   GoogleDriveService._init();
 
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    // drive.file only covers files this app created (the backup folder).
-    scopes: [
-      drive.DriveApi.driveFileScope,
-    ],
-    serverClientId: AppConfig.googleServerClientId,
-  );
+  /// drive.file only covers files this app created (the backup folder).
+  static const scopes = [drive.DriveApi.driveFileScope];
 
-  GoogleSignInAccount? _currentUser;
+  static const _emailKey = 'drive_account_email';
+  static const _nameKey = 'drive_account_name';
+  static const _photoKey = 'drive_account_photo';
+
+  Future<void>? _ready;
+  DriveAccount? _currentUser;
   drive.DriveApi? _driveApi;
 
-  GoogleSignInAccount? get currentUser => _currentUser;
+  DriveAccount? get currentUser => _currentUser;
   bool get isSignedIn => _currentUser != null;
 
-  // Initialize and check if user is already signed in
-  Future<void> initialize() async {
-    // Check if platform is supported
+  /// Sets up Google Sign-In (once) and remembers who was signed in.
+  Future<void> initialize() => _ready ??= _initialize();
+
+  Future<void> _initialize() async {
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString(_emailKey);
+    if (email != null) {
+      _currentUser = DriveAccount(email: email, displayName: prefs.getString(_nameKey), photoUrl: prefs.getString(_photoKey));
+    }
     if (!_isPlatformSupported()) {
       debugPrint('Google Sign-In not supported on this platform');
       return;
     }
-
-    _googleSignIn.onCurrentUserChanged.listen((account) {
-      _currentUser = account;
-    });
-
-    // Try to sign in silently
     try {
-      await _googleSignIn.signInSilently();
+      await GoogleSignIn.instance.initialize(serverClientId: AppConfig.googleServerClientId);
     } catch (e) {
-      // Silent sign-in failed, user needs to sign in manually
-      debugPrint('Silent sign-in failed: $e');
+      debugPrint('Google Sign-In setup failed: $e');
     }
   }
 
@@ -57,66 +69,62 @@ class GoogleDriveService {
            defaultTargetPlatform == TargetPlatform.iOS;
   }
 
-  // Sign in to Google
-  Future<GoogleSignInAccount?> signIn() async {
+  /// Signs in and asks for Drive access. Returns the account, or null if
+  /// the person backed out; throws [GoogleSignInException] for anything
+  /// else (a setup problem, no connection).
+  Future<DriveAccount?> signIn() async {
     if (!_isPlatformSupported()) {
       throw UnsupportedError(
         'Google Sign-In is not supported on this platform. '
         'Please run on Android, iOS, or Web.',
       );
     }
-
+    await initialize();
     try {
-      debugPrint('Starting Google Sign-In...');
-      debugPrint('Server Client ID: ${AppConfig.googleServerClientId}');
+      final account = await GoogleSignIn.instance.authenticate(scopeHint: scopes);
+      // Drive access is asked for separately; already granted, it's silent.
+      final authorization = await account.authorizationClient.authorizationForScopes(scopes) ??
+          await account.authorizationClient.authorizeScopes(scopes);
+      _driveApi = drive.DriveApi(authorization.authClient(scopes: scopes));
 
-      final account = await _googleSignIn.signIn();
-      debugPrint('Sign-In result: ${account?.email ?? 'null'}');
-
-      _currentUser = account;
-
-      if (account != null) {
-        debugPrint('User signed in: ${account.email}');
-
-        // Initialize Drive API
-        final authClient = await _googleSignIn.authenticatedClient();
-        debugPrint('Auth client obtained: ${authClient != null}');
-
-        if (authClient != null) {
-          _driveApi = drive.DriveApi(authClient);
-          debugPrint('Drive API initialized successfully');
-        } else {
-          debugPrint('ERROR: Failed to get authenticated client');
-        }
-      } else {
-        debugPrint('ERROR: Sign-In returned null - user cancelled or error occurred');
+      final user = DriveAccount(email: account.email, displayName: account.displayName, photoUrl: account.photoUrl);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_emailKey, user.email);
+      for (final (key, value) in [(_nameKey, user.displayName), (_photoKey, user.photoUrl)]) {
+        value == null ? await prefs.remove(key) : await prefs.setString(key, value);
       }
-
-      return account;
-    } catch (e, stackTrace) {
-      debugPrint('ERROR signing in: $e');
-      debugPrint('Stack trace: $stackTrace');
-      return null;
+      return _currentUser = user;
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) return null;
+      debugPrint('Google sign-in failed: ${e.code} ${e.description}');
+      rethrow;
     }
   }
 
-  // Sign out from Google
+  /// Signs out: backups stop until the next sign-in. Drive access stays
+  /// granted, so signing in again doesn't ask for it.
   Future<void> signOut() async {
+    _currentUser = null;
+    _driveApi = null;
+    final prefs = await SharedPreferences.getInstance();
+    for (final key in [_emailKey, _nameKey, _photoKey]) {
+      await prefs.remove(key);
+    }
     try {
-      await _googleSignIn.signOut();
-      _currentUser = null;
-      _driveApi = null;
+      await GoogleSignIn.instance.signOut();
     } catch (e) {
       debugPrint('Error signing out: $e');
     }
   }
 
-  /// Connects to Drive with the signed-in account if not yet connected.
+  /// Connects to Drive with a fresh access token (they last about an hour),
+  /// without asking the person anything.
   Future<void> _ensureDriveApi() async {
-    if (_driveApi != null) return;
-    final authClient = await _googleSignIn.authenticatedClient();
-    if (authClient == null) throw Exception('Not authenticated');
-    _driveApi = drive.DriveApi(authClient);
+    if (!isSignedIn) throw Exception('Not signed in to Google');
+    await initialize();
+    final authorization = await GoogleSignIn.instance.authorizationClient.authorizationForScopes(scopes);
+    if (authorization == null) throw Exception('Sign in to Google again to use Drive backups.');
+    _driveApi = drive.DriveApi(authorization.authClient(scopes: scopes));
   }
 
   // Upload database file to Google Drive

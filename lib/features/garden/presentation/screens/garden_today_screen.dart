@@ -26,23 +26,58 @@ import 'garden_month_screen.dart';
 class GardenTodayScreen extends ConsumerStatefulWidget {
   const GardenTodayScreen({super.key, this.day});
 
-  /// The day shown first; today when null.
+  /// The day shown first; today when null (yesterday in the small hours,
+  /// until yesterday has its mood).
   final DateTime? day;
+
+  /// The time now; replaced in tests.
+  @visibleForTesting
+  static DateTime Function() clock = DateTime.now;
 
   @override
   ConsumerState<GardenTodayScreen> createState() => _GardenTodayScreenState();
 }
 
 class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
-  late DateTime _day = dayOf(widget.day ?? DateTime.now());
+  /// Before this hour the night isn't over: opening the app is still
+  /// yesterday for someone who hasn't slept yet.
+  static const _nightEndsHour = 5;
 
-  void _go(int days) => setState(() => _day = DateTime(_day.year, _day.month, _day.day + days));
+  /// Whether it opened on yesterday because it's the small hours.
+  late bool _lateNight = widget.day == null && GardenTodayScreen.clock().hour < _nightEndsHour;
+
+  late DateTime _day = _lateNight
+      ? dayOf(GardenTodayScreen.clock()).subtract(const Duration(days: 1))
+      : dayOf(widget.day ?? GardenTodayScreen.clock());
+
+  @override
+  void initState() {
+    super.initState();
+    if (_lateNight) _todayIfYesterdayDone();
+  }
+
+  /// Yesterday already has its mood: it was wrapped up, so open on today.
+  Future<void> _todayIfYesterdayDone() async {
+    final yesterday = _day;
+    if (await ref.read(databaseProvider).getMoodEntryByDate(yesterday) == null) return;
+    if (mounted && _day == yesterday) {
+      setState(() {
+        _day = dayOf(GardenTodayScreen.clock());
+        _lateNight = false;
+      });
+    }
+  }
+
+  void _go(int days) => setState(() {
+        _day = DateTime(_day.year, _day.month, _day.day + days);
+        _lateNight = false;
+      });
 
   @override
   Widget build(BuildContext context) {
     final colors = GardenColors.of(context);
     final today = _day;
-    final now = dayOf(DateTime.now());
+    final now = dayOf(GardenTodayScreen.clock());
     final isToday = today == now;
     final mood = ref.watch(moodEntryProvider(today)).value;
     final garden = ref.watch(gardenDayProvider(today));
@@ -78,6 +113,8 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
                       children: [
                         Text(DateFormat('EEEE d MMMM').format(today), style: nunito(15, FontWeight.w700, colors.muted)),
                         Semantics(header: true, child: Text(isToday ? 'Today’s plant' : 'This day’s plant', style: nunito(30, FontWeight.w900, colors.ink))),
+                        if (_lateNight)
+                          Text('It’s past midnight, so this is still yesterday.', style: nunito(14, FontWeight.w700, colors.muted)),
                       ],
                     ),
                   ),
@@ -94,17 +131,32 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
                     colors: colors,
                     onPressed: isToday ? null : () => _go(1),
                   ),
-                  const Spacer(),
-                  if (!isToday) ...[
-                    _PillButton(label: 'Today', colors: colors, onPressed: () => setState(() => _day = now)),
-                    const SizedBox(width: 8),
-                  ],
-                  _PillButton(
-                    label: 'Garden',
-                    colors: colors,
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(builder: (_) => GardenMonthScreen(month: today)),
+                  const SizedBox(width: 8),
+                  // Wraps under itself with large text or a narrow phone.
+                  Expanded(
+                    child: Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if (!isToday)
+                          _PillButton(
+                            label: 'Today',
+                            colors: colors,
+                            onPressed: () => setState(() {
+                              _day = now;
+                              _lateNight = false;
+                            }),
+                          ),
+                        _PillButton(
+                          label: 'Garden',
+                          colors: colors,
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(builder: (_) => GardenMonthScreen(month: today)),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -112,14 +164,12 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
               const SizedBox(height: 14),
               _PlantBed(day: g, caption: _caption(g, isToday), colors: colors),
               const SizedBox(height: 16),
-              Text.rich(
-                TextSpan(children: [
-                  TextSpan(text: isToday ? 'Today was mostly… ' : 'This day was mostly… '),
-                  TextSpan(
-                    text: g.chosen ? '(your pick)' : '(picks the plant)',
-                    style: nunito(16, FontWeight.w700, colors.muted),
-                  ),
-                ]),
+              // The same words whatever is picked, so nothing below moves;
+              // whether it was picked shows in the chips below.
+              Text(
+                isToday ? 'Today was mostly…' : 'This day was mostly…',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: nunito(16, FontWeight.w900, colors.ink),
               ),
               const SizedBox(height: 8),
@@ -168,7 +218,14 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
               const SizedBox(height: 16),
               DayLogCard(day: today),
               const SizedBox(height: 16),
-              _Moments(moments: moments, tagNames: tags, colors: colors),
+              _Moments(
+                moments: moments,
+                tagNames: tags,
+                colors: colors,
+                onEdit: (m) async {
+                  if (await showMomentSheet(context, today, entry: m)) invalidateGardenDay(ref, today);
+                },
+              ),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: () async {
@@ -189,9 +246,11 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
     );
   }
 
+  /// One line: what grew. Picked or not, the chips below show it.
   static String _caption(GardenDay g, bool isToday) {
-    if (!g.plant.logged) return isToday ? 'An empty pot, ready for whatever today brings.' : 'An empty pot: a quiet day.';
-    return 'A ${g.plant.species.plantName} for ${g.plant.species.dayWord}. ${g.reason}';
+    if (!g.plant.logged) return isToday ? 'An empty pot, ready for today' : 'An empty pot: a quiet day';
+    final plant = '${g.plant.aName[0].toUpperCase()}${g.plant.aName.substring(1)}';
+    return '$plant for ${g.plant.species.dayWord}';
   }
 }
 
@@ -212,9 +271,9 @@ class _PlantBed extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(caption, textAlign: TextAlign.center, style: nunito(15, FontWeight.w800, colors.leaf)),
+            child: Text(caption, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: nunito(16, FontWeight.w900, colors.leaf)),
           ),
-          PlantView(spec: day.plant, width: 210, sway: true, potColor: potColors[day.date.day % potColors.length]),
+          PlantView(spec: day.plant, width: 210, sway: true),
           // The hill the pot stands on.
           Container(
             height: 26,
@@ -352,11 +411,12 @@ class _RatingRow extends StatelessWidget {
 }
 
 class _Moments extends StatelessWidget {
-  const _Moments({required this.moments, required this.tagNames, required this.colors});
+  const _Moments({required this.moments, required this.tagNames, required this.colors, required this.onEdit});
 
   final List<JournalEntry> moments;
   final Map<int?, String> tagNames;
   final GardenColors colors;
+  final ValueChanged<JournalEntry> onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -366,38 +426,54 @@ class _Moments extends StatelessWidget {
       children: [
         Text('Moments', style: nunito(16, FontWeight.w900, colors.ink)),
         const SizedBox(height: 8),
-        for (final m in moments) MomentTile(moment: m, tagNames: tagNames, colors: colors),
+        for (final m in moments) MomentTile(moment: m, tagNames: tagNames, colors: colors, onTap: () => onEdit(m)),
       ],
     );
   }
 }
 
-/// One moment: time, mood word, text and what it was about.
+/// One moment: its mood word, text and what it was about. Tapping it
+/// opens it to change or delete.
 class MomentTile extends StatelessWidget {
-  const MomentTile({super.key, required this.moment, required this.tagNames, required this.colors});
+  const MomentTile({super.key, required this.moment, required this.tagNames, required this.colors, this.onTap});
 
   final JournalEntry moment;
   final Map<int?, String> tagNames;
   final GardenColors colors;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final meta = [
-      if (moment.time != null) DateFormat('HH:mm').format(moment.time!),
-      if (moment.mood != null) momentMoodWords[moment.mood],
-    ].join(' · ');
+    // A moment belongs to its day, not a clock time.
+    final meta = moment.mood == null ? '' : momentMoodWords[moment.mood]!;
     final about = [for (final id in moment.tagIds) tagNames[id]].whereType<String>().join(', ');
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(18)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (meta.isNotEmpty) Text(meta, style: nunito(12, FontWeight.w800, colors.muted)),
-          if (moment.text.isNotEmpty) Text(moment.text, style: nunito(15, FontWeight.w600, colors.ink)),
-          if (about.isNotEmpty) Text(about, style: nunito(13, FontWeight.w700, colors.leaf)),
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (meta.isNotEmpty) Text(meta, style: nunito(12, FontWeight.w800, colors.muted)),
+                      if (moment.text.isNotEmpty) Text(moment.text, style: nunito(15, FontWeight.w600, colors.ink)),
+                      if (about.isNotEmpty) Text(about, style: nunito(13, FontWeight.w700, colors.leaf)),
+                    ],
+                  ),
+                ),
+                if (onTap != null) Icon(Icons.edit_outlined, size: 18, color: colors.muted),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

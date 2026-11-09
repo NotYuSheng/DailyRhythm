@@ -104,9 +104,6 @@ class GardenDay {
   /// plant: they say nothing about what the day was about.
   static const tagSpecies = {
     'Exercise': PlantSpecies.sunflower,
-    'Intense Exercise': PlantSpecies.sunflower,
-    'Nap': PlantSpecies.succulent,
-    'Slept Early': PlantSpecies.succulent,
     'Social Event': PlantSpecies.tulip,
     'Family Time': PlantSpecies.tulip,
     'Family Issues': PlantSpecies.tulip,
@@ -222,7 +219,7 @@ class GardenDay {
       reason: log.plantOverride != null ? 'You picked this plant.' : reasonFor(log, species),
       effort: log.effort,
       diet: log.diet,
-      plant: PlantSpec(species: species, logged: log.logged),
+      plant: PlantSpec.on(log.date, species: species, logged: log.logged),
     );
   }
 
@@ -230,9 +227,11 @@ class GardenDay {
   String get title => !plant.logged
       ? 'A quiet day'
       : plant.species == PlantSpecies.sprout && usual && !chosen
-          ? 'A sprout: a usual day'
-          : 'A ${plant.species.plantName}: ${plant.species.dayWord}';
+          ? '${_capital(plant.aName)}: a usual day'
+          : '${_capital(plant.aName)}: ${plant.species.dayWord}';
 
   /// "From Work and Study."
   String get detail => plant.logged ? reason : 'Nothing logged. That’s okay.';
 }
+
+String _capital(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';

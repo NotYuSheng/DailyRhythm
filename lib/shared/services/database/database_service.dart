@@ -7,6 +7,8 @@ import '../../utils/date_utils.dart';
 import 'schema_v13.dart';
 import 'schema_v14.dart';
 import 'schema_v15.dart';
+import 'schema_v16.dart';
+import 'schema_v17.dart';
 import '../../../features/sleep/data/models/sleep_entry.dart';
 import '../../models/nap_entry.dart';
 import '../../../features/meals/data/models/meal_entry.dart';
@@ -20,7 +22,7 @@ class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
   static Database? _database;
 
-  static const int schemaVersion = 15;
+  static const int schemaVersion = 17;
 
   /// Overrides the database file location (e.g. `inMemoryDatabasePath`).
   @visibleForTesting
@@ -241,6 +243,12 @@ class DatabaseService {
     }
     if (oldVersion < 15) {
       await SchemaV15.apply(db);
+    }
+    if (oldVersion < 16) {
+      await SchemaV16.apply(db);
+    }
+    if (oldVersion < 17) {
+      await SchemaV17.apply(db);
     }
   }
 
@@ -498,9 +506,6 @@ class DatabaseService {
       {'name': 'Video Games', 'emoji': 'game_structure', 'category': 'Hobby'},
       {'name': 'Draw', 'emoji': 'brush_alt', 'category': 'Hobby'},
 
-      // Physical Activity
-      {'name': 'Intense Exercise', 'emoji': 'dumbbell', 'category': 'Activity'},
-
       // Social & Family
       {'name': 'Social Event', 'emoji': 'glass_martini', 'category': 'Activity'},
       {'name': 'Family Time', 'emoji': 'home', 'category': 'Activity'},
@@ -518,6 +523,8 @@ class DatabaseService {
     await SchemaV13.apply(db);
     await SchemaV14.apply(db);
     await SchemaV15.apply(db);
+    await SchemaV16.apply(db);
+    await SchemaV17.apply(db);
   }
 
   // ==================== Sleep Entry CRUD ====================
@@ -761,7 +768,8 @@ class DatabaseService {
       'meal_entries',
       where: 'date >= ? AND date < ?',
       whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
-      orderBy: 'time DESC',
+      // In the order they were added, first at the top.
+      orderBy: 'time ASC, id ASC',
     );
 
     return maps.map((map) => MealEntry.fromMap(map)).toList();
@@ -902,6 +910,44 @@ class DatabaseService {
       await txn.rawInsert('INSERT OR IGNORE INTO tag_categories (name, sort_order) VALUES (?, ?)', [group, order]);
       await txn.delete('tag_categories', where: 'name NOT IN (SELECT category FROM tags)');
     });
+  }
+
+  /// The group tags go to when theirs is deleted.
+  static const defaultGroup = 'General';
+
+  /// Deletes group [group] for [kind]'s tags: they move to [defaultGroup].
+  /// The group's other kinds keep it. Returns how many tags moved.
+  Future<int> deleteGroup(String group, String kind) async {
+    final db = await database;
+    final ids = [
+      for (final r in await db.query('tags', columns: ['id'], where: 'category = ? AND kind = ?', whereArgs: [group, kind])) r['id'] as int,
+    ];
+    if (group != defaultGroup) await moveTagsToGroup(ids, defaultGroup);
+    return ids.length;
+  }
+
+  /// Moves [group] one place earlier ([step] -1) or later (+1) among
+  /// [shown], the groups in the order a kind shows them. Groups are
+  /// ordered once for all kinds, so the two swap places in that order.
+  Future<void> moveGroup(String group, int step, List<String> shown) async {
+    final at = shown.indexOf(group);
+    final to = at + step;
+    if (at < 0 || to < 0 || to >= shown.length) return;
+    final other = shown[to];
+    // Every group shown has an order row to swap (older data may lack one).
+    final db = await database;
+    for (final name in shown) {
+      final order = Sqflite.firstIntValue(await db.rawQuery('SELECT COALESCE(MAX(sort_order) + 1, 0) FROM tag_categories'));
+      await db.rawInsert('INSERT OR IGNORE INTO tag_categories (name, sort_order) VALUES (?, ?)', [name, order]);
+    }
+    final all = await getAllTagCategories();
+    final names = [for (final c in all) c.name];
+    final i = names.indexOf(group), j = names.indexOf(other);
+    if (i < 0 || j < 0) return;
+    final ordered = [...all]
+      ..[i] = all[j]
+      ..[j] = all[i];
+    await updateTagCategoryOrders([for (final c in ordered) c.id!]);
   }
 
   /// Merges tag [fromId] into [intoId]: its activity entries and moment

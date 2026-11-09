@@ -28,4 +28,11 @@ void main() {
       expect(sleepDurationHours(DateTime(2026, 1, 1, 7), DateTime(2026, 1, 2, 7)), 0);
     });
   });
+
+  test('formatHours reads as hours and minutes', () {
+    expect(formatHours(5.5), '5h 30m');
+    expect(formatHours(8), '8h');
+    expect(formatHours(0.75), '45m');
+    expect(formatHours(7.999), '8h', reason: 'never "7h 60m"');
+  });
 }

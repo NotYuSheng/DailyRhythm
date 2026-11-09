@@ -3,15 +3,16 @@ import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../shared/utils/date_utils.dart';
+import '../../../metrics/presentation/screens/metrics_screen.dart';
 import '../../../tags/data/models/tag.dart';
 import '../../../tags/data/providers/tag_providers.dart';
 import '../../data/garden_providers.dart';
+import '../widgets/moment_sheet.dart';
 import '../../domain/garden_day.dart';
 import '../../domain/plant.dart';
 import '../garden_style.dart';
 import '../widgets/plant_view.dart';
 import 'garden_today_screen.dart';
-import 'recap_screen.dart';
 import 'year_gardens_screen.dart';
 
 /// A month as a garden: one pot per day, a plant in each logged one.
@@ -118,7 +119,7 @@ class _GardenMonthScreenState extends ConsumerState<GardenMonthScreen> {
                   runSpacing: 8,
                   children: [
                     for (final (label, icon, screen) in [
-                      ('${DateFormat('MMMM').format(_month)} in review', Icons.auto_awesome_outlined, MonthRecapScreen(month: _month)),
+                      ('${DateFormat('MMMM').format(_month)} in Metrics', Icons.insights_outlined, MetricsScreen(month: _month)),
                       ('${_month.year}’s gardens', Icons.calendar_view_month, YearGardensScreen(year: _month.year)),
                     ])
                       OutlinedButton.icon(
@@ -232,9 +233,9 @@ class _DayCell extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   PlantView(
-                    spec: future ? PlantSpec(species: day.plant.species, logged: false) : day.plant,
+                    spec: future ? PlantSpec.on(day.date, species: day.plant.species, logged: false) : day.plant,
                     width: (box.maxWidth - 6).clamp(20, 48),
-                    potColor: future ? '#E4EDE7' : potColors[day.date.day % potColors.length],
+                    potColor: future ? '#E4EDE7' : null,
                   ),
                   Text('${day.date.day}', style: nunito(11, FontWeight.w800, colors.muted)),
                 ],
@@ -270,7 +271,15 @@ class _DayCard extends ConsumerWidget {
             Text(day.detail, style: nunito(14, FontWeight.w600, colors.leaf)),
             if (moments.isNotEmpty) ...[
               const SizedBox(height: 10),
-              for (final m in moments) MomentTile(moment: m, tagNames: tags, colors: colors),
+              for (final m in moments)
+                MomentTile(
+                  moment: m,
+                  tagNames: tags,
+                  colors: colors,
+                  onTap: () async {
+                    if (await showMomentSheet(context, day.date, entry: m)) invalidateGardenDay(ref, day.date);
+                  },
+                ),
             ],
             const SizedBox(height: 4),
             Align(

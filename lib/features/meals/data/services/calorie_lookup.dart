@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 
 /// A food's calories from a reference source, for the user to confirm.
 class CalorieMatch {
-  const CalorieMatch({required this.name, required this.kcal, required this.basis, required this.source, this.brand});
+  const CalorieMatch({required this.name, required this.kcal, required this.basis, required this.source, this.brand, this.serving});
 
   final String name;
   final String? brand;
@@ -15,6 +15,9 @@ class CalorieMatch {
   /// "serving" when the source gives a serving size, otherwise "100 g".
   final String basis;
 
+  /// What a serving is, when the source says ("1 cup (240 g)").
+  final String? serving;
+
   /// Where the value came from (see `docs/calories.rst`): usda, sgfoodid,
   /// off, estimate or user.
   final String source;
@@ -23,6 +26,10 @@ class CalorieMatch {
 /// Looks up calories for a food by name.
 abstract class CalorieLookup {
   Future<List<CalorieMatch>> search(String query);
+
+  /// A packaged food by its barcode; null when unknown. Sources without
+  /// barcodes know none.
+  Future<CalorieMatch?> byBarcode(String code) async => null;
 }
 
 /// Open Food Facts text search. Online and opt-in: only the typed name is
@@ -73,6 +80,40 @@ class OpenFoodFactsLookup implements CalorieLookup {
       ));
     }
     return matches;
+  }
+
+  @override
+  /// A packaged food by its barcode (EAN/UPC), or null if Open Food Facts
+  /// doesn't know it or has no calories for it. Only the code is sent.
+  Future<CalorieMatch?> byBarcode(String code) async {
+    final digits = code.replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 8) return null;
+    final uri = Uri.https('world.openfoodfacts.org', '/api/v2/product/$digits.json', {
+      'fields': 'product_name,brands,nutriments,serving_size',
+    });
+    final response = await _client
+        .get(uri, headers: {'User-Agent': 'DailyRhythm/1.0 (personal tracker; github.com/NotYuSheng/DailyRhythm)'})
+        .timeout(const Duration(seconds: 10));
+    if (response.statusCode == 404) return null;
+    if (response.statusCode != 200) {
+      throw Exception('Open Food Facts answered ${response.statusCode}');
+    }
+    final body = jsonDecode(response.body);
+    if (body is! Map || body['status'] != 1 || body['product'] is! Map) return null;
+    final p = body['product'] as Map;
+    final name = p['product_name'] is String ? (p['product_name'] as String).trim() : '';
+    final nutriments = p['nutriments'] is Map ? p['nutriments'] as Map : const {};
+    final perServing = _number(nutriments['energy-kcal_serving']);
+    final per100 = _number(nutriments['energy-kcal_100g']);
+    if (name.isEmpty || (perServing == null && per100 == null)) return null;
+    final brand = p['brands'] is String ? (p['brands'] as String).split(',').first.trim() : '';
+    return CalorieMatch(
+      name: name,
+      brand: brand.isEmpty ? null : brand,
+      kcal: perServing ?? per100!,
+      basis: perServing != null ? 'serving' : '100 g',
+      source: source,
+    );
   }
 
   static double? _number(Object? value) => switch (value is String ? double.tryParse(value) : value) {

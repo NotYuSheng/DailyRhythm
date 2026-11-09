@@ -5,6 +5,7 @@ import 'package:daily_rhythm/features/meals/data/models/food_item.dart';
 import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
 import 'package:daily_rhythm/features/meals/data/providers/meal_providers.dart';
 import 'package:daily_rhythm/features/meals/data/services/calorie_lookup.dart';
+import 'package:daily_rhythm/features/meals/domain/food_spelling.dart';
 import 'package:daily_rhythm/shared/services/database/repositories/catalog_repository.dart';
 import 'package:daily_rhythm/features/meals/presentation/screens/add_meal_screen.dart';
 import 'package:daily_rhythm/features/sleep/data/models/sleep_entry.dart';
@@ -15,6 +16,7 @@ import 'package:daily_rhythm/shared/services/database/repositories/spending_repo
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/test_database.dart';
 
@@ -47,6 +49,31 @@ void main() {
       expect(entry.wakeUpTime, DateTime(2026, 10, 20, 7, 30));
       expect(entry.sleepTime, isNull);
       expect(entry.totalHours, closeTo(7.67, 0.01), reason: 'from the previous night\u2019s bedtime');
+    });
+
+    testWidgets('another time is picked by spinning the hour and minute wheels', (tester) async {
+      await tester.pumpWidget(_app(AddSleepScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Other\u2026').first);
+      await tester.pumpAndSettle();
+      expect(find.byType(ListWheelScrollView), findsNWidgets(2));
+
+      // Spin the hours down two rows and the minutes up one.
+      final wheels = find.byType(ListWheelScrollView);
+      await tester.drag(wheels.first, const Offset(0, -96));
+      await tester.pumpAndSettle();
+      await tester.drag(wheels.last, const Offset(0, 48));
+      await tester.pumpAndSettle();
+      final set = find.textContaining('Set ');
+      final label = tester.widget<Text>(set).data!;
+      await tester.tap(set);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      final entry = (await db.getSleepEntryByDate(pastDay))!;
+      final picked = entry.wakeUpTime ?? entry.sleepTime;
+      expect(label, 'Set ${picked!.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}');
     });
 
     testWidgets('asks for at least one time', (tester) async {
@@ -224,7 +251,7 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Look up calories'));
       await tester.pumpAndSettle();
-      expect(find.text('From Open Food Facts (ODbL). Estimates, not nutrition advice.'), findsOneWidget);
+      expect(find.textContaining('Open Food Facts (ODbL). Estimates, not nutrition advice.'), findsOneWidget);
       await tester.tap(find.text('Fried noodles'));
       await tester.pumpAndSettle();
       expect(tester.widget<TextField>(_field('Calories (optional)')).controller!.text, '510');
@@ -547,10 +574,66 @@ void main() {
       expect(saved.timestamp, DateTime(2026, 10, 20, 19));
     });
   });
+
+  _barcodeTests();
+
+  testWidgets('a new dish gets its spelling checked too', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await openTestDatabase();
+    addTearDown(closeTestDatabase);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        foodSpellingProvider.overrideWith((ref) async => FoodSpelling(FoodSpelling.countWords(['Chicken, roasted', 'Rice, white']))),
+      ],
+      child: MaterialApp(home: AddMealScreen(date: DateTime(2026, 10, 20))),
+    ));
+    await tester.pumpAndSettle();
+    await tester.enterText(_field('Meal Name'), 'Chiken rice');
+    await tester.pump();
+    expect(find.text('Did you mean Chicken rice?', findRichText: true), findsOneWidget);
+    await tester.tap(find.text('Use it'));
+    await tester.pump();
+    expect(tester.widget<TextField>(_field('Meal Name')).controller!.text, 'Chicken rice');
+    expect(find.textContaining('Did you mean', findRichText: true), findsNothing);
+  });
+}
+
+void _barcodeTests() {
+  testWidgets('a barcode fills the name and a serving\'s calories; an unknown one says so', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await openTestDatabase();
+    addTearDown(closeTestDatabase);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [calorieLookupProvider.overrideWithValue(_FakeLookup())],
+      child: MaterialApp(home: AddMealScreen(date: DateTime(2026, 10, 20))),
+    ));
+    await tester.pumpAndSettle();
+    // No camera in tests (desktop): the number is typed.
+    await tester.ensureVisible(find.text('Barcode'));
+    await tester.tap(find.text('Barcode'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '9556001130120');
+    await tester.tap(find.text('Look it up'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(_field('Meal Name')).controller!.text, 'Cocoa malt drink (Milo)');
+    expect(tester.widget<TextField>(_field('Calories (optional)')).controller!.text, '190');
+
+    await tester.ensureVisible(find.text('Barcode'));
+    await tester.tap(find.text('Barcode'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '12345678');
+    await tester.tap(find.text('Look it up'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('doesn’t know 12345678'), findsOneWidget);
+  });
 }
 
 class _FakeLookup implements CalorieLookup {
   @override
   Future<List<CalorieMatch>> search(String query) async =>
       [const CalorieMatch(name: 'Fried noodles', kcal: 510, basis: 'serving', source: 'off')];
+
+  @override
+  Future<CalorieMatch?> byBarcode(String code) async =>
+      code == '9556001130120' ? const CalorieMatch(name: 'Cocoa malt drink', brand: 'Milo', kcal: 190, basis: 'serving', source: 'off') : null;
 }

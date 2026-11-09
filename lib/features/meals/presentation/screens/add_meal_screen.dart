@@ -1,3 +1,6 @@
+import 'barcode_screen.dart';
+import '../../../ai/data/ai_client.dart';
+import '../../../ai/data/ai_providers.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/food_item.dart';
@@ -7,6 +10,7 @@ import '../../domain/calorie_estimator.dart';
 import '../../domain/diet_score.dart';
 import '../../domain/portion.dart';
 import '../../domain/food_matcher.dart';
+import '../../domain/food_spelling.dart';
 import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/services/database/repositories/catalog_repository.dart';
 import '../../data/providers/meal_providers.dart';
@@ -45,6 +49,9 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   /// A looked-up value per serving, so the calories follow the quantity.
   double? _lookedUpPerServing;
 
+  /// Waiting for the AI's estimate.
+  bool _estimating = false;
+
   /// Whether the calories were typed or looked up on this screen; only
   /// then do they become the food's (editing an old meal shouldn't).
   bool _caloriesChanged = false;
@@ -67,6 +74,10 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
 
   /// The user's foods, for suggestions; empty until loaded.
   FoodMatcher _matcher = FoodMatcher(const []);
+
+  /// Spelling help: the bundled food words plus the user's own foods.
+  FoodSpelling _spelling = FoodSpelling.empty();
+  Map<String, int> _yourWords = const {};
   CalorieEstimator _estimator = CalorieEstimator(yourFoods: const [], reference: const []);
   List<FoodChoice> _usual = const [];
 
@@ -94,12 +105,18 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     if (mounted) {
       setState(() {
         _matcher = FoodMatcher(foods);
+        // Your own words count most: a dish you log is spelt your way.
+        _yourWords = FoodSpelling.countWords([for (final f in foods) ...[f.item.name, ...f.item.aliases]], weight: 20);
+        _spelling = FoodSpelling.empty().withWords(_yourWords);
         _estimator = CalorieEstimator(yourFoods: [for (final f in foods) f.item], reference: const []);
         _usual = usual;
       });
     }
     // The common foods table comes after: suggestions needn't wait for it.
     if (!mounted) return;
+    ref.read(foodSpellingProvider.future).then((bundled) {
+      if (mounted) setState(() => _spelling = bundled.withWords(_yourWords));
+    }).ignore();
     final reference = await ref.read(referenceFoodsProvider.future);
     if (mounted && reference.isNotEmpty) {
       setState(() => _estimator = CalorieEstimator(yourFoods: [for (final f in foods) f.item], reference: reference));
@@ -176,7 +193,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
-                      'From Open Food Facts (ODbL). Estimates, not nutrition advice.',
+                      'From USDA FoodData Central (public domain, works offline) and Open Food Facts (ODbL). Estimates, not nutrition advice.',
                       style: theme.textTheme.bodySmall,
                     ),
                   ),
@@ -184,7 +201,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                   if (snapshot.connectionState != ConnectionState.done)
                     const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
                   else if (snapshot.hasError)
-                    const Padding(padding: EdgeInsets.all(20), child: Text('Couldn’t reach Open Food Facts. Check the connection and try again.'))
+                    const Padding(padding: EdgeInsets.all(20), child: Text('No offline match, and Open Food Facts couldn’t be reached. Check the connection or type the calories.'))
                   else if (snapshot.data!.isEmpty)
                     const Padding(padding: EdgeInsets.all(20), child: Text('No matches. You can type the calories instead.'))
                   else
@@ -195,7 +212,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                           for (final m in snapshot.data!)
                             ListTile(
                               title: Text(m.name),
-                              subtitle: m.brand == null ? null : Text(m.brand!),
+                              subtitle: Text([?m.brand, ?m.serving, m.source == 'usda' ? 'USDA' : 'Open Food Facts'].join(' · ')),
                               trailing: Text('${m.kcal.round()} kcal\nper ${m.basis}', textAlign: TextAlign.right),
                               onTap: () => Navigator.pop(context, m),
                             ),
@@ -229,6 +246,70 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('That’s per 100 g. Adjust it to what you had.')),
       );
+    }
+  }
+
+  /// Scans (or types) a packaged food's barcode, looks it up in Open Food
+  /// Facts (only the number is sent) and fills the name and calories.
+  Future<void> _scanBarcode() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final code = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const BarcodeScreen()));
+    if (code == null || !mounted) return;
+    // A new scan's result replaces the last one's message.
+    messenger.hideCurrentSnackBar();
+    final CalorieMatch? match;
+    try {
+      match = await ref.read(calorieLookupProvider).byBarcode(code);
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(content: Text('Couldn’t reach Open Food Facts. Check the connection and try again.')));
+      return;
+    }
+    if (!mounted) return;
+    if (match == null) {
+      messenger.showSnackBar(SnackBar(content: Text('Open Food Facts doesn’t know $code yet. Type the name and calories instead.')));
+      return;
+    }
+    final found = match;
+    final perServing = found.basis == 'serving';
+    setState(() {
+      if (_nameController.text.trim().isEmpty) {
+        _nameController.text = found.brand == null ? found.name : '${found.name} (${found.brand})';
+      }
+      _caloriesChanged = true;
+      _lookedUpPerServing = perServing ? found.kcal : null;
+      _caloriesController.text = '${(perServing ? found.kcal * _quantity : found.kcal).round()}';
+      _kcalSource = perServing ? found.source : null;
+    });
+    messenger.showSnackBar(SnackBar(
+      content: Text(perServing ? 'From Open Food Facts: ${found.kcal.round()} kcal a serving.' : 'That’s per 100 g. Adjust it to what you had.'),
+    ));
+  }
+
+  /// Asks the user's AI model for one serving's calories (only when tapped;
+  /// only the name is sent). Saved as an estimate, like the built-in ones.
+  Future<void> _estimateWithAi(AiClient ai) async {
+    final name = _nameController.text.trim();
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _estimating = true);
+    try {
+      final estimate = await ai.estimateCalories(name);
+      if (!mounted) return;
+      if (estimate == null) {
+        messenger.showSnackBar(const SnackBar(content: Text('The AI didn’t think that’s a food or drink.')));
+        return;
+      }
+      setState(() {
+        _caloriesChanged = true;
+        _lookedUpPerServing = estimate.kcal;
+        _caloriesController.text = '${(estimate.kcal * _quantity).round()}';
+        _kcalSource = 'estimate';
+      });
+      final from = estimate.source == null ? 'AI estimate' : 'From ${estimate.source}';
+      messenger.showSnackBar(SnackBar(content: Text('$from, for ${estimate.serving}. Adjust it if yours was different.')));
+    } on AiException catch (e) {
+      if (mounted) messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _estimating = false);
     }
   }
 
@@ -326,6 +407,11 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                       _choose(f);
                       _nameFocus.unfocus();
                     },
+                    spelling: _spelling.correct,
+                    onCorrect: (name) => setState(() {
+                      _nameController.text = name;
+                      _nameController.selection = TextSelection.collapsed(offset: name.length);
+                    }),
                   ),
                   if (DietScore.describe(text, tags: _currentTags) case final health?) _healthPanel(text, health),
                 ],
@@ -412,14 +498,32 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                     selected: {_portion},
                     onSelectionChanged: (s) => setState(() => _portion = s.first),
                   ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
-                      onPressed: text.trim().isEmpty ? null : _lookUpCalories,
-                      icon: const Icon(Icons.search, size: 18),
-                      label: const Text('Look up calories'),
-                    ),
+                  Wrap(
+                    spacing: 4,
+                    children: [
+                      TextButton.icon(
+                        style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+                        onPressed: text.trim().isEmpty ? null : _lookUpCalories,
+                        icon: const Icon(Icons.search, size: 18),
+                        label: const Text('Look up calories'),
+                      ),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+                        onPressed: _scanBarcode,
+                        icon: const Icon(Icons.qr_code_scanner, size: 18),
+                        label: Text(BarcodeScreen.canScan ? 'Scan barcode' : 'Barcode'),
+                      ),
+                      // Only when the user has set up their own AI model.
+                      if (ref.watch(aiClientProvider) case final ai?)
+                        TextButton.icon(
+                          style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+                          onPressed: text.trim().isEmpty || _estimating ? null : () => _estimateWithAi(ai),
+                          icon: _estimating
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.auto_awesome_outlined, size: 18),
+                          label: const Text('Estimate with AI'),
+                        ),
+                    ],
                   ),
                 ],
               ),

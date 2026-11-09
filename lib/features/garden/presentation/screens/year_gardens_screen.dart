@@ -8,7 +8,7 @@ import '../../domain/garden_day.dart';
 import '../../domain/year_facts.dart';
 import '../garden_style.dart';
 import '../widgets/mini_garden.dart';
-import 'recap_screen.dart';
+import 'garden_month_screen.dart';
 
 /// A year of gardens: every month's plants, to look back on. The year's
 /// numbers are in Metrics.
@@ -137,7 +137,7 @@ class _MonthTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
-        onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => MonthRecapScreen(month: month))),
+        onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => GardenMonthScreen(month: month))),
         child: Semantics(
           button: true,
           label: '$name: $plants ${plants == 1 ? 'plant' : 'plants'}',

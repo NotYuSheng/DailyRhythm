@@ -22,7 +22,7 @@ void main() {
   tearDown(closeTestDatabase);
 
   group('JournalRepository', () {
-    test('saves moments with tags and lists them in time order', () async {
+    test('saves moments with tags and lists them in the order they were added', () async {
       final repo = JournalRepository(service);
       final day = DateTime(2025, 6, 1);
       await repo.save(JournalEntry(date: day, text: 'no time'));
@@ -32,10 +32,10 @@ void main() {
       );
 
       final entries = await repo.forDay(day);
-      expect(entries.map((e) => e.text), ['morning', 'evening', 'no time']);
-      expect(entries.first.id, morning);
-      expect(entries.first.date, day, reason: 'date is stored as the day');
-      expect(entries.first.tagIds..sort(), [1, 2]);
+      expect(entries.map((e) => e.text), ['no time', 'evening', 'morning'], reason: 'a moment has no clock time to sort by');
+      expect(entries.last.id, morning);
+      expect(entries.last.date, day, reason: 'date is stored as the day');
+      expect(entries.last.tagIds..sort(), [1, 2]);
       expect(entries[1].mood, 2);
     });
 
