@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/sleep_entry.dart';
+import '../../../../shared/widgets/forms/time_wheel.dart';
 import '../../../../shared/services/database/database_provider.dart';
 import '../../data/providers/sleep_providers.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -228,15 +229,10 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
     }
 
     Future<void> pickOther() async {
-      final picked = await showTimePicker(
-        context: context,
-        initialTime: selected ?? (usual.isNotEmpty ? usual.first : fallback),
-        // Typing is quicker than the dial, especially on desktop.
-        initialEntryMode: TimePickerEntryMode.input,
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-          child: child!,
-        ),
+      final picked = await showTimeWheel(
+        context,
+        title: label,
+        initial: selected ?? (usual.isNotEmpty ? usual.first : fallback),
       );
       if (picked != null) onSelect(atTimeOfDay(_date, picked.hour, picked.minute));
     }

@@ -49,6 +49,31 @@ void main() {
       expect(entry.totalHours, closeTo(7.67, 0.01), reason: 'from the previous night\u2019s bedtime');
     });
 
+    testWidgets('another time is picked by spinning the hour and minute wheels', (tester) async {
+      await tester.pumpWidget(_app(AddSleepScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Other\u2026').first);
+      await tester.pumpAndSettle();
+      expect(find.byType(ListWheelScrollView), findsNWidgets(2));
+
+      // Spin the hours down two rows and the minutes up one.
+      final wheels = find.byType(ListWheelScrollView);
+      await tester.drag(wheels.first, const Offset(0, -96));
+      await tester.pumpAndSettle();
+      await tester.drag(wheels.last, const Offset(0, 48));
+      await tester.pumpAndSettle();
+      final set = find.textContaining('Set ');
+      final label = tester.widget<Text>(set).data!;
+      await tester.tap(set);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      final entry = (await db.getSleepEntryByDate(pastDay))!;
+      final picked = entry.wakeUpTime ?? entry.sleepTime;
+      expect(label, 'Set ${picked!.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}');
+    });
+
     testWidgets('asks for at least one time', (tester) async {
       await tester.pumpWidget(_app(AddSleepScreen(date: pastDay)));
       await tester.tap(find.text('Save'));
