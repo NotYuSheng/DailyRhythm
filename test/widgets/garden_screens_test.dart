@@ -205,6 +205,20 @@ void main() {
     expect(find.text(DateFormat('EEEE d MMMM').format(today)), findsOneWidget);
   });
 
+  testWidgets('Activities groups tags, chores on their own, and the day shows what was picked', (tester) async {
+    await pump(tester, const GardenTodayScreen());
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('Activities'), 200, scrollable: scrollable);
+    await tapVisible(tester, find.text('Activities'));
+    expect(find.text('Chores'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilterChip, 'Change Bedsheets'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('1 tag'), 200, scrollable: scrollable);
+    expect(find.descendant(of: find.byType(DayLogCard), matching: find.text('Change Bedsheets')), findsOneWidget, reason: 'the picked tag shows as a chip');
+  });
+
   testWidgets('going back from Activities without Save keeps the day as it was', (tester) async {
     await pump(tester, const GardenTodayScreen());
     final scrollable = find.byType(Scrollable).first;
@@ -230,7 +244,7 @@ void main() {
   testWidgets('the exercise row shows how hard the day was and what it burned', (tester) async {
     await db.createExerciseEntry(ExerciseEntry(date: today, timestamp: today, type: ExerciseType.run, distance: 5));
     await pump(tester, const GardenTodayScreen());
-    await tester.scrollUntilVisible(find.text('1 logged · Hard effort · ≈350 kcal burned'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.scrollUntilVisible(find.text('1 logged · ≈350 kcal burned'), 200, scrollable: find.byType(Scrollable).first);
     expect(find.text('≈350 kcal burned'), findsOneWidget, reason: '5 km at the default 70 kg');
   });
 
@@ -240,7 +254,8 @@ void main() {
     final scrollable = find.byType(Scrollable).first;
 
     await tester.scrollUntilVisible(find.text('Chicken rice'), 200, scrollable: scrollable);
-    expect(find.text('1 meal \u00b7 \$4.50 \u00b7 health 3/5'), findsOneWidget, reason: 'chicken rice: a typical plate');
+    expect(find.text('1 meal \u00b7 health 3/5'), findsOneWidget, reason: 'chicken rice: a typical plate');
+    expect(find.text('\$4.50'), findsNWidgets(2), reason: 'the day\'s spend in the headline, and the meal\'s price');
     expect(find.text('Health 3/5 · a typical plate'), findsOneWidget, reason: 'each meal says its own');
     await tester.ensureVisible(find.text('Chicken rice'));
     await tester.pumpAndSettle();
@@ -289,7 +304,7 @@ void main() {
 
     await tester.scrollUntilVisible(find.text('Apple'), 200, scrollable: scrollable);
     expect(find.text('Chicken rice'), findsOneWidget);
-    expect(find.text('\$4.00'), findsOneWidget);
+    expect(find.text('\$4.00'), findsNWidgets(2), reason: 'headline and the meal');
 
     await tester.ensureVisible(find.text('Meals'));
     await tester.pumpAndSettle();

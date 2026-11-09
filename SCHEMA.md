@@ -67,6 +67,13 @@ score's categories the user chose: comma-separated keys (`fried`, `fast_food`, `
 rules on the name (`meals/domain/diet_score.dart`). Exported as a `Health Tags` column
 (`;`-separated, `none` for none).
 
+## v16
+
+Data only: activity tags whose names read as chores (bedsheets, laundry, cleaning,
+groceries, dishes, vacuuming, ironing, tidying, mopping, trash, decluttering) move to a
+`Chores` group, added to `tag_categories` when any moved
+(`shared/services/database/schema_v16.dart`).
+
 ## Export and import
 
 Every table is exported as a CSV in the export zip. New columns go at the end of a

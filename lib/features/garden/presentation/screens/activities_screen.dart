@@ -49,6 +49,18 @@ class _ActivitiesScreenState extends ConsumerState<ActivitiesScreen> {
     if (mounted) navigator.pop();
   }
 
+  /// Tags by group (Chores, Hobby, Work…), groups by name; one unnamed
+  /// group when all share one.
+  static List<(String?, List<Tag>)> _byGroup(Iterable<Tag> tags) {
+    final groups = <String, List<Tag>>{};
+    for (final t in tags) {
+      groups.putIfAbsent(t.category, () => []).add(t);
+    }
+    if (groups.length <= 1) return [(null, tags.toList())];
+    final names = groups.keys.toList()..sort();
+    return [for (final n in names) (n, groups[n]!)];
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = GardenColors.of(context);
@@ -71,23 +83,30 @@ class _ActivitiesScreenState extends ConsumerState<ActivitiesScreen> {
                 for (final (kind, title) in ActivitiesScreen.groups)
                   if (tags.any((t) => t.kind == kind)) ...[
                     const SizedBox(height: 14),
-                    Text(title, style: nunito(15, FontWeight.w800, colors.leaf)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final tag in tags.where((t) => t.kind == kind))
-                          FilterChip(
-                            avatar: Icon(tagIcon(tag), size: 18),
-                            // The fill shows it's picked; the icon stays.
-                            showCheckmark: false,
-                            label: Text(tag.name),
-                            selected: picked.contains(tag.id),
-                            onSelected: (on) => setState(() => on ? picked.add(tag.id!) : picked.remove(tag.id)),
-                          ),
+                    Text(title, style: nunito(16, FontWeight.w900, colors.ink)),
+                    // A kind's tags by their group (Chores, Work, Hobby…) when it has several.
+                    for (final (group, groupTags) in _byGroup(tags.where((t) => t.kind == kind))) ...[
+                      if (group != null) ...[
+                        const SizedBox(height: 8),
+                        Text(group, style: nunito(13, FontWeight.w800, colors.leaf)),
                       ],
-                    ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final tag in groupTags)
+                            FilterChip(
+                              avatar: Icon(tagIcon(tag), size: 18),
+                              // The fill shows it's picked; the icon stays.
+                              showCheckmark: false,
+                              label: Text(tag.name),
+                              selected: picked.contains(tag.id),
+                              onSelected: (on) => setState(() => on ? picked.add(tag.id!) : picked.remove(tag.id)),
+                            ),
+                        ],
+                      ),
+                    ],
                   ],
                 const SizedBox(height: 10),
                 Align(

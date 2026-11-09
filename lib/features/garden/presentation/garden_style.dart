@@ -74,6 +74,23 @@ class GardenColors {
       Theme.of(context).brightness == Brightness.dark ? dark : light;
 }
 
+/// A colour per kind of entry, for its icon, label and soft tile: sleep
+/// indigo, food amber, exercise green, events pink, tags teal.
+enum DayTone {
+  sleep(Color(0xFF5B66C9), Color(0xFFE7E9FB), Color(0xFFB7BEF5), Color(0xFF2A2F55)),
+  food(Color(0xFFB0661A), Color(0xFFFCEFD9), Color(0xFFF2C58A), Color(0xFF4A3412)),
+  move(Color(0xFF2F8A57), Color(0xFFDFF2E6), Color(0xFF8FD6AE), Color(0xFF1D3F2C)),
+  gift(Color(0xFFB8436C), Color(0xFFFBE3EC), Color(0xFFF2A9C2), Color(0xFF4A2231)),
+  tag(Color(0xFF237984), Color(0xFFDDF1F3), Color(0xFF8ED0D9), Color(0xFF173E43));
+
+  const DayTone(this._ink, this._tint, this._darkInk, this._darkTint);
+
+  final Color _ink, _tint, _darkInk, _darkTint;
+
+  Color ink(BuildContext context) => Theme.of(context).brightness == Brightness.dark ? _darkInk : _ink;
+  Color tint(BuildContext context) => Theme.of(context).brightness == Brightness.dark ? _darkTint : _tint;
+}
+
 /// Nunito at [weight]. The font is variable, so the weight is also set as a
 /// font variation, which every platform honours.
 TextStyle nunito(double size, FontWeight weight, Color color) => TextStyle(
