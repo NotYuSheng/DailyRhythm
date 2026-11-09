@@ -6,10 +6,11 @@ Queued work is tracked as GitHub issues. Built and merged into `dev` (the issues
 when `dev` reaches `main`): exercise autocomplete (#9), word-level aliases in the
 migration (#10), Metrics on mood/energy/stress/focus and fun facts (#11), the Tags
 screen (#12), month and year recap (#13), calories per food (#15), Health Connect /
-HealthKit sync and Garmin import (#16). Still open: plant illustrations and Rive (#14,
-prototypes on the design canvas's "Plant art & motion" page), offline calorie datasets
-(#31) and the sleep picker repro (#17). The sections below keep the design notes those
-issues refer to.
+HealthKit sync and Garmin import (#16), offline calorie data with barcode scanning
+(#31) and the optional AI assistant (#63). Closed without further work: plant
+illustrations and Rive (#14; the app's own 64 seasonal plants stay) and the sleep
+picker repro (#17; fixed and covered by tests). Still open: the Google Play release
+(#71). The sections below keep the design notes those issues refer to.
 
 ## Design direction: the garden (chosen 2026-10-25)
 
