@@ -42,7 +42,8 @@ class MoreArt {
 
   static const hensAndChicksTips = ['#C2507E', '#7A9E5A', '#D9902E'];
   static String hensAndChicks(int v) =>
-      _rosette(100, 166, 1.0, hensAndChicksTips[v]) + _rosette(68, 170, 0.55, hensAndChicksTips[v]) + _rosette(134, 170, 0.6, hensAndChicksTips[v]);
+      _rosette(100, 166, 1.45, hensAndChicksTips[v]) + _rosette(62, 172, 0.75, hensAndChicksTips[v]) + _rosette(140, 172, 0.8, hensAndChicksTips[v]) +
+      _rosette(122, 176, 0.5, hensAndChicksTips[v]);
   static String _rosette(num cx, num cy, num s, String tip) {
     final b = StringBuffer('<g transform="translate($cx $cy) scale($s)">');
     for (final a in [-80, -50, -20, 10, 40, 70, -65, 55]) {
@@ -252,15 +253,30 @@ class MoreArt {
 
   static const peaShoots = ['#FFFFFF', '#E8A0D6', '#B7A0E8'];
   static String peaShoot(int v) {
-    final b = StringBuffer()
-      ..write(_stem('M100 172 C96 150 104 130 100 108 C96 94 104 86 100 76', width: 4))
-      ..write(_leaf(100, 150, 200, length: 30, fill: '#7CCB9A'))
-      ..write(_leaf(100, 130, -20, length: 30))
-      ..write(_leaf(100, 108, 210, length: 26, fill: '#7CCB9A'))
-      ..write('<path d="M100 96 C112 92 116 82 110 78 C106 76 104 82 108 84" fill="none" stroke="#5BB884" stroke-width="2" stroke-linecap="round"/>'
-          '<path d="M100 116 C86 112 82 102 88 98 C92 96 94 102 90 104" fill="none" stroke="#5BB884" stroke-width="2" stroke-linecap="round"/>');
-    b.write('<g transform="translate(100 72)"><path d="M0 4 C-10 -2 -10 -14 0 -16 C10 -14 10 -2 0 4 Z" fill="${peaShoots[v]}" stroke="#D0B0E0" stroke-width="1"/>'
-        '<path d="M0 4 C-5 0 -5 -6 0 -8 C5 -6 5 0 0 4 Z" fill="#F7E8FF"/></g>');
+    final b = StringBuffer();
+    // Two vines on a little cane, leaves in pairs, curling tendrils, flowers.
+    b.write('<path d="M126 176 L126 66" stroke="#C9A27C" stroke-width="4" stroke-linecap="round"/>');
+    for (final (dx, top) in const [(-6, 70), (10, 84)]) {
+      b.write(_stem('M${100 + dx} 172 C${92 + dx} 150 ${110 + dx} 128 ${100 + dx} 108 C${92 + dx} 92 ${108 + dx} 82 ${100 + dx} $top', width: 4));
+    }
+    for (final (x, y, a, f) in const [
+      (96, 152, 200, '#7CCB9A'), (98, 148, -20, '#5BB884'), (104, 128, 210, '#5BB884'), (106, 124, -30, '#7CCB9A'),
+      (94, 104, 200, '#7CCB9A'), (96, 100, -20, '#5BB884'), (110, 100, 220, '#5BB884'), (112, 96, -40, '#7CCB9A'),
+    ]) {
+      b.write(_leaf(x, y, a, length: 30, fill: f));
+    }
+    for (final (x, y, side) in const [(108, 112, 1), (92, 128, -1), (112, 88, 1)]) {
+      b.write('<path d="M$x $y c${side * 10} -4 ${side * 14} -14 ${side * 8} -18 c${side * -4} -2 ${side * -6} 4 ${side * -2} 6" '
+          'fill="none" stroke="#5BB884" stroke-width="2" stroke-linecap="round"/>');
+    }
+    for (final (x, y, s) in const [(94, 66, 1.2), (110, 80, 1.0), (84, 92, 0.85)]) {
+      b.write('<g transform="translate($x $y) scale($s)">'
+          '<path d="M0 6 C-12 0 -12 -14 0 -16 C12 -14 12 0 0 6 Z" fill="${peaShoots[v]}" stroke="#D0B0E0" stroke-width="1"/>'
+          '<path d="M0 6 C-5 1 -6 -6 0 -9 C6 -6 5 1 0 6 Z" fill="#F7E8FF"/></g>');
+    }
+    // A pea pod, for luck.
+    b.write('<path d="M80 140 C76 126 84 116 92 114 C90 124 88 134 80 140 Z" fill="#8FD6A9"/>'
+        '<circle cx="86" cy="124" r="2.6" fill="#B5E8C6"/><circle cx="84" cy="130" r="2.4" fill="#B5E8C6"/>');
     return b.toString();
   }
 
