@@ -1,227 +1,75 @@
-# DailyRhythm
+<p align="center">
+  <img src="assets/feature-graphic.png" alt="DailyRhythm: every day grows a plant in your memory garden" width="100%">
+</p>
 
-A local-first daily journal that grows a memory garden: log your days, meals, sleep and exercise, and each day becomes a plant.
+<h1 align="center">DailyRhythm</h1>
 
-> [!NOTE]  
-> Thank you for visiting! This project is currently a work in progress. Features, documentation, and deployment configurations are actively being developed and may change frequently.
+<p align="center">
+  <b>A local-first daily journal that grows a memory garden.</b><br>
+  Log how your day went, what you ate, how you slept and how you moved, and every day becomes a plant.
+</p>
 
-## Development Setup
+<p align="center">
+  <a href="https://notyusheng.github.io/DailyRhythm/">Website</a> ·
+  <a href="https://notyusheng.github.io/DailyRhythm/privacy-policy.html">Privacy</a> ·
+  <a href="DEVELOPMENT.md">Build it yourself</a>
+</p>
 
-### Prerequisites
-- Flutter SDK 3.47 or later (Material widgets come from the standalone `material_ui` package)
-- A device or emulator for testing
-- **For Linux development**: SQLite3 library
-  ```bash
-  sudo apt-get install libsqlite3-dev
-  ```
+<!-- When the Play listing is public, add the "Get it on Google Play" badge here:
+     https://play.google.com/store/apps/details?id=com.dailyrhythm.dailyrhythm -->
+<p align="center"><i>Coming soon to Google Play.</i></p>
 
-### Running in Development Mode
+<p align="center">
+  <img src="assets/google-play/screenshots/1_today.png" alt="Today: the day's plant" width="15%">
+  <img src="assets/google-play/screenshots/2_your_day.png" alt="Your day: sleep, meals, exercise and activities" width="15%">
+  <img src="assets/google-play/screenshots/3_garden.png" alt="The month as a garden" width="15%">
+  <img src="assets/google-play/screenshots/4_metrics.png" alt="Metrics" width="15%">
+  <img src="assets/google-play/screenshots/5_fun_facts.png" alt="Fun facts" width="15%">
+  <img src="assets/google-play/screenshots/6_year.png" alt="A year of gardens" width="15%">
+</p>
 
-1. **First-time setup:**
-   ```bash
-   # Navigate to the project directory
-   cd DailyRhythm
+## Why DailyRhythm
 
-   # Get dependencies
-   flutter pub get
-   ```
+Most trackers turn your life into charts and streaks. DailyRhythm keeps a **memory garden** instead: each day grows a plant that says what kind of day it was (work, study, exercise, people, rest, games, a big day out, or a bit of everything). Nothing wilts and no streak breaks. A day you didn't log is simply an empty pot.
 
-2. **Run the app:**
-   ```bash
-   # For Linux
-   flutter run -d linux
+The numbers are still there when you want them, in Metrics. They show patterns without telling you what to do.
 
-   # For other platforms
-   flutter run -d chrome    # Web
-   flutter run -d android   # Android
-   flutter run -d ios       # iOS (macOS only)
-   flutter run -d macos     # macOS
-   flutter run -d windows   # Windows
-   ```
+## What you can log
 
-### Running on Android Device (Physical Phone)
+- **How the day went:** mood, plus energy, stress and focus compared with a usual day.
+- **Meals:** what you ate, where from, what it cost and its calories. There's offline calorie search over 7,000+ USDA foods, Open Food Facts lookup, barcode scanning, and a 1–5 health score for each meal.
+- **Sleep:** bedtime and wake time, with naps. You can also sync steps and sleep from **Health Connect**, read-only.
+- **Exercise:** sets, reps, runs and distances. Each exercise day gets an effort rating, Light to Very hard, and a calorie estimate.
+- **Activities and symptoms:** your own tags, in groups (Chores, Appointments, Work…) with icons you can pick.
+- **Moments:** a few words about something that happened, with a mood and what it was about.
 
-1. **Enable Developer Options on your phone:**
-   - Go to **Settings** → **About phone**
-   - Tap **Build number** 7 times
-   - You'll see "You are now a developer!"
+## What you get back
 
-2. **Enable USB Debugging:**
-   - Go to **Settings** → **System** → **Developer options**
-   - Enable **USB debugging**
+- **The garden:** every day as a plant, and seasonal plants and pots that change through the year. The month and the year appear as gardens of hills that sway gently.
+- **Metrics:** an overview of every day by sleep, steps, calories, mood, effort or meal health, with weekday patterns, effort and food breakdowns, and how each period compares with the last.
+- **Fun facts:** your favourite food, the weekday you most often eat it, the exercise you do most, how far you've walked in landmarks, and what you did on this day in past years.
 
-3. **For Samsung devices - Disable Auto Blocker:**
-   - Go to **Settings** → **Security and privacy** → **Auto Blocker**
-   - Turn off **Auto Blocker** (it blocks USB debugging)
+## Private by design
 
-4. **Connect your phone:**
-   ```bash
-   # Connect phone via USB cable
+- **On your phone:** your journal stays there. There are no accounts, no ads, no analytics and no DailyRhythm servers.
+- **Backups are yours:** export to a file, or back up to your own Google Drive. The app can only see the files it creates there.
+- **AI is optional and bring-your-own:** connect OpenAI, Anthropic, Gemini, OpenRouter, or a model you run at home over Tailscale. Only what a feature needs is sent, such as a food's name for a calorie estimate. Your journal never is. See the [AI guide](https://notyusheng.github.io/DailyRhythm/ai.html).
 
-   # Change USB mode on your phone:
-   # When you plug in the USB cable, pull down the notification shade
-   # Tap on "Charging this device via USB" or "USB for charging"
-   # Select "File Transfer" or "MTP" mode (NOT just "Charging")
+Read the full [privacy policy](https://notyusheng.github.io/DailyRhythm/privacy-policy.html).
 
-   # Check if device is detected
-   adb devices
+## Build it yourself
 
-   # You should see your device listed
-   # If it shows "unauthorized", accept the USB debugging prompt on your phone
-   ```
-
-5. **Run the app on your phone:**
-   ```bash
-   # List all connected devices
-   flutter devices
-
-   # Run on connected Android device
-   flutter run -d android
-
-   # Or specify device ID if multiple devices
-   flutter run -d <device-id>
-   ```
-
-6. **Troubleshooting:**
-   - **Device not showing up**: Check USB cable, try different USB port
-   - **"Unauthorized" status**: Accept USB debugging prompt on phone
-   - **Install failed (signature mismatch)**: Uninstall old version first
-     ```bash
-     adb uninstall com.dailyrhythm.dailyrhythm
-     ```
-   - **Auto Blocker issues (Samsung)**: Make sure Auto Blocker is disabled
-
-### Building and Installing APK to Android Device
-
-#### Debug Build (Recommended for Development)
-
-For development and testing with Google Sign-In:
+DailyRhythm is a Flutter app (Android first). To run it:
 
 ```bash
-# Build and install debug APK
-flutter build apk --debug
-adb install build/app/outputs/flutter-apk/app-debug.apk
-
-# Or use flutter run for automatic debug installation
-flutter run -d android
+flutter pub get
+flutter run -d android   # or -d linux for a quick desktop run
 ```
 
-**Why debug build?**
-- Google Sign-In requires SHA-1 certificate fingerprints to be registered
-- Debug builds use the debug keystore (`~/.android/debug.keystore`)
-- The debug SHA-1 is already registered in Google Cloud Console
+Setup, signing, releases and Google Sign-In configuration are in [DEVELOPMENT.md](DEVELOPMENT.md). The database is described in [SCHEMA.md](SCHEMA.md).
 
-#### Release Build
+## Licence
 
-To build a release APK:
+[MIT with the Commons Clause](LICENSE): free to use, study and change; not to be sold.
 
-```bash
-# Build release APK
-flutter build apk
-
-# Install to device
-adb install build/app/outputs/flutter-apk/app-release.apk
-```
-
-Release builds need `android/key.properties` (keystore path, alias and passwords) and fail without it, rather than silently signing with the debug key. For a throwaway local test build, run `ALLOW_DEBUG_SIGNED_RELEASE=true flutter build apk`.
-
-**Google Sign-In setup (Drive backups):** the Google Cloud project needs three OAuth clients:
-- a **Web application** client: its client ID is the app's `googleServerClientId` (`lib/core/constants/app_config.dart`, or the `GOOGLE_SERVER_CLIENT_ID` secret in CI). A placeholder here fails with error 10 (`DEVELOPER_ERROR`).
-- an **Android** client for the upload key's SHA-1 (builds you install yourself), and
-- an **Android** client for the Play app signing key's SHA-1 (installs from Google Play; see Play Console → App signing).
-
-Sign-in uses `google_sign_in` 7 (Credential Manager). Signing in asks once for access to the app's own Drive files; later backups get a fresh token silently.
-
-**Important for Google Sign-In with release builds:**
-- Release builds use your custom keystore (configured in `android/key.properties`)
-- You must add your release keystore's SHA-1 to Google Cloud Console
-- Get your release SHA-1:
-  ```bash
-  cd android && ./gradlew signingReport
-  # Look for "Variant: release" SHA1 fingerprint
-  ```
-
-#### Troubleshooting APK Installation
-
-- **`flutter install` installs wrong version**: Use `adb install` directly instead
-- **Google Sign-In fails**: Verify SHA-1 fingerprint matches Google Cloud Console
-  ```bash
-  # Check installed app's SHA-1
-  adb shell pm path com.dailyrhythm.dailyrhythm | cut -d: -f2 | xargs -I {} adb pull {} /tmp/app.apk
-  ~/Android/build-tools/35.0.0/apksigner verify --print-certs /tmp/app.apk | grep SHA-1
-  ```
-- **Clear Google Play Services cache if OAuth fails**:
-  ```bash
-  adb shell pm clear com.google.android.gms
-  ```
-
-3. **Hot Reload (Dev Mode) 🔥**
-
-   Once the app is running, you can make code changes and see them instantly:
-
-   - **Save your file changes** in your IDE
-   - Go to the terminal where `flutter run` is active
-   - Press **`r`** to hot reload (updates UI, preserves state)
-   - Press **`R`** to hot restart (full restart, resets state)
-
-   **Other useful commands:**
-   - `h` - Show all available commands
-   - `c` - Clear the screen
-   - `q` - Quit the app
-   - `d` - Detach (app keeps running)
-
-4. **Clean build (if needed):**
-   ```bash
-   flutter clean
-   flutter pub get
-   flutter run -d linux
-   ```
-
-### Common Issues
-
-- **CMake cache errors**: Run `flutter clean` first
-- **Hot reload not working**: Try hot restart with `R` or restart the app
-- **Dependency issues**: Run `flutter pub get`
-- **SQLite errors on Linux**: Make sure `libsqlite3-dev` is installed (see Prerequisites)
-
----
-
-## Deployment Notes
-
-### For Production Release
-
-**⚠️ TODO Before Distribution:**
-
-The current setup uses system SQLite libraries for development. Before distributing the app to users, you need to bundle SQLite so the app is self-contained:
-
-1. Add `sqlite3_flutter_libs` to `pubspec.yaml`:
-   ```yaml
-   dependencies:
-     sqlite3_flutter_libs: ^0.5.0
-   ```
-
-2. This will bundle SQLite with your app so users don't need to install system libraries
-
-3. Platforms affected:
-   - ✅ **Android/iOS**: Works automatically, no changes needed
-   - ⚠️ **Linux/Windows/macOS**: Need bundled SQLite for distribution
-
-**Why we're not doing this now:**
-- Development is faster with system libraries
-- Bundle SQLite only when preparing for release
-- Keeps development environment simple
-
-## Project Overview
-
-DailyRhythm tracks your daily stats including:
-- Sleep patterns
-- Meals and costs
-- Mood tracking with emoji buttons
-
-Built with a minimal aesthetic design.
-
-## Resources
-
-- [Flutter Documentation](https://docs.flutter.dev/)
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+Made by [NotYuSheng](https://github.com/NotYuSheng).
