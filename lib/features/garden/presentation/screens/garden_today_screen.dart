@@ -432,7 +432,7 @@ class _Moments extends StatelessWidget {
   }
 }
 
-/// One moment: time, mood word, text and what it was about. Tapping it
+/// One moment: its mood word, text and what it was about. Tapping it
 /// opens it to change or delete.
 class MomentTile extends StatelessWidget {
   const MomentTile({super.key, required this.moment, required this.tagNames, required this.colors, this.onTap});
@@ -444,10 +444,8 @@ class MomentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final meta = [
-      if (moment.time != null) DateFormat('HH:mm').format(moment.time!),
-      if (moment.mood != null) momentMoodWords[moment.mood],
-    ].join(' · ');
+    // A moment belongs to its day, not a clock time.
+    final meta = moment.mood == null ? '' : momentMoodWords[moment.mood]!;
     final about = [for (final id in moment.tagIds) tagNames[id]].whereType<String>().join(', ');
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),

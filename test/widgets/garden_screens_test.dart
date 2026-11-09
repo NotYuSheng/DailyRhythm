@@ -132,7 +132,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final saved = (await JournalRepository(db).forDay(today)).single;
-    expect((saved.text, saved.mood, saved.time != null), ('Coffee with an old friend', 5, true));
+    expect((saved.text, saved.mood, saved.time), ('Coffee with an old friend', 5, null));
     final scrollable = find.byType(Scrollable).first;
     await tester.scrollUntilVisible(find.text('Coffee with an old friend'), 200, scrollable: scrollable);
   });
@@ -153,6 +153,7 @@ void main() {
     await tester.pumpAndSettle();
     final changed = (await JournalRepository(db).forDay(today)).single;
     expect((changed.text, changed.mood, changed.time), ('Coffee with Sam', 5, time));
+    expect(find.text('09:15', findRichText: true), findsNothing, reason: 'moments show no clock time');
 
     await tester.scrollUntilVisible(find.text('Coffee with Sam'), 200, scrollable: scrollable);
     await tapVisible(tester, find.text('Coffee with Sam'));

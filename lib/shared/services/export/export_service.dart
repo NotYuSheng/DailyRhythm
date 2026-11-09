@@ -248,7 +248,7 @@ class ExportService {
       ],
       'journal_entries.csv': [
         ['ID', 'Date', 'Time', 'Text', 'Mood', 'Source', 'Created At', 'Tag Names'],
-        for (final j in (await db.query('journal_entries', orderBy: 'date, time, id')).map(JournalEntry.fromMap))
+        for (final j in (await db.query('journal_entries', orderBy: 'date, id')).map(JournalEntry.fromMap))
           [
             j.id ?? '',
             j.date.toIso8601String(),
