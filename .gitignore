@@ -140,3 +140,6 @@ docs/_build/
 
 # Local secrets (LLM API key for the Daylio migration)
 .env
+
+# Raw store screenshots (tool/store_listing/README.md)
+tool/store_listing/raw/
