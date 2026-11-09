@@ -42,6 +42,35 @@ Tap **Test connection** before saving.
 
 A cloud provider's own terms and prices apply to what you send it.
 
+Looking up published calories
+-----------------------------
+
+When you tap **Estimate with AI**, the model can look the figure up before it
+answers instead of guessing:
+
+* **Food databases** (always): USDA FoodData Central, bundled in the app, and
+  Open Food Facts.
+* **Web search** (optional): for restaurant, chain and packaged food, the model
+  searches for the officially published figure and can read the page it finds.
+  The message after the estimate says where the figure came from.
+
+Your phone does the searching: the model asks for a search, DailyRhythm runs
+it and sends the results back. Only the food's name, or a search the model
+writes from it, goes to the search service. Choose one under **Look up
+published calories**:
+
+* **Brave Search**: get an API key at `api-dashboard.search.brave.com
+  <https://api-dashboard.search.brave.com>`_. It has a free allowance. The key
+  is stored like the AI key: on the phone, never exported or backed up.
+* **SearXNG (your own)**: a search server you run, for example next to Ollama
+  and reached over Tailscale (``http://my-pc.your-tailnet.ts.net:8080``). Turn
+  on JSON output in its ``settings.yml``: add ``json`` under
+  ``search: formats:``.
+
+The model has to support tool calls. Most current cloud models do, and so do
+many local ones (for Ollama, for example ``llama3.2`` or ``qwen3``). If yours
+doesn't, DailyRhythm asks again without look-ups and you get a plain estimate.
+
 Running a model at home with Tailscale
 --------------------------------------
 
@@ -79,5 +108,8 @@ Troubleshooting
   server is running and listening beyond the computer, and the port is right.
 * **The provider refused the API key**: copy the key again; check the account
   has credit.
+* **"AI estimate" when you expected a source**: the model may not support tool
+  calls, or found nothing it trusted. Try a model with tool support.
+* **SearXNG refused JSON**: turn on the ``json`` format (see above).
 * **Not found**: the address or the model name is wrong. Most addresses end in
   ``/v1``; the model must exist at that provider (``ollama list``).

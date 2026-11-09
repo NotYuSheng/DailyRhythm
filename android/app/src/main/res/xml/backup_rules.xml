@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android cloud backup (API 30 and below): everything except the AI key. -->
+<!-- Android cloud backup (API 30 and below): everything except the AI and search keys. -->
 <full-backup-content>
     <exclude domain="file" path="ai_key" />
+    <exclude domain="file" path="ai_search_key" />
 </full-backup-content>
