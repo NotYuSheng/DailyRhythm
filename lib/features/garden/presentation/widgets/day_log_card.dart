@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../shared/models/activity_entry.dart';
 import '../../../../shared/providers/common_providers.dart';
+import '../../../../shared/utils/date_utils.dart';
 import '../../../exercise/data/models/exercise_entry.dart';
 import '../../../exercise/data/providers/exercise_providers.dart';
 import '../../../exercise/domain/effort.dart';
@@ -126,7 +127,7 @@ class DayLogCard extends ConsumerWidget {
           // The night's length when known (it needs the night before's
           // bedtime), else when you woke.
           headline: hours != null
-              ? '${hours.floor()}h ${((hours - hours.floor()) * 60).round()}m'
+              ? formatHours(hours)
               : night?.wakeUpTime != null
                   ? 'Woke ${time.format(night!.wakeUpTime!)}'
                   : night?.sleepTime != null
@@ -196,7 +197,7 @@ class DayLogCard extends ConsumerWidget {
           icon: Icons.celebration_outlined,
           label: 'Events & gifts',
           headline: spending.isEmpty ? 'None' : eventsTotal,
-          summary: 'Not food: a celebration, a gift',
+          summary: 'Celebrations, outings and gifts',
           colors: colors,
           adds: true,
           onTap: () => open(AddSpendingScreen(date: day)),

@@ -7,6 +7,7 @@ import '../../data/services/fun_facts_service.dart';
 
 /// How a fact's list is ordered.
 enum FactSort {
+  mostTimes('Most times'),
   biggest('Biggest'),
   smallest('Smallest'),
   newest('Newest'),
@@ -34,13 +35,15 @@ class _FactDetailScreenState extends State<FactDetailScreen> {
 
   /// Only the orders the rows can be put in.
   late final _sorts = [
-    if (_rows.any((r) => r.value != null)) ...[FactSort.biggest, FactSort.smallest],
+    if (_rows.any((r) => r.count != null)) FactSort.mostTimes,
+    if (_rows.any((r) => r.value != null)) ...[FactSort.biggest, if (widget.detail.valueSort == null) FactSort.smallest],
     if (_rows.any((r) => r.date != null)) ...[FactSort.newest, FactSort.oldest],
     FactSort.name,
   ];
   late FactSort _sort = widget.detail.byDate && _sorts.contains(FactSort.newest) ? FactSort.newest : _sorts.first;
 
   int _compare(FactRow a, FactRow b) => switch (_sort) {
+        FactSort.mostTimes => (b.count ?? 0) != (a.count ?? 0) ? (b.count ?? 0).compareTo(a.count ?? 0) : (b.value ?? 0).compareTo(a.value ?? 0),
         FactSort.biggest => (b.value ?? 0).compareTo(a.value ?? 0),
         FactSort.smallest => (a.value ?? 0).compareTo(b.value ?? 0),
         FactSort.newest => (b.date ?? DateTime(0)).compareTo(a.date ?? DateTime(0)),
@@ -78,7 +81,7 @@ class _FactDetailScreenState extends State<FactDetailScreen> {
               children: [
                 for (final s in _sorts)
                   ChoiceChip(
-                    label: Text(s.label),
+                    label: Text(s == FactSort.biggest ? widget.detail.valueSort ?? s.label : s.label),
                     selected: _sort == s,
                     onSelected: (_) => setState(() => _sort = s),
                   ),

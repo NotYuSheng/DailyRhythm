@@ -5,6 +5,7 @@ import 'package:daily_rhythm/features/meals/data/models/food_item.dart';
 import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
 import 'package:daily_rhythm/features/meals/data/providers/meal_providers.dart';
 import 'package:daily_rhythm/features/meals/data/services/calorie_lookup.dart';
+import 'package:daily_rhythm/features/meals/domain/food_spelling.dart';
 import 'package:daily_rhythm/shared/services/database/repositories/catalog_repository.dart';
 import 'package:daily_rhythm/features/meals/presentation/screens/add_meal_screen.dart';
 import 'package:daily_rhythm/features/sleep/data/models/sleep_entry.dart';
@@ -575,6 +576,26 @@ void main() {
   });
 
   _barcodeTests();
+
+  testWidgets('a new dish gets its spelling checked too', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await openTestDatabase();
+    addTearDown(closeTestDatabase);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        foodSpellingProvider.overrideWith((ref) async => FoodSpelling(FoodSpelling.countWords(['Chicken, roasted', 'Rice, white']))),
+      ],
+      child: MaterialApp(home: AddMealScreen(date: DateTime(2026, 10, 20))),
+    ));
+    await tester.pumpAndSettle();
+    await tester.enterText(_field('Meal Name'), 'Chiken rice');
+    await tester.pump();
+    expect(find.text('Did you mean Chicken rice?', findRichText: true), findsOneWidget);
+    await tester.tap(find.text('Use it'));
+    await tester.pump();
+    expect(tester.widget<TextField>(_field('Meal Name')).controller!.text, 'Chicken rice');
+    expect(find.textContaining('Did you mean', findRichText: true), findsNothing);
+  });
 }
 
 void _barcodeTests() {

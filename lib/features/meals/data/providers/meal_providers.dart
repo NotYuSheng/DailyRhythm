@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/services/database/repositories/catalog_repository.dart';
 import '../../domain/calorie_estimator.dart';
+import '../../domain/food_spelling.dart';
 import '../models/meal_entry.dart';
 import '../services/calorie_lookup.dart';
 import '../services/usda_lookup.dart';
@@ -20,6 +21,20 @@ final calorieLookupProvider = Provider<CalorieLookup>((ref) {
 
 /// The built-in table of common foods' calories, for estimates; empty if
 /// it can't be read.
+/// Words for spelling help on food names, from the bundled food lists:
+/// common local foods (counted more) and USDA's. The screen adds the
+/// user's own foods on top.
+final foodSpellingProvider = FutureProvider<FoodSpelling>((ref) async {
+  final common = await ref.watch(referenceFoodsProvider.future);
+  var usda = <String>[];
+  try {
+    final json = jsonDecode(await rootBundle.loadString('assets/data/usda_foods.json')) as List;
+    usda = [for (final f in json) (f as Map)['n'] as String];
+  } catch (_) {}
+  return FoodSpelling(FoodSpelling.countWords(usda))
+      .withWords(FoodSpelling.countWords([for (final f in common) ...[f.name, ...f.aliases]], weight: 5));
+});
+
 final referenceFoodsProvider = FutureProvider<List<ReferenceFood>>((ref) async {
   try {
     final json = jsonDecode(await rootBundle.loadString('assets/data/common_foods.json')) as List;

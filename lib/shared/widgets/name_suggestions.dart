@@ -15,6 +15,8 @@ class NameSuggestions<T> extends StatelessWidget {
     required this.usual,
     required this.onChoose,
     this.trailing,
+    this.spelling,
+    this.onCorrect,
   });
 
   final String text;
@@ -28,42 +30,27 @@ class NameSuggestions<T> extends StatelessWidget {
   /// Extra detail on a match, such as the last price.
   final String? Function(T item)? trailing;
 
+  /// A corrected spelling of the typed text, for names that aren't in the
+  /// list yet (a new dish); [onCorrect] takes it.
+  final String? Function(String text, {bool typing})? spelling;
+  final ValueChanged<String>? onCorrect;
+
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final suggestions = focused ? matcher.suggest(text) : <Choice<T>>[];
     final correction = matcher.didYouMean(text);
+    // Nothing logged is close: check the spelling word by word, unless the
+    // name is already a logged one.
+    final respelt = correction == null && onCorrect != null && matcher.exact(text) == null ? spelling?.call(text, typing: focused) : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // "maggie": do you mean Maggi?
-        if (correction != null) ...[
-          const SizedBox(height: AppTheme.spacePulse2),
-          Material(
-            color: colors.tertiaryContainer,
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () => onChoose(correction.item),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text.rich(TextSpan(children: [
-                        const TextSpan(text: 'Did you mean '),
-                        TextSpan(text: matcher.nameOf(correction.item), style: const TextStyle(fontWeight: FontWeight.w800)),
-                        const TextSpan(text: '?'),
-                      ])),
-                    ),
-                    Text('Use it', style: TextStyle(color: colors.onTertiaryContainer, fontWeight: FontWeight.w800)),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+        // "maggie": do you mean Maggi? "chiken rice": chicken rice?
+        if (correction != null)
+          _DidYouMean(name: matcher.nameOf(correction.item), onTap: () => onChoose(correction.item))
+        else if (respelt != null)
+          _DidYouMean(name: respelt, onTap: () => onCorrect!(respelt)),
         for (final s in suggestions)
           ListTile(
             dense: true,
@@ -92,6 +79,44 @@ class NameSuggestions<T> extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _DidYouMean extends StatelessWidget {
+  const _DidYouMean({required this.name, required this.onTap});
+
+  final String name;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppTheme.spacePulse2),
+      child: Material(
+        color: colors.tertiaryContainer,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text.rich(TextSpan(children: [
+                    const TextSpan(text: 'Did you mean '),
+                    TextSpan(text: name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                    const TextSpan(text: '?'),
+                  ])),
+                ),
+                Text('Use it', style: TextStyle(color: colors.onTertiaryContainer, fontWeight: FontWeight.w800)),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

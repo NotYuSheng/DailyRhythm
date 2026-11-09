@@ -21,6 +21,14 @@ double sleepDurationHours(DateTime bedTime, DateTime wakeTime) {
   return minutes / 60.0;
 }
 
+/// Hours as hours and minutes: 5.5 is "5h 30m", 8.0 is "8h", 0.75 is "45m".
+String formatHours(double hours) {
+  final minutes = (hours * 60).round();
+  final h = minutes ~/ 60, m = minutes % 60;
+  if (h == 0) return '${m}m';
+  return m == 0 ? '${h}h' : '${h}h ${m}m';
+}
+
 /// Calendar days from [from] to [to], unaffected by daylight-saving changes
 /// (which make a local day 23 or 25 hours long).
 int daysBetween(DateTime from, DateTime to) =>
