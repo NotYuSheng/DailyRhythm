@@ -35,7 +35,9 @@ void main() {
     }
     await pump(tester, DateRange.month(DateTime(2026, 10, 15)));
     expect(find.text('October’s garden'), findsOneWidget);
-    expect(find.textContaining('3 plants'), findsOneWidget);
+    expect(find.textContaining('3 days grew a plant'), findsOneWidget);
+    expect(find.textContaining('mostly', findRichText: true), findsOneWidget);
+    expect(find.textContaining('· 100%', findRichText: true), findsOneWidget, reason: 'each kind of day with its share');
     await tester.tap(find.byType(GardenSceneCard));
     await tester.pumpAndSettle();
     expect(find.byType(GardenMonthScreen), findsOneWidget);
