@@ -48,6 +48,11 @@ What leaves your device, and only when you ask
 * **Calorie lookup.** When you tap "Look up" on a food, only the food's
   name is sent to `Open Food Facts <https://world.openfoodfacts.org>`_ to
   search for calories.
+* **AI assistant (optional).** If you connect an AI model in Settings and tap
+  "Estimate with AI" on a meal, only that food's name is sent to the AI service
+  you chose (a cloud provider or a server you run). Its terms apply. Your
+  journal, moods and health data are never sent. Your API key stays on your
+  phone and is never exported or backed up. See :doc:`ai`.
 * **Export.** Files you export go wherever you save or share them.
 
 Nothing is sent in the background.
@@ -70,4 +75,4 @@ issue on `GitHub <https://github.com/NotYuSheng/DailyRhythm/issues>`_.
 
 ----
 
-*Last updated: October 29, 2026*
+*Last updated: November 9, 2026*
