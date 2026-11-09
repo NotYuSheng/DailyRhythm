@@ -5,6 +5,7 @@ import '../../../garden/presentation/garden_style.dart';
 import '../../data/models/metric_data.dart';
 import '../../data/providers/metrics_providers.dart';
 import '../../data/services/fun_facts_service.dart';
+import '../screens/fact_detail_screen.dart';
 
 /// Light-hearted facts about the selected period, as a grid of cards.
 class FunFactsSection extends ConsumerWidget {
@@ -73,12 +74,7 @@ class FunFactsSection extends ConsumerWidget {
                       SizedBox(
                         // Memories read better across the full width.
                         width: fact.kind == FactKind.memory ? box.maxWidth : width,
-                        child: _FactCard(
-                          fact: fact,
-                          icon: _icons[fact.kind]!,
-                          tint: dark ? _tints[fact.kind]!.$2 : _tints[fact.kind]!.$1,
-                          colors: colors,
-                        ),
+                        child: _FactCard(fact: fact, icon: _icons[fact.kind]!, tint: dark ? _tints[fact.kind]!.$2 : _tints[fact.kind]!.$1, colors: colors),
                       ),
                   ],
                 );
@@ -99,31 +95,46 @@ class _FactCard extends StatelessWidget {
   final Color tint;
   final GardenColors colors;
 
+  Future<void> _open(BuildContext context) async {
+    final detail = await fact.details!();
+    if (!context.mounted) return;
+    await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => FactDetailScreen(detail: detail)));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final card = Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(22)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: colors.leaf),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(fact.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: nunito(13, FontWeight.w800, colors.leaf)),
+              ),
+              // Facts with a list behind them open it.
+              if (fact.details != null) Icon(Icons.chevron_right, size: 18, color: colors.leaf),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(fact.value, maxLines: 2, overflow: TextOverflow.ellipsis, style: nunito(20, FontWeight.w900, colors.ink)),
+          const SizedBox(height: 2),
+          Text(fact.detail, maxLines: 3, overflow: TextOverflow.ellipsis, style: nunito(13, FontWeight.w600, colors.leaf)),
+        ],
+      ),
+    );
+    if (fact.details == null) return Semantics(container: true, child: card);
     return Semantics(
       container: true,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-        decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(22)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 18, color: colors.leaf),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(fact.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: nunito(13, FontWeight.w800, colors.leaf)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(fact.value, maxLines: 2, overflow: TextOverflow.ellipsis, style: nunito(20, FontWeight.w900, colors.ink)),
-            const SizedBox(height: 2),
-            Text(fact.detail, maxLines: 3, overflow: TextOverflow.ellipsis, style: nunito(13, FontWeight.w600, colors.leaf)),
-          ],
-        ),
+      button: true,
+      hint: 'Shows the full list',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(borderRadius: BorderRadius.circular(22), onTap: () => _open(context), child: card),
       ),
     );
   }
