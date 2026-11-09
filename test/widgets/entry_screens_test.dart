@@ -250,7 +250,7 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Look up calories'));
       await tester.pumpAndSettle();
-      expect(find.text('From Open Food Facts (ODbL). Estimates, not nutrition advice.'), findsOneWidget);
+      expect(find.textContaining('Open Food Facts (ODbL). Estimates, not nutrition advice.'), findsOneWidget);
       await tester.tap(find.text('Fried noodles'));
       await tester.pumpAndSettle();
       expect(tester.widget<TextField>(_field('Calories (optional)')).controller!.text, '510');

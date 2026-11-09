@@ -8,12 +8,14 @@ import '../../../../shared/services/database/repositories/catalog_repository.dar
 import '../../domain/calorie_estimator.dart';
 import '../models/meal_entry.dart';
 import '../services/calorie_lookup.dart';
+import '../services/usda_lookup.dart';
 
 /// Where calorie lookups go; replaced in tests.
 final calorieLookupProvider = Provider<CalorieLookup>((ref) {
   final client = http.Client();
   ref.onDispose(client.close);
-  return OpenFoodFactsLookup(client);
+  // USDA works offline; Open Food Facts adds packaged and local foods online.
+  return CombinedLookup(UsdaLookup(() => rootBundle.loadString('assets/data/usda_foods.json')), OpenFoodFactsLookup(client));
 });
 
 /// The built-in table of common foods' calories, for estimates; empty if

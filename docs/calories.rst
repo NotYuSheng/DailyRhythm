@@ -37,8 +37,12 @@ on it's yours (``user``).
        food's barcode
    * - `USDA FoodData Central <https://fdc.nal.usda.gov>`_
      - ``usda``
-     - Public domain (CC0 1.0).
-     - Planned: bundled for offline search
+     - Public domain (CC0 1.0). SR Legacy (April 2018), 7,283 foods with
+       kcal per 100 g and common portions, bundled as
+       ``assets/data/usda_foods.json`` (built by
+       ``tool/usda/build_usda_foods.py``). Source: U.S. Department of
+       Agriculture, Agricultural Research Service, FoodData Central.
+     - Available, offline: listed first in **Look up calories**
    * - Your AI model (:doc:`ai`)
      - ``estimate``
      - Whatever model you connect. Saved as an estimate.
