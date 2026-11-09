@@ -218,7 +218,14 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
               const SizedBox(height: 16),
               DayLogCard(day: today),
               const SizedBox(height: 16),
-              _Moments(moments: moments, tagNames: tags, colors: colors),
+              _Moments(
+                moments: moments,
+                tagNames: tags,
+                colors: colors,
+                onEdit: (m) async {
+                  if (await showMomentSheet(context, today, entry: m)) invalidateGardenDay(ref, today);
+                },
+              ),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: () async {
@@ -404,11 +411,12 @@ class _RatingRow extends StatelessWidget {
 }
 
 class _Moments extends StatelessWidget {
-  const _Moments({required this.moments, required this.tagNames, required this.colors});
+  const _Moments({required this.moments, required this.tagNames, required this.colors, required this.onEdit});
 
   final List<JournalEntry> moments;
   final Map<int?, String> tagNames;
   final GardenColors colors;
+  final ValueChanged<JournalEntry> onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -418,19 +426,21 @@ class _Moments extends StatelessWidget {
       children: [
         Text('Moments', style: nunito(16, FontWeight.w900, colors.ink)),
         const SizedBox(height: 8),
-        for (final m in moments) MomentTile(moment: m, tagNames: tagNames, colors: colors),
+        for (final m in moments) MomentTile(moment: m, tagNames: tagNames, colors: colors, onTap: () => onEdit(m)),
       ],
     );
   }
 }
 
-/// One moment: time, mood word, text and what it was about.
+/// One moment: time, mood word, text and what it was about. Tapping it
+/// opens it to change or delete.
 class MomentTile extends StatelessWidget {
-  const MomentTile({super.key, required this.moment, required this.tagNames, required this.colors});
+  const MomentTile({super.key, required this.moment, required this.tagNames, required this.colors, this.onTap});
 
   final JournalEntry moment;
   final Map<int?, String> tagNames;
   final GardenColors colors;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -439,17 +449,33 @@ class MomentTile extends StatelessWidget {
       if (moment.mood != null) momentMoodWords[moment.mood],
     ].join(' · ');
     final about = [for (final id in moment.tagIds) tagNames[id]].whereType<String>().join(', ');
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(18)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (meta.isNotEmpty) Text(meta, style: nunito(12, FontWeight.w800, colors.muted)),
-          if (moment.text.isNotEmpty) Text(moment.text, style: nunito(15, FontWeight.w600, colors.ink)),
-          if (about.isNotEmpty) Text(about, style: nunito(13, FontWeight.w700, colors.leaf)),
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (meta.isNotEmpty) Text(meta, style: nunito(12, FontWeight.w800, colors.muted)),
+                      if (moment.text.isNotEmpty) Text(moment.text, style: nunito(15, FontWeight.w600, colors.ink)),
+                      if (about.isNotEmpty) Text(about, style: nunito(13, FontWeight.w700, colors.leaf)),
+                    ],
+                  ),
+                ),
+                if (onTap != null) Icon(Icons.edit_outlined, size: 18, color: colors.muted),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
