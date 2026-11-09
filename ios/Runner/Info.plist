@@ -49,5 +49,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Scan a packaged food's barcode to fill in its calories.</string>
 </dict>
 </plist>
