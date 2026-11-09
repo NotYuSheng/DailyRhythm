@@ -5,7 +5,9 @@ import '../../../../shared/services/database/database_service.dart';
 import '../../../../shared/services/database/repositories/catalog_repository.dart';
 import '../../../../shared/utils/date_utils.dart';
 import '../../../garden/data/garden_repository.dart';
+import '../../../meals/domain/diet_score.dart';
 import '../models/metric_data.dart';
+import 'day_ratings_service.dart';
 
 /// A period's days sorted into five levels (0 lowest … 4 highest): how
 /// many at each, how many on each weekday at each, and a day's value on
@@ -185,6 +187,57 @@ final calorieReportProvider = FutureProvider.autoDispose.family<LevelReport, (Da
     previous: previous == null ? null : {for (final e in previous.entries) e.key: band(e.value)},
     previousDays: before == null ? null : daysBetween(dayOf(before.start), dayOf(before.end)) + 1,
     previousValues: previous,
+    hadPrevious: previous != null && previous.isNotEmpty,
+  );
+});
+
+/// How healthy each day's meals were (1–5, here 0–4), with the score as
+/// the value for averages.
+final healthReportProvider = FutureProvider.autoDispose.family<LevelReport, DateRange>((ref, range) async {
+  final db = ref.watch(databaseProvider);
+  Future<Map<DateTime, double>> scores(DateTime start, DateTime end) async => {
+        for (final l in await GardenRepository(db).logsInRange(start, end))
+          if (DietScore.levelFor(l.diet) != null) l.date: l.diet!,
+      };
+  final (start, end) = await _span(db, range);
+  final now = await scores(start, end);
+  final before = previousPeriod(range);
+  final previous = before == null ? null : await scores(dayOf(before.start), dayOf(before.end));
+  Map<DateTime, int> levels(Map<DateTime, double> v) => {for (final e in v.entries) e.key: DietScore.levelFor(e.value)! - 1};
+  return LevelReport.from(
+    levels(now),
+    days: daysBetween(start, end) + 1,
+    values: now,
+    previous: previous == null ? null : levels(previous),
+    previousDays: before == null ? null : daysBetween(dayOf(before.start), dayOf(before.end)) + 1,
+    previousValues: previous,
+    hadPrevious: previous != null && previous.isNotEmpty,
+  );
+});
+
+/// One way days are rated (mood, energy, stress or focus): each rated
+/// day's value as a level 0–4, the value itself for averages.
+final ratingReportProvider = FutureProvider.autoDispose.family<LevelReport, (DateRange, Rating)>((ref, key) async {
+  final (range, rating) = key;
+  final db = ref.watch(databaseProvider);
+  final service = DayRatingsService(db);
+  Future<Map<DateTime, int>> values(DateTime start, DateTime end) async => {
+        for (final d in await service.ratedDays(start, end))
+          if (d.ratings[rating] case final v?) d.date: v,
+      };
+  final (start, end) = await _span(db, range);
+  final now = await values(start, end);
+  final before = previousPeriod(range);
+  final previous = before == null ? null : await values(dayOf(before.start), dayOf(before.end));
+  Map<DateTime, int> levels(Map<DateTime, int> v) => {for (final e in v.entries) e.key: e.value - rating.min};
+  Map<DateTime, double> raw(Map<DateTime, int> v) => {for (final e in v.entries) e.key: e.value.toDouble()};
+  return LevelReport.from(
+    levels(now),
+    days: daysBetween(start, end) + 1,
+    values: raw(now),
+    previous: previous == null ? null : levels(previous),
+    previousDays: before == null ? null : daysBetween(dayOf(before.start), dayOf(before.end)) + 1,
+    previousValues: previous == null ? null : raw(previous),
     hadPrevious: previous != null && previous.isNotEmpty,
   );
 });

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../shared/services/database/database_provider.dart';
 import '../services/day_ratings_service.dart';
+import '../services/level_report.dart';
 import '../services/fun_facts_service.dart';
 import '../services/metrics_service.dart';
 import '../services/period_overview_repository.dart';
@@ -63,6 +64,10 @@ void invalidateMetrics(WidgetRef ref) {
     metricsInsightsProvider,
     funFactsProvider,
     dayRatingsProvider,
+    effortReportProvider,
+    calorieReportProvider,
+    healthReportProvider,
+    ratingReportProvider,
     firstLoggedDayProvider,
     periodOverviewProvider,
     weightsProvider,

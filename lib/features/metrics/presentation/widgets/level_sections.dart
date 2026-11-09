@@ -4,9 +4,11 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../exercise/domain/effort.dart';
 import '../../../garden/presentation/garden_style.dart';
+import '../../../meals/domain/diet_score.dart';
 import '../../../profile/data/profile_providers.dart';
 import '../../../profile/domain/profile.dart';
 import '../../data/models/metric_data.dart';
+import '../../data/services/day_ratings_service.dart' show Rating;
 import '../../data/services/level_report.dart';
 import 'period_overview_section.dart' show YearMetric;
 
@@ -42,22 +44,60 @@ class EffortSection extends ConsumerWidget {
   }
 }
 
-/// How much was eaten on the period's days with calories, in the bands the
-/// overview colours them (against your range when the profile gives one).
-class CalorieSection extends ConsumerWidget {
-  const CalorieSection({super.key, required this.range});
+/// What was eaten on the period's days: calories, in the bands the
+/// overview colours them (against your range when the profile gives one),
+/// or how healthy the meals were.
+class FoodSection extends ConsumerStatefulWidget {
+  const FoodSection({super.key, required this.range});
 
   final DateRange range;
 
+  @override
+  ConsumerState<FoodSection> createState() => _FoodSectionState();
+}
+
+class _FoodSectionState extends ConsumerState<FoodSection> {
   static final _number = NumberFormat.decimalPattern();
+  var _health = false;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final range = widget.range;
+    String k(double v) => _number.format(v.round());
+    void choose(int i) => setState(() => _health = i == 1);
+    const choices = ['Calories', 'Health'];
+
+    if (_health) {
+      return LevelCard(
+        title: 'Food',
+        subtitle: 'How healthy each day’s meals were, from 1 to 5',
+        empty: 'Log meals to see how healthy your days were.',
+        report: ref.watch(healthReportProvider(range)),
+        levels: DietScore.levels,
+        palette: YearMetric.health.colors,
+        stats: (r) => [
+          ('${r.average!.toStringAsFixed(1)}/5', 'on average'),
+          ('${r.counted}', 'of ${r.days} ${r.days == 1 ? 'day' : 'days'}'),
+          ('${r.byLevel[3] + r.byLevel[4]}', r.byLevel[3] + r.byLevel[4] == 1 ? 'healthy day (4–5)' : 'healthy days (4–5)'),
+        ],
+        change: (r) => switch ((r.average, r.previousAverage)) {
+          (final now?, final was?) when (now - was).abs() >= 0.2 =>
+            'Averaged ${now.toStringAsFixed(1)}/5, ${now > was ? 'up' : 'down'} from ${was.toStringAsFixed(1)} ${previousWord(range)}',
+          (final now?, _?) => 'About ${now.toStringAsFixed(1)}/5, as ${previousWord(range)}',
+          _ => null,
+        },
+        note: 'From what the meals are (fried, vegetables, sugary drinks…), weighted by calories. Tap a meal to change what’s in it.',
+        weekdayNoun: 'logged',
+        choices: choices,
+        chosen: 1,
+        onChoose: choose,
+      );
+    }
+
     final profile = ref.watch(profileProvider).value ?? const Profile();
     final kcal = PersonalRanges.kcalFor(profile, DateTime.now());
-    String k(double v) => _number.format(v.round());
     return LevelCard(
-      title: 'Calories',
+      title: 'Food',
       subtitle: kcal == null ? 'Days with meals, by calories eaten' : 'Days with meals, against your range of ${k(kcal.low)}–${k(kcal.high)}',
       empty: 'Add calories to meals to see this.',
       report: ref.watch(calorieReportProvider((range, kcal?.low, kcal?.high))),
@@ -76,6 +116,72 @@ class CalorieSection extends ConsumerWidget {
       },
       note: 'Only days with calories on their meals count, and a day is only as full as what was logged.',
       weekdayNoun: 'logged',
+      choices: choices,
+      chosen: 0,
+      onChoose: choose,
+    );
+  }
+}
+
+/// How days went, one rating at a time: mood (1–5), or energy, stress or
+/// focus against a usual day.
+class HowDaysWentSection extends ConsumerStatefulWidget {
+  const HowDaysWentSection({super.key, required this.range});
+
+  final DateRange range;
+
+  @override
+  ConsumerState<HowDaysWentSection> createState() => _HowDaysWentSectionState();
+}
+
+class _HowDaysWentSectionState extends ConsumerState<HowDaysWentSection> {
+  var _rating = Rating.mood;
+
+  /// Colours, lowest value first. More stress is the worse end, so its
+  /// colours run the other way.
+  static List<int> paletteFor(Rating r) => switch (r) {
+        Rating.mood => YearMetric.mood.colors,
+        Rating.stress => YearMetric.energy.colors.reversed.toList(),
+        _ => YearMetric.energy.colors,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final range = widget.range;
+    final r0 = _rating;
+    final mood = r0 == Rating.mood;
+    String signed(double v) => '${v >= 0 ? '+' : '−'}${v.abs().toStringAsFixed(1)}';
+    String avg(double v) => mood ? v.toStringAsFixed(1) : signed(v);
+    return LevelCard(
+      title: 'How days went',
+      subtitle: mood ? 'Your mood each day, from Awful to Great' : '${r0.label} compared with a usual day',
+      empty: 'Rate a day on the Today page to see this.',
+      report: ref.watch(ratingReportProvider((range, r0))),
+      levels: r0.words,
+      palette: paletteFor(r0),
+      stats: (r) {
+        final good = r.byLevel[3] + r.byLevel[4];
+        final low = r.byLevel[0] + r.byLevel[1];
+        return [
+          (r0.words[r.usual!], 'mostly'),
+          ('${r.counted}', 'of ${r.days} ${r.days == 1 ? 'day rated' : 'days rated'}'),
+          switch (r0) {
+            Rating.mood => ('$good', good == 1 ? 'good day' : 'good days'),
+            Rating.stress => ('$low', low == 1 ? 'calmer day' : 'calmer days'),
+            _ => ('$good', good == 1 ? 'day above usual' : 'days above usual'),
+          },
+        ];
+      },
+      change: (r) => switch ((r.average, r.previousAverage)) {
+        (final now?, final was?) when (now - was).abs() >= 0.3 =>
+          '${r0.label} averaged ${avg(now)}, ${now > was ? 'higher' : 'lower'} than ${avg(was)} ${previousWord(range)}',
+        (final now?, _?) => '${r0.label} averaged ${avg(now)}, about as ${previousWord(range)}',
+        _ => null,
+      },
+      weekdayNoun: 'rated',
+      choices: [for (final r in Rating.values) r.label],
+      chosen: r0.index,
+      onChoose: (i) => setState(() => _rating = Rating.values[i]),
     );
   }
 }
@@ -96,6 +202,9 @@ class LevelCard extends StatelessWidget {
     required this.change,
     required this.weekdayNoun,
     this.note,
+    this.choices = const [],
+    this.chosen = 0,
+    this.onChoose,
   });
 
   final String title;
@@ -117,6 +226,12 @@ class LevelCard extends StatelessWidget {
   /// A quieter line at the bottom.
   final String? note;
 
+  /// What the card can show instead ("Calories", "Health"), as chips at
+  /// the top; [chosen] is the one shown.
+  final List<String> choices;
+  final int chosen;
+  final ValueChanged<int>? onChoose;
+
   @override
   Widget build(BuildContext context) {
     final colors = GardenColors.of(context);
@@ -124,10 +239,28 @@ class LevelCard extends StatelessWidget {
       title: title,
       subtitle: subtitle,
       colors: colors,
-      child: report.when(
-        loading: () => const SizedBox(height: 120, child: Center(child: CircularProgressIndicator())),
-        error: (_, _) => Text('$title isn’t available right now.', style: nunito(14, FontWeight.w600, colors.muted)),
-        data: (r) => r.counted == 0 ? Text(empty, style: nunito(14, FontWeight.w600, colors.muted)) : _body(r, colors),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (choices.length > 1) ...[
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final (i, c) in choices.indexed)
+                  ChoiceChip(label: Text(c), selected: i == chosen, onSelected: (_) => onChoose?.call(i)),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
+          report.when(
+            // Keep the last one on screen while the next loads.
+            skipLoadingOnReload: true,
+            loading: () => const SizedBox(height: 120, child: Center(child: CircularProgressIndicator())),
+            error: (_, _) => Text('$title isn’t available right now.', style: nunito(14, FontWeight.w600, colors.muted)),
+            data: (r) => r.counted == 0 ? Text(empty, style: nunito(14, FontWeight.w600, colors.muted)) : _body(r, colors),
+          ),
+        ],
       ),
     );
   }
