@@ -27,6 +27,18 @@ enum PlantSpecies {
 
   String get pluralName => this == cactus ? 'cacti' : '${plantName}s';
 
+  /// What days of this kind are, in the plural: "work days".
+  String get daysWord => switch (this) {
+        sunflower => 'exercise days',
+        succulent => 'rest days',
+        tulip => 'days with people',
+        cactus => 'work days',
+        fern => 'study days',
+        monstera => 'game and video days',
+        tree => 'big days out',
+        sprout => 'mixed days',
+      };
+
   /// The plant this kind of day grows in [season] ([member] 0 or 1): the
   /// same family all year (work is always a cactus), different members
   /// each season.

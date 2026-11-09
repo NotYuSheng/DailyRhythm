@@ -100,8 +100,13 @@ class GardenSceneCard extends ConsumerWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(6, 8, 6, 2),
-                  child: Text(_caption(plants, shown), style: nunito(14, FontWeight.w700, colors.muted)),
+                  child: Text(_caption(plants, shown), style: nunito(14, FontWeight.w700, colors.ink)),
                 ),
+                if (plants.length > 1)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(6, 6, 6, 2),
+                    child: _DayKinds(counts: _counts(plants), total: plants.length, colors: colors),
+                  ),
               ],
             ),
           ),
@@ -110,20 +115,54 @@ class GardenSceneCard extends ConsumerWidget {
     );
   }
 
+  /// What the garden says about the days: how many grew a plant, and the
+  /// kinds of day there were most of.
   static String _caption(List<PlantSpec> plants, int shown) {
     if (plants.isEmpty) return 'Nothing grew in this period yet.';
-    // Named as they grew: a kind's plant in the season it was most grown.
+    final top = _counts(plants).take(2).map((e) => e.key.daysWord).toList();
+    final days = '${plants.length} ${plants.length == 1 ? 'day' : 'days'} grew a plant';
+    final mostly = plants.length == 1 ? 'a ${plants.single.species.dayWord}' : 'mostly ${top.join(' and ')}';
+    return '$days: $mostly'
+        '${shown < plants.length ? ' (showing $shown in the same mix)' : ''}.';
+  }
+
+  /// Each kind of day and how many, most first.
+  static List<MapEntry<PlantSpecies, int>> _counts(List<PlantSpec> plants) {
     final counts = <PlantSpecies, int>{};
-    final seasons = <PlantSpecies, Map<Season, int>>{};
     for (final p in plants) {
       counts[p.species] = (counts[p.species] ?? 0) + 1;
-      final bySeason = seasons.putIfAbsent(p.species, () => {});
-      bySeason[p.season] = (bySeason[p.season] ?? 0) + 1;
     }
-    Season mainSeason(PlantSpecies s) => (seasons[s]!.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).first.key;
-    final top = (counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).take(2).map((e) => e.key.pluralIn(mainSeason(e.key)));
-    final mostly = plants.length == 1 ? 'a ${plants.single.name}' : 'mostly ${top.join(' and ')}';
-    return '${plants.length} ${plants.length == 1 ? 'plant' : 'plants'}, $mostly'
-        '${shown < plants.length ? ' · showing $shown in the same mix' : ''}';
+    return counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+  }
+}
+
+/// Every kind of day the garden grew, with how many and its share: what
+/// each plant stands for, without opening the calendar.
+class _DayKinds extends StatelessWidget {
+  const _DayKinds({required this.counts, required this.total, required this.colors});
+
+  final List<MapEntry<PlantSpecies, int>> counts;
+  final int total;
+  final GardenColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final MapEntry(key: kind, value: n) in counts)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(color: colors.bed, borderRadius: BorderRadius.circular(12)),
+            child: Text.rich(
+              TextSpan(children: [
+                TextSpan(text: '${kind.label} ', style: nunito(13, FontWeight.w800, colors.ink)),
+                TextSpan(text: '$n · ${(n / total * 100).round()}%', style: nunito(13, FontWeight.w700, colors.muted)),
+              ]),
+            ),
+          ),
+      ],
+    );
   }
 }
