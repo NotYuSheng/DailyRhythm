@@ -11,6 +11,7 @@ import '../../data/models/metric_data.dart';
 import '../../data/models/period_overview.dart';
 import '../../data/providers/metrics_providers.dart';
 import '../../../exercise/domain/effort.dart';
+import '../../data/services/level_report.dart' show calorieBand;
 import '../../../meals/domain/diet_score.dart';
 import '../../../profile/data/profile_providers.dart';
 import '../../../profile/domain/profile.dart';
@@ -41,8 +42,7 @@ enum YearMetric {
   int? levelOf(DayValues d, {ValueRange? kcal}) => switch (this) {
         sleep => _band(d.sleepHours, const [5, 6, 7, 8]),
         steps => _band(d.steps, const [3000, 6000, 9000, 12000]),
-        calories when kcal != null => _band(d.kcal, [kcal.low - _kcalMargin, kcal.low, kcal.high + 0.5, kcal.high + _kcalMargin]),
-        calories => _band(d.kcal, const [1600, 1900, 2200, 2500]),
+        calories => d.kcal == null ? null : calorieBand(d.kcal!, low: kcal?.low, high: kcal?.high),
         mood => d.mood == null ? null : (d.mood! - 1).clamp(0, 4),
         energy => d.energy == null ? null : (d.energy! + 2).clamp(0, 4),
         effort => d.effort == null ? null : (d.effort! - 1).clamp(0, 4),

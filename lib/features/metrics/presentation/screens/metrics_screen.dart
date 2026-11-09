@@ -5,7 +5,7 @@ import '../../data/models/metric_data.dart';
 import '../../data/providers/metrics_providers.dart';
 import '../../../garden/presentation/garden_style.dart';
 import '../widgets/day_ratings_section.dart';
-import '../widgets/effort_section.dart';
+import '../widgets/level_sections.dart';
 import '../widgets/fun_facts_section.dart';
 import '../widgets/garden_scene_card.dart';
 import '../widgets/moments_section.dart';
@@ -98,8 +98,10 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
             WeightSection(range: _selectedRange),
             const SizedBox(height: AppTheme.spacePulse3),
 
-            // How hard the exercise days were
+            // How hard the exercise days were, and how much was eaten
             EffortSection(range: _selectedRange),
+            const SizedBox(height: AppTheme.spacePulse3),
+            CalorieSection(range: _selectedRange),
             const SizedBox(height: AppTheme.spacePulse3),
 
             // Mood, energy, stress and focus; tag comparisons; watch
