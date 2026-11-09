@@ -87,10 +87,13 @@ void main() {
     await pump(tester, const GardenTodayScreen());
     GardenChip chip() => tester.widget<GardenChip>(find.widgetWithText(GardenChip, 'A bit of everything'));
     expect((chip().selected, chip().suggested), (false, true));
+    expect(find.textContaining('picked for you:'), findsOneWidget, reason: 'the automatic plant says so');
+    expect(find.textContaining('(picked for you, tap to choose)', findRichText: true), findsOneWidget);
 
     await tester.tap(find.text('A bit of everything'));
     await tester.pumpAndSettle();
     expect((chip().selected, chip().suggested), (true, false));
+    expect(find.textContaining('You picked this plant.'), findsOneWidget);
 
     await tester.tap(find.text('A bit of everything'));
     await tester.pumpAndSettle();
@@ -164,7 +167,7 @@ void main() {
 
     expect(find.text('Social Event'), findsOneWidget);
     // The plant follows what the day held (the caption is back at the top).
-    await tester.scrollUntilVisible(find.text('A tulip for time with people. From Social Event.'), -300, scrollable: scrollable);
+    await tester.scrollUntilVisible(find.text('A tulip for time with people, picked for you: from Social Event.'), -300, scrollable: scrollable);
   });
 
   testWidgets('in the small hours Today opens on yesterday until yesterday has its mood', (tester) async {

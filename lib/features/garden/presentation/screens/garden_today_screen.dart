@@ -168,7 +168,11 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
                 TextSpan(children: [
                   TextSpan(text: isToday ? 'Today was mostly… ' : 'This day was mostly… '),
                   TextSpan(
-                    text: g.chosen ? '(your pick)' : '(picks the plant)',
+                    text: g.chosen
+                        ? '(your pick)'
+                        : g.plant.logged
+                            ? '(picked for you, tap to choose)'
+                            : '(picks the plant)',
                     style: nunito(16, FontWeight.w700, colors.muted),
                   ),
                 ]),
@@ -243,7 +247,10 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
 
   static String _caption(GardenDay g, bool isToday) {
     if (!g.plant.logged) return isToday ? 'An empty pot, ready for whatever today brings.' : 'An empty pot: a quiet day.';
-    return 'A ${g.plant.species.plantName} for ${g.plant.species.dayWord}. ${g.reason}';
+    if (g.chosen) return 'A ${g.plant.species.plantName} for ${g.plant.species.dayWord}. ${g.reason}';
+    // Not picked: say plainly the app chose it, and why.
+    final why = g.reason.isEmpty ? '' : ' ${g.reason[0].toLowerCase()}${g.reason.substring(1)}';
+    return 'A ${g.plant.species.plantName} for ${g.plant.species.dayWord}, picked for you:$why';
   }
 }
 
