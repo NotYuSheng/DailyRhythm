@@ -53,6 +53,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(sentName, 'Char kway teow');
     expect(tester.widget<TextField>(_field('Calories (optional)')).controller!.text, '610');
-    expect(find.textContaining('AI estimate for one plate'), findsOneWidget);
+    expect(find.textContaining('AI estimate, for one plate'), findsOneWidget);
   });
 }

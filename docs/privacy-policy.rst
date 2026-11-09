@@ -53,9 +53,12 @@ What leaves your device, and only when you ask
   camera is used on the phone to read the code; no images are kept or sent.
 * **AI assistant (optional).** If you connect an AI model in Settings and tap
   "Estimate with AI" on a meal, only that food's name is sent to the AI service
-  you chose (a cloud provider or a server you run). Its terms apply. Your
-  journal, moods and health data are never sent. Your API key stays on your
-  phone and is never exported or backed up. See :doc:`ai`.
+  you chose (a cloud provider or a server you run). To find the published
+  figure, the AI may have your phone search for that food in Open Food Facts
+  and, if you set it up, the web search service you chose; it may also open a
+  web page from the results. Their terms apply. Your journal, moods and health
+  data are never sent. Your API keys stay on your phone and are never exported
+  or backed up. See :doc:`ai`.
 * **Export.** Files you export go wherever you save or share them.
 
 Nothing is sent in the background.

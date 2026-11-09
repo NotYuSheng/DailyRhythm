@@ -293,7 +293,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         _caloriesController.text = '${(estimate.kcal * _quantity).round()}';
         _kcalSource = 'estimate';
       });
-      messenger.showSnackBar(SnackBar(content: Text('AI estimate for ${estimate.serving}. Adjust it if yours was different.')));
+      final from = estimate.source == null ? 'AI estimate' : 'From ${estimate.source}';
+      messenger.showSnackBar(SnackBar(content: Text('$from, for ${estimate.serving}. Adjust it if yours was different.')));
     } on AiException catch (e) {
       if (mounted) messenger.showSnackBar(SnackBar(content: Text(e.message)));
     } finally {

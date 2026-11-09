@@ -19,6 +19,10 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
   final _baseUrl = TextEditingController();
   final _model = TextEditingController();
   final _key = TextEditingController();
+  final _searchUrl = TextEditingController();
+  final _searchKey = TextEditingController();
+  var _search = SearchProvider.none;
+  var _showSearchKey = false;
   var _enabled = false;
   var _provider = AiProvider.openai;
   var _loaded = false;
@@ -32,6 +36,8 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
     _baseUrl.dispose();
     _model.dispose();
     _key.dispose();
+    _searchUrl.dispose();
+    _searchKey.dispose();
     super.dispose();
   }
 
@@ -41,10 +47,22 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
     _baseUrl.text = s.baseUrl.isEmpty ? s.provider.baseUrl : s.baseUrl;
     _model.text = s.model;
     _key.text = s.apiKey;
+    _search = s.search;
+    _searchUrl.text = s.searchUrl.isEmpty ? s.search.baseUrl : s.searchUrl;
+    _searchKey.text = s.searchKey;
     _loaded = true;
   }
 
-  AiSettings get _current => AiSettings(enabled: _enabled, provider: _provider, baseUrl: _baseUrl.text, model: _model.text, apiKey: _key.text);
+  AiSettings get _current => AiSettings(
+        enabled: _enabled,
+        provider: _provider,
+        baseUrl: _baseUrl.text,
+        model: _model.text,
+        apiKey: _key.text,
+        search: _search,
+        searchUrl: _searchUrl.text,
+        searchKey: _searchKey.text,
+      );
 
   Future<void> _save() async {
     final messenger = ScaffoldMessenger.of(context);
@@ -192,12 +210,80 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(AppTheme.spacePulse3),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text('Look up published calories', style: theme.textTheme.titleMedium),
+                        const SizedBox(height: 4),
+                        Text(
+                          'The AI always checks USDA and Open Food Facts. With web search it can also find the official figure '
+                          'for restaurant, chain and packaged food. Your phone does the searching.',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: AppTheme.spacePulse2),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            for (final p in SearchProvider.values)
+                              ChoiceChip(
+                                label: Text(p.label),
+                                selected: _search == p,
+                                onSelected: (_) => setState(() {
+                                  if (_searchUrl.text.trim().isEmpty || _searchUrl.text == _search.baseUrl) _searchUrl.text = p.baseUrl;
+                                  _search = p;
+                                }),
+                              ),
+                          ],
+                        ),
+                        if (_search != SearchProvider.none) ...[
+                          const SizedBox(height: AppTheme.spacePulse3),
+                          TextField(
+                            controller: _searchUrl,
+                            keyboardType: TextInputType.url,
+                            autocorrect: false,
+                            decoration: InputDecoration(
+                              labelText: 'Search address',
+                              helperText: _search == SearchProvider.searxng
+                                  ? 'Your server, e.g. http://my-pc.your-tailnet.ts.net:8080 (JSON output on)'
+                                  : null,
+                              helperMaxLines: 2,
+                            ),
+                          ),
+                          if (_search.needsKey) ...[
+                            const SizedBox(height: AppTheme.spacePulse3),
+                            TextField(
+                              controller: _searchKey,
+                              obscureText: !_showSearchKey,
+                              autocorrect: false,
+                              enableSuggestions: false,
+                              decoration: InputDecoration(
+                                labelText: 'Search API key',
+                                helperText: 'From api-dashboard.search.brave.com. Stays on this phone.',
+                                helperMaxLines: 2,
+                                suffixIcon: IconButton(
+                                  tooltip: _showSearchKey ? 'Hide key' : 'Show key',
+                                  icon: Icon(_showSearchKey ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                                  onPressed: () => setState(() => _showSearchKey = !_showSearchKey),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacePulse2),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppTheme.spacePulse3),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('What gets sent', style: theme.textTheme.titleMedium),
                         const SizedBox(height: AppTheme.spacePulse2),
-                        const Text('Only what a feature needs, and only when you tap it. "Estimate with AI" on a meal sends just the food\'s name. '
-                            'Your journal, moods and health data are never sent.'),
+                        const Text('Only what a feature needs, and only when you tap it. "Estimate with AI" on a meal sends just the food\'s name, '
+                            'which may also be searched for in the food databases and your web search. Your journal, moods and health data are never sent.'),
                         const SizedBox(height: AppTheme.spacePulse2),
                         Text(
                           'A cloud provider\'s own terms apply to what you send it. To keep everything at home, run a model on your own computer '
