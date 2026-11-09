@@ -19,6 +19,7 @@ void main() {
   tearDown(closeTestDatabase);
 
   testWidgets('every time range is on screen on a 360dp phone and selectable', (tester) async {
+    stillGarden(tester);
     tester.view.physicalSize = const Size(1080, 2340);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -41,6 +42,7 @@ void main() {
   });
 
   testWidgets('arrows step back to the first entry and forward to today', (tester) async {
+    stillGarden(tester);
     final db = await openTestDatabase();
     final lastYear = DateTime.now().year - 1;
     await db.upsertMoodEntry(MoodEntry(date: DateTime(lastYear, 6, 1), timestamp: DateTime(lastYear, 6, 1), moodLevel: 3, emoji: ''));
@@ -66,6 +68,7 @@ void main() {
   });
 
   testWidgets('every period has its overview, grouped to fit', (tester) async {
+    stillGarden(tester);
     final db = await openTestDatabase();
     final today = DateTime.now();
     final day = DateTime(today.year, today.month, today.day);
@@ -93,6 +96,7 @@ void main() {
   });
 
   testWidgets('a grid square shows its value on tap and opens the day on double-tap', (tester) async {
+    stillGarden(tester);
     final db = await openTestDatabase();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -127,6 +131,7 @@ void main() {
   });
 
   testWidgets('weight is logged from Metrics and shown with its change', (tester) async {
+    stillGarden(tester);
     SharedPreferences.setMockInitialValues({});
     final db = await openTestDatabase();
     final now = DateTime.now();
@@ -150,4 +155,11 @@ void main() {
     expect(find.textContaining('+0.8 kg since'), findsOneWidget);
     expect((await WeightRepository(db).latest())!.value, 60.8);
   });
+}
+
+/// The garden scene moves forever; tests see it still, as with reduced
+/// motion, so pumpAndSettle can settle.
+void stillGarden(WidgetTester tester) {
+  tester.platformDispatcher.accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(disableAnimations: true);
+  addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
 }

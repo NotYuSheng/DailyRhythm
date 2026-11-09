@@ -34,6 +34,18 @@ enum SceneLook {
   }
 }
 
+/// One layer of the scene, drawn in the scene's coordinates. Plant
+/// layers can sway from [swayBaseY], the line their ridge stands on.
+class SceneLayer {
+  const SceneLayer(this.body, {this.swayBaseY});
+
+  final String body;
+  final double? swayBaseY;
+
+  /// The layer as a whole SVG the size of the scene.
+  String get svg => GardenScene.wrap(body);
+}
+
 class _Theme {
   const _Theme(this.sky, this.sun, this.ridges, this.shadow);
 
@@ -86,13 +98,24 @@ class GardenScene {
     ];
   }
 
-  static String svg(List<PlantSpec> plants, SceneLook look, {int seed = 0, PlantStyle style = PlantStyle.soft}) {
+  /// The whole scene as one picture, weather included.
+  static String svg(List<PlantSpec> plants, SceneLook look, {int seed = 0, PlantStyle style = PlantStyle.soft}) =>
+      wrap(layers(plants, look, seed: seed, style: style).map((l) => l.body).join());
+
+  /// [body] in an SVG the size of the scene.
+  static String wrap(String body) => '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${_f(width)} ${_f(height)}">$body</svg>';
+
+  /// The scene in layers, back to front: sky and far hill, then each
+  /// ridge's plants (which may sway) over its hill. Without [weather],
+  /// what moves in the sky and air (clouds, birds, leaves, snow, fireflies)
+  /// is left out, for an animated layer to draw instead.
+  static List<SceneLayer> layers(List<PlantSpec> plants, SceneLook look, {int seed = 0, PlantStyle style = PlantStyle.soft, bool weather = true}) {
     final t = _themes[look]!;
     final rng = math.Random(seed);
     final shown = sample(plants);
     final big = shown.length <= 30;
-    final b = StringBuffer()
-      ..write('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${_f(width)} ${_f(height)}">')
+    final out = <SceneLayer>[];
+    var b = StringBuffer()
       ..write('<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">'
           '<stop offset="0" stop-color="${t.sky.$1}"/><stop offset="0.6" stop-color="${t.sky.$2}"/>'
           '<stop offset="1" stop-color="${t.sky.$3}"/></linearGradient></defs>')
@@ -108,7 +131,7 @@ class GardenScene {
     } else {
       b.write('<circle cx="$sx" cy="$sy" r="${sr * 1.9}" fill="$sunColor" opacity="0.25"/><circle cx="$sx" cy="$sy" r="$sr" fill="$sunColor"/>');
     }
-    switch (look) {
+    switch (weather ? look : null) {
       case SceneLook.summer:
         b.write('<g fill="#FFFFFF" opacity="0.95"><ellipse cx="70" cy="40" rx="28" ry="10"/><ellipse cx="92" cy="34" rx="18" ry="9"/>'
             '<ellipse cx="190" cy="58" rx="22" ry="7"/></g>');
@@ -128,6 +151,7 @@ class GardenScene {
       final y = 96.0 + i * 34;
       final ridge = _Ridge(y, rng, 10.0 + i * 2);
       final depth = (i + 1) / 4;
+      if (i > 0) b = StringBuffer();
       b.write('<path d="${ridge.path}" fill="${t.ridges[i]}"/>');
       if (look == SceneLook.winter) {
         b.write('<path d="${ridge.line}" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>');
@@ -148,6 +172,8 @@ class GardenScene {
         placed.add((ridge.at(x) + 2, x, s, sp, rng.nextDouble() < 0.4));
       }
       placed.sort((a, c) => a.$1.compareTo(c.$1));
+      out.add(SceneLayer(b.toString()));
+      b = StringBuffer();
       for (final (py, px, s, sp, flip) in placed) {
         final body = _body(PlantSvg.plant(sp, style: style));
         if (body == null) continue;
@@ -156,9 +182,11 @@ class GardenScene {
           ..write('<g transform="translate(${_f(px)} ${_f(py)}) scale(${_f3(flip ? -s : s)} ${_f3(s)}) translate(-100 -176)" '
               'opacity="${_f(0.72 + 0.28 * depth)}">$body</g>');
       }
+      if (b.isNotEmpty) out.add(SceneLayer(b.toString(), swayBaseY: y + 6));
+      b = StringBuffer();
     }
 
-    switch (look) {
+    switch (weather ? look : null) {
       case SceneLook.autumn:
         const leafColours = ['#E39B5A', '#D7713F', '#F0B657'];
         for (var i = 0; i < 10; i++) {
@@ -175,8 +203,8 @@ class GardenScene {
         }
       default:
     }
-    b.write('</svg>');
-    return b.toString();
+    if (b.isNotEmpty) out.add(SceneLayer(b.toString()));
+    return out;
   }
 
   /// How tall a kind grows, to put tall ones at the back and mid-ridge.
