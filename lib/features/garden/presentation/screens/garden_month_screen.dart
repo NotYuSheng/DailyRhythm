@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../shared/utils/date_utils.dart';
+import '../../../metrics/presentation/screens/metrics_screen.dart';
 import '../../../tags/data/models/tag.dart';
 import '../../../tags/data/providers/tag_providers.dart';
 import '../../data/garden_providers.dart';
@@ -11,7 +12,6 @@ import '../../domain/plant.dart';
 import '../garden_style.dart';
 import '../widgets/plant_view.dart';
 import 'garden_today_screen.dart';
-import 'recap_screen.dart';
 import 'year_gardens_screen.dart';
 
 /// A month as a garden: one pot per day, a plant in each logged one.
@@ -118,7 +118,7 @@ class _GardenMonthScreenState extends ConsumerState<GardenMonthScreen> {
                   runSpacing: 8,
                   children: [
                     for (final (label, icon, screen) in [
-                      ('${DateFormat('MMMM').format(_month)} in review', Icons.auto_awesome_outlined, MonthRecapScreen(month: _month)),
+                      ('${DateFormat('MMMM').format(_month)} in Metrics', Icons.insights_outlined, MetricsScreen(month: _month)),
                       ('${_month.year}’s gardens', Icons.calendar_view_month, YearGardensScreen(year: _month.year)),
                     ])
                       OutlinedButton.icon(

@@ -327,24 +327,24 @@ void main() {
     expect(find.text('0 plants'), findsOneWidget);
   });
 
-  testWidgets('the month in review and the year of gardens open from the Garden tab', (tester) async {
+  testWidgets('the month opens in Metrics, with its moments; the year of gardens opens months', (tester) async {
     await db.upsertMoodEntry(MoodEntry(date: DateTime(2025, 6, 3), timestamp: DateTime(2025, 6, 3), moodLevel: 4, emoji: ''));
     await JournalRepository(db).save(JournalEntry(date: DateTime(2025, 6, 3), text: 'Picnic at the reservoir', mood: 5));
     await pump(tester, GardenMonthScreen(month: DateTime(2025, 6, 4)));
 
-    await tapVisible(tester, find.text('June in review'));
-    expect(find.text('Month in review'), findsOneWidget);
-    expect(find.text('1 plant'), findsOneWidget);
+    await tapVisible(tester, find.text('June in Metrics'));
+    expect(find.text('June 2025'), findsWidgets, reason: 'Metrics opens on that month');
+    expect(find.text('June’s garden'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('“Picnic at the reservoir”'), 200, scrollable: find.byType(Scrollable).first);
-    expect(find.text('Tue 3 Jun · Great'), findsOneWidget);
+    expect(find.text('Tue 3 Jun 2025 · Great'), findsOneWidget);
+    expect(find.text('1 moment written'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     await tapVisible(tester, find.text('2025’s gardens'));
     expect(find.text('A year of gardens'), findsOneWidget);
-    expect(find.text('2025'), findsOneWidget);
-    expect(find.text('1 plant'), findsOneWidget);
-    expect(find.text('Every day of the year'), findsNothing, reason: 'the year’s numbers are in Metrics');
     await tester.scrollUntilVisible(find.bySemanticsLabel('June: 1 plant'), 300, scrollable: find.byType(Scrollable).first);
     await tapVisible(tester, find.bySemanticsLabel('June: 1 plant'));
-    expect(find.text('Month in review'), findsOneWidget, reason: 'a month tile opens its review');
+    expect(find.byType(GardenMonthScreen), findsWidgets, reason: 'a month tile opens its calendar');
   });
 }
