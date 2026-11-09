@@ -1,3 +1,4 @@
+import 'barcode_screen.dart';
 import '../../../ai/data/ai_client.dart';
 import '../../../ai/data/ai_providers.dart';
 import 'package:material_ui/material_ui.dart';
@@ -237,6 +238,42 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     }
   }
 
+  /// Scans (or types) a packaged food's barcode, looks it up in Open Food
+  /// Facts (only the number is sent) and fills the name and calories.
+  Future<void> _scanBarcode() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final code = await Navigator.push<String>(context, MaterialPageRoute(builder: (_) => const BarcodeScreen()));
+    if (code == null || !mounted) return;
+    // A new scan's result replaces the last one's message.
+    messenger.hideCurrentSnackBar();
+    final CalorieMatch? match;
+    try {
+      match = await ref.read(calorieLookupProvider).byBarcode(code);
+    } catch (_) {
+      messenger.showSnackBar(const SnackBar(content: Text('Couldn’t reach Open Food Facts. Check the connection and try again.')));
+      return;
+    }
+    if (!mounted) return;
+    if (match == null) {
+      messenger.showSnackBar(SnackBar(content: Text('Open Food Facts doesn’t know $code yet. Type the name and calories instead.')));
+      return;
+    }
+    final found = match;
+    final perServing = found.basis == 'serving';
+    setState(() {
+      if (_nameController.text.trim().isEmpty) {
+        _nameController.text = found.brand == null ? found.name : '${found.name} (${found.brand})';
+      }
+      _caloriesChanged = true;
+      _lookedUpPerServing = perServing ? found.kcal : null;
+      _caloriesController.text = '${(perServing ? found.kcal * _quantity : found.kcal).round()}';
+      _kcalSource = perServing ? found.source : null;
+    });
+    messenger.showSnackBar(SnackBar(
+      content: Text(perServing ? 'From Open Food Facts: ${found.kcal.round()} kcal a serving.' : 'That’s per 100 g. Adjust it to what you had.'),
+    ));
+  }
+
   /// Asks the user's AI model for one serving's calories (only when tapped;
   /// only the name is sent). Saved as an estimate, like the built-in ones.
   Future<void> _estimateWithAi(AiClient ai) async {
@@ -452,6 +489,12 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                         onPressed: text.trim().isEmpty ? null : _lookUpCalories,
                         icon: const Icon(Icons.search, size: 18),
                         label: const Text('Look up calories'),
+                      ),
+                      TextButton.icon(
+                        style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+                        onPressed: _scanBarcode,
+                        icon: const Icon(Icons.qr_code_scanner, size: 18),
+                        label: Text(BarcodeScreen.canScan ? 'Scan barcode' : 'Barcode'),
                       ),
                       // Only when the user has set up their own AI model.
                       if (ref.watch(aiClientProvider) case final ai?)

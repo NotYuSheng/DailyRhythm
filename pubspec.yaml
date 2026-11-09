@@ -72,6 +72,7 @@ dependencies:
   flex_color_scheme: ^9.0.0
   archive: ^4.0.7
   flutter_svg: ^2.3.0
+  mobile_scanner: ^7.5.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
