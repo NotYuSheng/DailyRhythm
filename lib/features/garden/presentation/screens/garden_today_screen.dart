@@ -165,7 +165,7 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
               _PlantBed(day: g, caption: _caption(g, isToday), colors: colors),
               const SizedBox(height: 16),
               // The same words whatever is picked, so nothing below moves;
-              // whether it was picked is in the caption above.
+              // whether it was picked shows in the chips below.
               Text(
                 isToday ? 'Today was mostly…' : 'This day was mostly…',
                 maxLines: 1,
@@ -239,16 +239,11 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
     );
   }
 
-  /// Two lines, always: what grew, then why. Each is one line, cut short
-  /// if it must be, so picking a plant never moves the screen.
-  static (String, String) _caption(GardenDay g, bool isToday) {
-    if (!g.plant.logged) return ('An empty pot', isToday ? 'Ready for whatever today brings' : 'A quiet day');
+  /// One line: what grew. Picked or not, the chips below show it.
+  static String _caption(GardenDay g, bool isToday) {
+    if (!g.plant.logged) return isToday ? 'An empty pot, ready for today' : 'An empty pot: a quiet day';
     final plant = '${g.plant.aName[0].toUpperCase()}${g.plant.aName.substring(1)}';
-    final what = '$plant for ${g.plant.species.dayWord}';
-    if (g.chosen) return (what, 'Your pick · tap it again to undo');
-    // Not picked: say plainly the app chose it, and why.
-    final why = g.reason.isEmpty ? '' : ' ${g.reason[0].toLowerCase()}${g.reason.substring(1)}';
-    return (what, 'Picked for you:$why');
+    return '$plant for ${g.plant.species.dayWord}';
   }
 }
 
@@ -256,7 +251,7 @@ class _PlantBed extends StatelessWidget {
   const _PlantBed({required this.day, required this.caption, required this.colors});
 
   final GardenDay day;
-  final (String, String) caption;
+  final String caption;
   final GardenColors colors;
 
   @override
@@ -269,12 +264,7 @@ class _PlantBed extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              children: [
-                Text(caption.$1, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: nunito(16, FontWeight.w900, colors.leaf)),
-                Text(caption.$2, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: nunito(14, FontWeight.w700, colors.muted)),
-              ],
-            ),
+            child: Text(caption, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: nunito(16, FontWeight.w900, colors.leaf)),
           ),
           PlantView(spec: day.plant, width: 210, sway: true),
           // The hill the pot stands on.
