@@ -14,6 +14,7 @@ import '../../../garden/presentation/garden_style.dart';
 import '../../../garden/presentation/screens/garden_month_screen.dart';
 import '../../../garden/presentation/screens/year_gardens_screen.dart';
 import '../../data/models/metric_data.dart';
+import 'garden_motion.dart';
 
 /// Every day of a period, all time from the first entry.
 final periodGardenProvider = FutureProvider.autoDispose.family<List<GardenDay>, DateRange>((ref, range) async {
@@ -37,6 +38,7 @@ class GardenSceneCard extends ConsumerWidget {
     final plants = [for (final d in days ?? const <GardenDay>[]) if (d.plant.logged) d.plant];
     final look = SceneLook.forPeriod(days?.first.date ?? range.start, range.end, dark: Theme.of(context).brightness == Brightness.dark);
     final shown = GardenScene.sample(plants).length;
+    final seed = range.start.millisecondsSinceEpoch ~/ 86400000;
     final title = range.isAllTime
         ? 'Your whole garden'
         : range.end.difference(range.start).inDays > 31
@@ -85,10 +87,15 @@ class GardenSceneCard extends ConsumerWidget {
                     aspectRatio: GardenScene.width / GardenScene.height,
                     child: days == null
                         ? ColoredBox(color: colors.ground)
-                        : SvgPicture.string(
-                            GardenScene.svg(plants, look, seed: range.start.millisecondsSinceEpoch ~/ 86400000, style: style),
-                            fit: BoxFit.cover,
-                          ),
+                        // Gently moving, unless the system asks for less motion.
+                        : MediaQuery.disableAnimationsOf(context)
+                            ? SvgPicture.string(GardenScene.svg(plants, look, seed: seed, style: style), fit: BoxFit.cover)
+                            : GardenMotion(
+                                key: ValueKey((look, seed, style, plants.length)),
+                                layers: GardenScene.layers(plants, look, seed: seed, style: style, weather: false),
+                                look: look,
+                                seed: seed,
+                              ),
                   ),
                 ),
                 Padding(

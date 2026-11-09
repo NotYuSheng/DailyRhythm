@@ -47,4 +47,13 @@ void main() {
     expect(RegExp('opacity="0.16"').allMatches(a).length, plants.length, reason: 'one shadow per plant');
     expect(GardenScene.svg(const [], SceneLook.winter), contains('</svg>'), reason: 'an empty period still has its hills');
   });
+
+  test('in layers, plants sway on their ridges and the weather can be left to animate', () {
+    final plants = [for (var i = 0; i < 12; i++) PlantSpec(species: PlantSpecies.values[i % 8], season: Season.winter)];
+    final layers = GardenScene.layers(plants, SceneLook.winter, seed: 3);
+    expect(GardenScene.wrap(layers.map((l) => l.body).join()), GardenScene.svg(plants, SceneLook.winter, seed: 3), reason: 'the same picture');
+    expect(layers.where((l) => l.swayBaseY != null).length, 4, reason: 'each ridge’s plants sway together');
+    final still = GardenScene.layers(plants, SceneLook.winter, seed: 3, weather: false).map((l) => l.body).join();
+    expect(RegExp('r="[0-9.]+" fill="#FFFFFF" opacity="0.9"').hasMatch(still), isFalse, reason: 'snow is drawn by the animation');
+  });
 }
