@@ -114,12 +114,23 @@ jobs:
           storeFile=keystore.jks
           EOF
 
+      # Every build records its commit; only a release tag gets a plain
+      # version name, so dev builds read e.g. "1.2.0-91a91f9" in Android too.
+      - name: Version this build
+        run: |
+          SHA=${GITHUB_SHA::7}
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ' | cut -d+ -f1)
+          FLAGS="--dart-define=GIT_SHA=$SHA"
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then FLAGS="$FLAGS --build-name=$VERSION-$SHA"; fi
+          echo "BUILD_FLAGS=$FLAGS" >> $GITHUB_ENV
+          echo "Build flags: $FLAGS"
+
       # GitHub's release servers sometimes refuse the Gradle download (504);
       # retry when that is why the build failed, not for real build errors.
       - name: Build Android App Bundle (AAB)
         run: |
           for i in 1 2 3; do
-            if flutter build appbundle --release 2>&1 | tee build.log; then exit 0; fi
+            if flutter build appbundle --release $BUILD_FLAGS 2>&1 | tee build.log; then exit 0; fi
             grep -q "gradle-distributions" build.log || exit 1
             echo "Gradle download failed (try $i), retrying in 60s"
             sleep 60
@@ -127,7 +138,7 @@ jobs:
           exit 1
 
       - name: Build Android APK
-        run: flutter build apk --release
+        run: flutter build apk --release $BUILD_FLAGS
 
       - name: Get version from pubspec.yaml
         id: version
