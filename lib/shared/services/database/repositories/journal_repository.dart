@@ -33,8 +33,8 @@ class JournalRepository {
 
   Future<List<JournalEntry>> forDay(DateTime day) => inRange(day, day);
 
-  /// Entries on days from [start] to [end] inclusive, in time order
-  /// (entries without a time last within their day).
+  /// Entries on days from [start] to [end] inclusive, in the order they
+  /// were added within each day.
   Future<List<JournalEntry>> inRange(DateTime start, DateTime end) async {
     final db = await _db.database;
     final from = dayOf(start);
@@ -43,7 +43,7 @@ class JournalRepository {
       'journal_entries',
       where: 'date >= ? AND date < ?',
       whereArgs: [from.toIso8601String(), DateTime(to.year, to.month, to.day + 1).toIso8601String()],
-      orderBy: 'date ASC, time IS NULL, time ASC, id ASC',
+      orderBy: 'date ASC, id ASC',
     );
     return _withTags(db, rows);
   }

@@ -55,16 +55,15 @@ class _MomentSheetState extends ConsumerState<MomentSheet> {
 
   Future<void> _save() async {
     setState(() => _saving = true);
-    final now = DateTime.now();
     final day = widget.day;
-    final isToday = day.year == now.year && day.month == now.month && day.day == now.day;
     try {
       final old = widget.entry;
       await JournalRepository(ref.read(databaseProvider)).save(JournalEntry(
-        // A change keeps the moment's day, time and where it came from.
+        // A moment is dropped on its day, with no clock time. A change
+        // keeps its day and where it came from.
         id: old?.id,
         date: old?.date ?? day,
-        time: old == null ? (isToday ? now : null) : old.time,
+        time: old?.time,
         source: old?.source ?? 'app',
         createdAt: old?.createdAt,
         text: _text.text.trim(),
