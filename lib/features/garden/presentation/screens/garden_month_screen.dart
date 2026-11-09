@@ -234,7 +234,7 @@ class _DayCell extends StatelessWidget {
                   PlantView(
                     spec: future ? PlantSpec.on(day.date, species: day.plant.species, logged: false) : day.plant,
                     width: (box.maxWidth - 6).clamp(20, 48),
-                    potColor: future ? '#E4EDE7' : potColors[day.date.day % potColors.length],
+                    potColor: future ? '#E4EDE7' : null,
                   ),
                   Text('${day.date.day}', style: nunito(11, FontWeight.w800, colors.muted)),
                 ],

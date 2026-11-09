@@ -33,11 +33,21 @@ enum Season {
   static Season of(DateTime day, {bool? southern}) => ofMonth(day.month, southern: southern);
 }
 
-/// The varieties each seasonal plant comes in: colours a day picks by its
-/// place in the year, so neighbouring days differ.
-const varietyCount = 3;
+/// Colours each plant drawing comes in.
+const colourCount = 3;
 
-int varietyOf(DateTime day) => day.difference(DateTime(day.year)).inDays % varietyCount;
+/// Plants each kind of day grows in a season.
+const speciesPerSeason = 2;
+
+/// A day's variety: which of its season's plants, in which colours.
+/// Neighbouring days change colour, and every third day the species, so a
+/// run of the same kind of day stays varied.
+const varietyCount = colourCount * speciesPerSeason;
+
+int varietyOf(DateTime day) {
+  final d = day.difference(DateTime(day.year)).inDays;
+  return (d ~/ colourCount) % speciesPerSeason * colourCount + d % colourCount;
+}
 
 /// Drawings of the plants a kind of day grows outside summer, in the same
 /// 200 × 240 box as the summer plants: the stem meets the soil at
