@@ -1,8 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../../../shared/services/database/database_service.dart';
 import '../../../../shared/utils/date_utils.dart';
+import '../../../exercise/data/models/exercise_entry.dart';
+import '../../../exercise/domain/effort.dart';
 import '../../../garden/data/garden_repository.dart';
 import '../../../garden/domain/plant.dart';
 import '../../../../shared/services/database/repositories/health_repository.dart';
@@ -112,7 +116,8 @@ class FunFactsService {
   static final _money = NumberFormat('#,##0.00');
   static final _count = NumberFormat('#,##0');
 
-  Future<List<FunFact>> factsFor(DateRange range, {DateTime? today}) async {
+  /// [weightKg] is the profile's, for calories burned.
+  Future<List<FunFact>> factsFor(DateRange range, {DateTime? today, double? weightKg}) async {
     final db = await _db.database;
     // All time starts at the first entry, not an arbitrary early date.
     final first = range.isAllTime ? await _db.firstLoggedDay() : null;
@@ -278,37 +283,60 @@ class FunFactsService {
       ));
     }
 
-    // Most repeated exercise by total reps.
-    final reps = await db.rawQuery('''
-      SELECT COALESCE(x.name, e.exerciseName) AS name, SUM(e.reps * MAX(COALESCE(e.sets, 1), 1)) AS total
-      FROM exercise_entries e LEFT JOIN exercise_items x ON x.id = e.exercise_item_id
-      WHERE e.$inRange AND e.reps IS NOT NULL AND COALESCE(x.name, e.exerciseName) IS NOT NULL
-      GROUP BY lower(COALESCE(x.name, e.exerciseName)) ORDER BY total DESC LIMIT 1
-    ''', args);
-    if (reps.isNotEmpty && (reps.first['total'] as num) >= 50) {
+    // Favourite exercise: the one done on the most days, with what all
+    // exercise added up to (calories at the profile's weight).
+    final byExercise = <String, ({String name, Set<DateTime> days, int reps, double kcal})>{};
+    var allKcal = 0.0;
+    for (final r in await db.rawQuery('''
+      SELECT e.*, COALESCE(x.name, e.exerciseName) AS shown FROM exercise_entries e
+      LEFT JOIN exercise_items x ON x.id = e.exercise_item_id WHERE e.$inRange
+    ''', args)) {
+      final x = ExerciseEntry.fromMap(r);
+      final kcal = Effort.kcalBurned(
+        run: x.type == ExerciseType.run,
+        weightKg: weightKg ?? Effort.defaultWeightKg,
+        name: x.exerciseName,
+        reps: x.reps,
+        sets: x.sets,
+        km: x.distance,
+        notes: x.notes,
+        duration: x.duration,
+      );
+      allKcal += kcal;
+      final name = (r['shown'] as String?) ?? (x.type == ExerciseType.run ? 'Run' : 'Weights');
+      final key = name.toLowerCase();
+      final was = byExercise[key];
+      byExercise[key] = (
+        name: was?.name ?? name,
+        days: {...?was?.days, dayOf(x.date)},
+        reps: (was?.reps ?? 0) + (x.reps ?? 0) * math.max(x.sets ?? 1, 1),
+        kcal: (was?.kcal ?? 0) + kcal,
+      );
+    }
+    final ranked = byExercise.values.toList()..sort((a, b) => b.days.length.compareTo(a.days.length));
+    if (ranked.isNotEmpty && ranked.first.days.length >= 2) {
+      final fav = ranked.first;
+      final sessionDays = {for (final e in byExercise.values) ...e.days}.length;
+      String reps(int n) => n > 0 ? ' · ${_count.format(n)} reps' : '';
       facts.add(FunFact(
         kind: FactKind.exercise,
-        title: 'Most reps',
+        title: 'Favourite exercise',
+        value: fav.name,
+        detail: 'On ${fav.days.length} days${reps(fav.reps)}. ≈${_count.format(allKcal.round())} kcal burned in all',
         details: () async => FactDetail(
-          title: 'Reps by exercise',
+          title: 'Your exercise',
+          note: '${byExercise.length} ${byExercise.length == 1 ? 'exercise' : 'exercises'} on $sessionDays '
+              '${sessionDays == 1 ? 'day' : 'days'}, ≈${_count.format(allKcal.round())} kcal burned in all.',
           rows: [
-            for (final r in await db.rawQuery('''
-              SELECT COALESCE(x.name, e.exerciseName) AS name, SUM(e.reps * MAX(COALESCE(e.sets, 1), 1)) AS total,
-                COUNT(DISTINCT e.date) AS days
-              FROM exercise_entries e LEFT JOIN exercise_items x ON x.id = e.exercise_item_id
-              WHERE e.$inRange AND e.reps IS NOT NULL AND COALESCE(x.name, e.exerciseName) IS NOT NULL
-              GROUP BY lower(COALESCE(x.name, e.exerciseName))
-            ''', args))
+            for (final e in ranked)
               FactRow(
-                label: r['name'] as String,
-                sub: 'On ${r['days']} ${r['days'] == 1 ? 'day' : 'days'}',
-                value: r['total'] as num,
-                valueText: _count.format(r['total']),
+                label: e.name,
+                sub: 'On ${e.days.length} ${e.days.length == 1 ? 'day' : 'days'}${reps(e.reps)}',
+                value: e.kcal,
+                valueText: '≈${_count.format(e.kcal.round())} kcal',
               ),
           ],
         ),
-        value: _count.format(reps.first['total']),
-        detail: '${reps.first['name']}',
       ));
     }
 

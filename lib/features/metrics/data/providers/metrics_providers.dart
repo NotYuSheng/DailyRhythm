@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../shared/services/database/database_provider.dart';
 import '../services/day_ratings_service.dart';
 import '../services/fun_facts_service.dart';
@@ -28,7 +29,12 @@ final metricsInsightsProvider = FutureProvider.autoDispose.family<List<MetricsIn
 
 /// Fun facts provider
 final funFactsProvider = FutureProvider.autoDispose.family<List<FunFact>, DateRange>((ref, range) async {
-  return FunFactsService(ref.watch(databaseProvider)).factsFor(range);
+  // Calories burned use the profile's weight; without one, the default.
+  double? weight;
+  try {
+    weight = (await ref.watch(profileProvider.future)).weightKg;
+  } catch (_) {}
+  return FunFactsService(ref.watch(databaseProvider)).factsFor(range, weightKg: weight);
 });
 
 /// The first day anything was logged, where stepping back stops.

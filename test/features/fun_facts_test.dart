@@ -92,8 +92,14 @@ void main() {
       await db.saveSleepEntry(SleepEntry(date: DateTime(2026, 3, d), wakeUpTime: DateTime(2026, 3, d, d == 4 ? 9 : 6, d == 5 ? 10 : 30), sleepTime: DateTime(2026, 3, d, 23)));
     }
 
-    final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
-    expect(facts['Most reps']!.value, '100');
+    await db.createExerciseEntry(ExerciseEntry(date: DateTime(2026, 3, 5), timestamp: DateTime(2026, 3, 5), type: ExerciseType.run, distance: 5));
+    final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31), weightKg: 60));
+    expect(facts['Favourite exercise']!.value, 'Sit ups', reason: 'done on the most days');
+    expect(facts['Favourite exercise']!.detail, startsWith('On 2 days · 100 reps. ≈'));
+    final exercise = await facts['Favourite exercise']!.details!();
+    expect([for (final r in exercise.rows) r.label], ['Sit ups', 'Run']);
+    expect(exercise.rows.last.value, 300, reason: '5 km at 60 kg');
+    expect(exercise.note, contains('2 exercises on 3 days'));
     expect(facts['Distance on foot']!.value, '233 km', reason: '310,000 steps at 0.75 m');
     expect(facts['Distance on foot']!.detail, matches(RegExp(r'^About .* \(310,000 steps\)$')), reason: 'a comparison, then the steps');
     expect(facts['Longest night']!.value, '10h 30m');
