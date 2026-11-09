@@ -35,7 +35,7 @@ class FunFact {
 /// One line in a fact's full list: a food and how often, a meal and its
 /// price, a night and its length.
 class FactRow {
-  const FactRow({required this.label, this.sub, this.date, this.value, this.valueText, this.group});
+  const FactRow({required this.label, this.sub, this.date, this.value, this.valueText, this.group, this.count});
 
   final String label;
   final String? sub;
@@ -49,11 +49,15 @@ class FactRow {
 
   /// A heading the row sits under (a weekday), in the order rows give.
   final String? group;
+
+  /// How many times it happened, when [value] is something else (a
+  /// share); "Most times" sorts by it.
+  final int? count;
 }
 
 /// The list behind a fact, sorted biggest first unless [byDate].
 class FactDetail {
-  const FactDetail({required this.title, required this.rows, this.byDate = false, this.note});
+  const FactDetail({required this.title, required this.rows, this.byDate = false, this.note, this.valueSort});
 
   final String title;
   final List<FactRow> rows;
@@ -63,6 +67,10 @@ class FactDetail {
 
   /// A line above the list saying what it holds.
   final String? note;
+
+  /// What to call sorting by value, when "Biggest" doesn't fit ("Highest
+  /// share").
+  final String? valueSort;
 }
 
 /// Distances from around the world for picturing kilometres, each phrased
@@ -469,7 +477,7 @@ class FunFactsService {
     final habits = [
       for (final MapEntry(key: (weekday, name), value: n) in byWeekday.entries)
         if (n >= 3 && n / perFood[name]! >= 0.5) (weekday, name, n),
-    ]..sort((a, b) => b.$3.compareTo(a.$3));
+    ]..sort((a, b) => b.$3 != a.$3 ? b.$3.compareTo(a.$3) : (b.$3 / perFood[b.$2]!).compareTo(a.$3 / perFood[a.$2]!));
     if (habits.isNotEmpty) {
       final (weekday, name, n) = habits.first;
       final dayName = DateFormat('EEEE').format(DateTime(2024, 1, weekday)); // 1 Jan 2024 was a Monday
@@ -549,16 +557,18 @@ class FunFactsService {
     final leaning = [
       for (final MapEntry(key: (weekday, kind, name), value: n) in onDay.entries)
         if (n >= 3 && n / total[(kind, name)]! >= 2 / 7) (weekday, kind, name, n, total[(kind, name)]!),
-    ]..sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : (b.$4 / b.$5).compareTo(a.$4 / a.$5));
+    ]..sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : b.$4 != a.$4 ? b.$4.compareTo(a.$4) : (b.$4 / b.$5).compareTo(a.$4 / a.$5));
     String dayName(int weekday) => DateFormat('EEEE').format(DateTime(2024, 1, weekday)); // 1 Jan 2024 was a Monday
     return FactDetail(
       title: 'What each weekday is for',
       note: 'Foods and activities done at least twice as often on one weekday as the others.',
+      valueSort: 'Highest share',
       rows: [
         for (final (weekday, kind, name, n, all) in leaning)
           FactRow(
             label: name,
             sub: '${kind == 'food' ? 'Food' : 'Activity'} · $n of $all times',
+            count: n,
             value: n / all,
             valueText: '${(n / all * 100).round()}%',
             group: '${dayName(weekday)}s',

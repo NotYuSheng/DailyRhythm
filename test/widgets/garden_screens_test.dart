@@ -67,7 +67,7 @@ void main() {
   testWidgets('today starts as an empty pot', (tester) async {
     await pump(tester, const GardenTodayScreen());
     expect(find.text('Today’s plant'), findsOneWidget);
-    expect(find.text('An empty pot, ready for whatever today brings.'), findsOneWidget);
+    expect(find.text('Ready for whatever today brings'), findsOneWidget);
     expect(find.bySemanticsLabel(RegExp('Empty pot: nothing logged that day')), findsOneWidget);
   });
 
@@ -79,7 +79,7 @@ void main() {
     await tester.tap(find.text('Work'));
     await tester.pumpAndSettle();
     expect(find.textContaining(grows(PlantSpecies.cactus)), findsOneWidget);
-    expect(find.textContaining('(your pick)', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Your pick'), findsOneWidget);
     expect((await CheckinRepository(db).forDay(today))?.plantOverride, 'cactus');
 
     await tester.tap(find.text('Work'));
@@ -93,13 +93,12 @@ void main() {
     await pump(tester, const GardenTodayScreen());
     GardenChip chip() => tester.widget<GardenChip>(find.widgetWithText(GardenChip, 'A bit of everything'));
     expect((chip().selected, chip().suggested), (false, true));
-    expect(find.textContaining('picked for you:'), findsOneWidget, reason: 'the automatic plant says so');
-    expect(find.textContaining('(picked for you, tap to choose)', findRichText: true), findsOneWidget);
+    expect(find.textContaining('Picked for you:'), findsOneWidget, reason: 'the automatic plant says so');
 
     await tester.tap(find.text('A bit of everything'));
     await tester.pumpAndSettle();
     expect((chip().selected, chip().suggested), (true, false));
-    expect(find.textContaining('You picked this plant.'), findsOneWidget);
+    expect(find.textContaining('Your pick'), findsOneWidget);
 
     await tester.tap(find.text('A bit of everything'));
     await tester.pumpAndSettle();
@@ -173,7 +172,8 @@ void main() {
 
     expect(find.text('Social Event'), findsOneWidget);
     // The plant follows what the day held (the caption is back at the top).
-    await tester.scrollUntilVisible(find.text('${grows(PlantSpecies.tulip)} for time with people, picked for you: from Social Event.'), -300, scrollable: scrollable);
+    await tester.scrollUntilVisible(find.text('${grows(PlantSpecies.tulip)} for time with people'), -300, scrollable: scrollable);
+    expect(find.text('Picked for you: from Social Event.'), findsOneWidget);
   });
 
   testWidgets('in the small hours Today opens on yesterday until yesterday has its mood', (tester) async {

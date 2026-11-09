@@ -10,6 +10,7 @@ import '../../domain/calorie_estimator.dart';
 import '../../domain/diet_score.dart';
 import '../../domain/portion.dart';
 import '../../domain/food_matcher.dart';
+import '../../domain/food_spelling.dart';
 import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/services/database/repositories/catalog_repository.dart';
 import '../../data/providers/meal_providers.dart';
@@ -73,6 +74,10 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
 
   /// The user's foods, for suggestions; empty until loaded.
   FoodMatcher _matcher = FoodMatcher(const []);
+
+  /// Spelling help: the bundled food words plus the user's own foods.
+  FoodSpelling _spelling = FoodSpelling.empty();
+  Map<String, int> _yourWords = const {};
   CalorieEstimator _estimator = CalorieEstimator(yourFoods: const [], reference: const []);
   List<FoodChoice> _usual = const [];
 
@@ -100,12 +105,18 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     if (mounted) {
       setState(() {
         _matcher = FoodMatcher(foods);
+        // Your own words count most: a dish you log is spelt your way.
+        _yourWords = FoodSpelling.countWords([for (final f in foods) ...[f.item.name, ...f.item.aliases]], weight: 20);
+        _spelling = FoodSpelling.empty().withWords(_yourWords);
         _estimator = CalorieEstimator(yourFoods: [for (final f in foods) f.item], reference: const []);
         _usual = usual;
       });
     }
     // The common foods table comes after: suggestions needn't wait for it.
     if (!mounted) return;
+    ref.read(foodSpellingProvider.future).then((bundled) {
+      if (mounted) setState(() => _spelling = bundled.withWords(_yourWords));
+    }).ignore();
     final reference = await ref.read(referenceFoodsProvider.future);
     if (mounted && reference.isNotEmpty) {
       setState(() => _estimator = CalorieEstimator(yourFoods: [for (final f in foods) f.item], reference: reference));
@@ -396,6 +407,11 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                       _choose(f);
                       _nameFocus.unfocus();
                     },
+                    spelling: _spelling.correct,
+                    onCorrect: (name) => setState(() {
+                      _nameController.text = name;
+                      _nameController.selection = TextSelection.collapsed(offset: name.length);
+                    }),
                   ),
                   if (DietScore.describe(text, tags: _currentTags) case final health?) _healthPanel(text, health),
                 ],

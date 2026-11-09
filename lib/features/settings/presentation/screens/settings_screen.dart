@@ -170,7 +170,8 @@ class SettingsScreen extends ConsumerWidget {
                 ListTile(
                   leading: const Icon(Icons.info_outlined),
                   title: const Text('About'),
-                  subtitle: Text('Version ${ref.watch(appVersionProvider).value ?? '…'}'),
+                  subtitle: Text('Version ${ref.watch(appVersionProvider).value ?? '…'}\nCreated by NotYuSheng'),
+                  isThreeLine: true,
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                   onTap: () {
                     _showAboutDialog(context, ref.read(appVersionProvider).value ?? '');
@@ -189,7 +190,7 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       applicationName: 'DailyRhythm',
       applicationVersion: version,
-      applicationLegalese: '© 2025–2026 DailyRhythm',
+      applicationLegalese: 'Created by NotYuSheng\n© 2025–2026 DailyRhythm',
       children: [
         const SizedBox(height: AppTheme.spacePulse3),
         Text(

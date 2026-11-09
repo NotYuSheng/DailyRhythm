@@ -166,13 +166,15 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Total Sleep (Last Night)',
-                          style: Theme.of(context).textTheme.titleMedium,
+                        Expanded(
+                          child: Text(
+                            'Total sleep last night',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
                         ),
                         Text(
-                          '${_calculateHours()?.toStringAsFixed(1) ?? 'unknown'}h',
-                          style: Theme.of(context).textTheme.displaySmall,
+                          _calculateHours() == null ? 'Unknown' : formatHours(_calculateHours()!),
+                          style: Theme.of(context).textTheme.headlineMedium,
                         ),
                       ],
                     ),

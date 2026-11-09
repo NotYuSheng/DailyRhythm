@@ -55,4 +55,17 @@ void main() {
     expect(tester.getTopLeft(find.text('Mondays')).dy, lessThan(tester.getTopLeft(find.text('Wing rice')).dy));
     expect(tester.getTopLeft(find.text('Wing rice')).dy, lessThan(tester.getTopLeft(find.text('Fridays')).dy));
   });
+
+  testWidgets('a weekday opens on most times, and can sort by share instead', (tester) async {
+    await pump(tester, const FactDetail(title: 'What each weekday is for', valueSort: 'Highest share', rows: [
+      FactRow(label: 'Chee cheong fun', group: 'Mondays', count: 3, value: 0.75, valueText: '75%'),
+      FactRow(label: 'Chicken rice', group: 'Mondays', count: 12, value: 0.4, valueText: '40%'),
+    ]));
+    double top(String t) => tester.getTopLeft(find.text(t)).dy;
+    expect(top('Chicken rice'), lessThan(top('Chee cheong fun')), reason: '12 times before 3');
+    expect(find.text('Smallest'), findsNothing);
+    await tester.tap(find.text('Highest share'));
+    await tester.pumpAndSettle();
+    expect(top('Chee cheong fun'), lessThan(top('Chicken rice')));
+  });
 }

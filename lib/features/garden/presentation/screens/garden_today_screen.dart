@@ -164,18 +164,12 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
               const SizedBox(height: 14),
               _PlantBed(day: g, caption: _caption(g, isToday), colors: colors),
               const SizedBox(height: 16),
-              Text.rich(
-                TextSpan(children: [
-                  TextSpan(text: isToday ? 'Today was mostly… ' : 'This day was mostly… '),
-                  TextSpan(
-                    text: g.chosen
-                        ? '(your pick)'
-                        : g.plant.logged
-                            ? '(picked for you, tap to choose)'
-                            : '(picks the plant)',
-                    style: nunito(16, FontWeight.w700, colors.muted),
-                  ),
-                ]),
+              // The same words whatever is picked, so nothing below moves;
+              // whether it was picked is in the caption above.
+              Text(
+                isToday ? 'Today was mostly…' : 'This day was mostly…',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: nunito(16, FontWeight.w900, colors.ink),
               ),
               const SizedBox(height: 8),
@@ -245,13 +239,16 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
     );
   }
 
-  static String _caption(GardenDay g, bool isToday) {
-    if (!g.plant.logged) return isToday ? 'An empty pot, ready for whatever today brings.' : 'An empty pot: a quiet day.';
+  /// Two lines, always: what grew, then why. Each is one line, cut short
+  /// if it must be, so picking a plant never moves the screen.
+  static (String, String) _caption(GardenDay g, bool isToday) {
+    if (!g.plant.logged) return ('An empty pot', isToday ? 'Ready for whatever today brings' : 'A quiet day');
     final plant = '${g.plant.aName[0].toUpperCase()}${g.plant.aName.substring(1)}';
-    if (g.chosen) return '$plant for ${g.plant.species.dayWord}. ${g.reason}';
+    final what = '$plant for ${g.plant.species.dayWord}';
+    if (g.chosen) return (what, 'Your pick · tap it again to undo');
     // Not picked: say plainly the app chose it, and why.
     final why = g.reason.isEmpty ? '' : ' ${g.reason[0].toLowerCase()}${g.reason.substring(1)}';
-    return '$plant for ${g.plant.species.dayWord}, picked for you:$why';
+    return (what, 'Picked for you:$why');
   }
 }
 
@@ -259,7 +256,7 @@ class _PlantBed extends StatelessWidget {
   const _PlantBed({required this.day, required this.caption, required this.colors});
 
   final GardenDay day;
-  final String caption;
+  final (String, String) caption;
   final GardenColors colors;
 
   @override
@@ -272,7 +269,12 @@ class _PlantBed extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(caption, textAlign: TextAlign.center, style: nunito(15, FontWeight.w800, colors.leaf)),
+            child: Column(
+              children: [
+                Text(caption.$1, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: nunito(16, FontWeight.w900, colors.leaf)),
+                Text(caption.$2, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: nunito(14, FontWeight.w700, colors.muted)),
+              ],
+            ),
           ),
           PlantView(spec: day.plant, width: 210, sway: true),
           // The hill the pot stands on.
