@@ -22,13 +22,12 @@ void main() async {
     databaseFactory = databaseFactoryFfi;
   }
 
-  // Hide system UI (navigation buttons) on mobile
+  // Keep the phone's own navigation and status bars: the app draws behind
+  // them (edge to edge) and pads its content, so the tab bar sits above
+  // the system buttons instead of hiding them.
   if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android ||
       defaultTargetPlatform == TargetPlatform.iOS)) {
-    SystemChrome.setEnabledSystemUIMode(
-      SystemUiMode.manual,
-      overlays: [], // Empty overlays = hide all system UI
-    );
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
 
   // Initialize Google Drive service

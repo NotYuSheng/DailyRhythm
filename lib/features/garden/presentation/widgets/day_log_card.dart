@@ -4,7 +4,6 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../shared/models/activity_entry.dart';
 import '../../../../shared/providers/common_providers.dart';
-import '../../../../shared/services/database/database_provider.dart';
 import '../../../exercise/data/models/exercise_entry.dart';
 import '../../../exercise/data/providers/exercise_providers.dart';
 import '../../../exercise/domain/effort.dart';
@@ -21,9 +20,9 @@ import '../../../spending/data/spending_providers.dart';
 import '../../../spending/presentation/add_spending_screen.dart';
 import '../../../tags/data/models/tag.dart';
 import '../../../tags/data/providers/tag_providers.dart';
-import '../../../tags/presentation/screens/tags_screen.dart';
 import '../../data/garden_providers.dart';
 import '../garden_style.dart';
+import '../screens/activities_screen.dart';
 
 /// Refreshes entries and plants after an edit. Every day, not just [day]:
 /// a bedtime changes the next day's sleep, and an edit can move an entry
@@ -187,15 +186,7 @@ class DayLogCard extends ConsumerWidget {
             title: 'Activities',
             summary: activityNames.isEmpty ? 'Tag what you did' : activityNames.join(', '),
             colors: colors,
-            onTap: () async {
-              await showModalBottomSheet<void>(
-                context: context,
-                isScrollControlled: true,
-                showDragHandle: true,
-                builder: (_) => ActivitySheet(day: day),
-              );
-              invalidateDayLog(ref, day);
-            },
+            onTap: () => open(ActivitiesScreen(day: day)),
           ),
         ],
       ),
@@ -298,93 +289,6 @@ class _Item extends StatelessWidget {
               if (trailing != null) Text(trailing!, style: nunito(13, FontWeight.w700, colors.muted)),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Tag what the day included; each tap saves straight away.
-class ActivitySheet extends ConsumerWidget {
-  const ActivitySheet({super.key, required this.day});
-
-  final DateTime day;
-
-  static const _groups = [
-    (TagKind.activity, 'Activities'),
-    (TagKind.foodSource, 'Food from'),
-    (TagKind.symptom, 'Symptoms'),
-  ];
-
-  /// Toggles still saving, so a quick double tap can't add a tag twice.
-  static final _saving = <(DateTime, int)>{};
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = GardenColors.of(context);
-    final tags = ref.watch(allTagsProvider).value ?? const <Tag>[];
-    final entries = ref.watch(activityEntriesProvider(day)).value ?? const <ActivityEntry>[];
-    final byTag = {for (final e in entries) e.tagId: e};
-
-    Future<void> toggle(Tag tag) async {
-      final key = (day, tag.id!);
-      if (!_saving.add(key)) return;
-      try {
-        final db = ref.read(databaseProvider);
-        // Read again: what was on screen may be out of date.
-        final existing = (await db.getActivityEntriesByDate(day)).where((e) => e.tagId == tag.id).toList();
-        if (existing.isNotEmpty) {
-          for (final e in existing) {
-            await db.deleteActivityEntry(e.id!);
-          }
-        } else {
-          await db.createActivityEntry(ActivityEntry(date: day, timestamp: DateTime.now(), tagId: tag.id!));
-        }
-        ref.invalidate(activityEntriesProvider(day));
-      } finally {
-        _saving.remove(key);
-      }
-    }
-
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('What today included', style: nunito(22, FontWeight.w900, colors.ink)),
-            for (final (kind, title) in _groups)
-              if (tags.any((t) => t.kind == kind)) ...[
-                const SizedBox(height: 14),
-                Text(title, style: nunito(15, FontWeight.w800, colors.leaf)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final tag in tags.where((t) => t.kind == kind))
-                      FilterChip(
-                        label: Text(tag.name),
-                        selected: byTag.containsKey(tag.id),
-                        onSelected: (_) => toggle(tag),
-                      ),
-                  ],
-                ),
-              ],
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                style: TextButton.styleFrom(minimumSize: const Size(0, 44), foregroundColor: colors.accent),
-                onPressed: () async {
-                  await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const TagsScreen()));
-                  ref.invalidate(allTagsProvider);
-                },
-                icon: const Icon(Icons.edit_outlined, size: 18),
-                label: Text('Edit tags', style: nunito(14, FontWeight.w800, colors.accent)),
-              ),
-            ),
-          ],
         ),
       ),
     );

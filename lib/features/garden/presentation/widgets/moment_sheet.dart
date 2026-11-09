@@ -6,6 +6,7 @@ import '../../../../shared/services/database/repositories/journal_repository.dar
 import '../../../journal/data/models/journal_entry.dart';
 import '../../../tags/data/models/tag.dart';
 import '../../../tags/data/providers/tag_providers.dart';
+import '../../../tags/presentation/tag_icons.dart';
 import '../garden_style.dart';
 
 const momentMoodWords = {1: 'Awful', 2: 'Bad', 3: 'Meh', 4: 'Good', 5: 'Great'};
@@ -132,6 +133,8 @@ class _MomentSheetState extends ConsumerState<MomentSheet> {
                   children: [
                     for (final tag in groups[category]!)
                       FilterChip(
+                        avatar: Icon(tagIcon(tag), size: 18),
+                        showCheckmark: false,
                         label: Text(tag.name),
                         selected: _tagIds.contains(tag.id),
                         onSelected: (on) => setState(() => on ? _tagIds.add(tag.id!) : _tagIds.remove(tag.id)),

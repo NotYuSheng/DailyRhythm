@@ -5,6 +5,7 @@ import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/services/database/database_service.dart';
 import '../../../garden/data/garden_providers.dart';
 import '../../../garden/presentation/garden_style.dart';
+import '../tag_icons.dart';
 import '../../data/models/tag.dart';
 import '../../data/providers/tag_providers.dart';
 
@@ -196,6 +197,8 @@ class _TagPill extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Icon(tagIcon(tag), size: 18, color: colors.leaf),
+                  const SizedBox(width: 6),
                   Text(tag.name, style: nunito(14, FontWeight.w800, colors.ink)),
                   if (uses > 0) ...[
                     const SizedBox(width: 6),
