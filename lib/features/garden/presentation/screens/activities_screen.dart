@@ -9,12 +9,33 @@ import '../../../tags/presentation/screens/tags_screen.dart';
 import '../../../tags/presentation/tag_icons.dart';
 import '../garden_style.dart';
 
+/// Activity tags used on at least a quarter of the last eight weeks'
+/// days: the ones picked most, shown first and stronger.
+final frequentTagsProvider = FutureProvider.autoDispose<Set<int>>((ref) async {
+  final db = await ref.watch(databaseProvider).database;
+  final now = DateTime.now();
+  final since = DateTime(now.year, now.month, now.day - ActivitiesScreen.frequentWindow);
+  final rows = await db.rawQuery(
+    'SELECT tagId, COUNT(DISTINCT date) AS days FROM activity_entries WHERE date >= ? GROUP BY tagId',
+    [since.toIso8601String()],
+  );
+  return {
+    for (final r in rows)
+      if ((r['days'] as int) >= ActivitiesScreen.frequentWindow * ActivitiesScreen.frequentShare) r['tagId'] as int,
+  };
+});
+
 /// Tags what a day included. Like the other add screens, nothing is saved
 /// until Save; going back leaves the day as it was.
 class ActivitiesScreen extends ConsumerStatefulWidget {
   const ActivitiesScreen({super.key, required this.day});
 
   final DateTime day;
+
+  /// Days looked back over, and the share of them a tag must be on, to
+  /// count as frequent.
+  static const frequentWindow = 56;
+  static const frequentShare = 0.25;
 
   static const groups = [
     (TagKind.activity, 'Activities'),
@@ -66,6 +87,8 @@ class _ActivitiesScreenState extends ConsumerState<ActivitiesScreen> {
     final colors = GardenColors.of(context);
     final tags = ref.watch(allTagsProvider).value ?? const <Tag>[];
     final saved = ref.watch(activityEntriesProvider(widget.day)).value;
+    final frequent = ref.watch(frequentTagsProvider).value ?? const <int>{};
+    final tone = DayTone.tag;
     final picked = _picked ??= saved == null ? null : {for (final e in saved) e.tagId};
 
     return Scaffold(
@@ -95,15 +118,27 @@ class _ActivitiesScreenState extends ConsumerState<ActivitiesScreen> {
                         spacing: 6,
                         runSpacing: 6,
                         children: [
-                          for (final tag in groupTags)
-                            FilterChip(
-                              avatar: Icon(tagIcon(tag), size: 18),
-                              // The fill shows it's picked; the icon stays.
-                              showCheckmark: false,
-                              label: Text(tag.name),
-                              selected: picked.contains(tag.id),
-                              onSelected: (on) => setState(() => on ? picked.add(tag.id!) : picked.remove(tag.id)),
-                            ),
+                          // The ones you pick most come first, tinted and bold.
+                          for (final tag in [...groupTags.where((t) => frequent.contains(t.id)), ...groupTags.where((t) => !frequent.contains(t.id))])
+                            frequent.contains(tag.id)
+                                ? FilterChip(
+                                    avatar: Icon(tagIcon(tag), size: 18, color: tone.ink(context)),
+                                    showCheckmark: false,
+                                    label: Text(tag.name, style: TextStyle(fontWeight: FontWeight.w800, color: picked.contains(tag.id) ? null : tone.ink(context))),
+                                    backgroundColor: tone.tint(context),
+                                    side: BorderSide(color: tone.ink(context).withValues(alpha: 0.45)),
+                                    tooltip: 'One of your usual',
+                                    selected: picked.contains(tag.id),
+                                    onSelected: (on) => setState(() => on ? picked.add(tag.id!) : picked.remove(tag.id)),
+                                  )
+                                : FilterChip(
+                                    avatar: Icon(tagIcon(tag), size: 18),
+                                    // The fill shows it's picked; the icon stays.
+                                    showCheckmark: false,
+                                    label: Text(tag.name),
+                                    selected: picked.contains(tag.id),
+                                    onSelected: (on) => setState(() => on ? picked.add(tag.id!) : picked.remove(tag.id)),
+                                  ),
                         ],
                       ),
                     ],
