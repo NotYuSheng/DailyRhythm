@@ -1,5 +1,3 @@
-import 'dart:ui' show PlatformDispatcher;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
@@ -31,22 +29,13 @@ class GardenSceneCard extends ConsumerWidget {
 
   final DateRange range;
 
-  /// The phone's region decides the hemisphere; replaced in tests.
-  @visibleForTesting
-  static String? Function() countryCode = () => PlatformDispatcher.instance.locale.countryCode;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = GardenColors.of(context);
     final days = ref.watch(periodGardenProvider(range)).value;
     final style = ref.watch(plantStyleProvider);
-    final plants = [for (final d in days ?? const <GardenDay>[]) if (d.plant.logged) d.plant.species];
-    final look = SceneLook.forPeriod(
-      days?.first.date ?? range.start,
-      range.end,
-      southern: SceneLook.southern(countryCode()),
-      dark: Theme.of(context).brightness == Brightness.dark,
-    );
+    final plants = [for (final d in days ?? const <GardenDay>[]) if (d.plant.logged) d.plant];
+    final look = SceneLook.forPeriod(days?.first.date ?? range.start, range.end, dark: Theme.of(context).brightness == Brightness.dark);
     final shown = GardenScene.sample(plants).length;
     final title = range.isAllTime
         ? 'Your whole garden'
@@ -114,14 +103,19 @@ class GardenSceneCard extends ConsumerWidget {
     );
   }
 
-  static String _caption(List<PlantSpecies> plants, int shown) {
+  static String _caption(List<PlantSpec> plants, int shown) {
     if (plants.isEmpty) return 'Nothing grew in this period yet.';
+    // Named as they grew: a kind's plant in the season it was most grown.
     final counts = <PlantSpecies, int>{};
+    final seasons = <PlantSpecies, Map<Season, int>>{};
     for (final p in plants) {
-      counts[p] = (counts[p] ?? 0) + 1;
+      counts[p.species] = (counts[p.species] ?? 0) + 1;
+      final bySeason = seasons.putIfAbsent(p.species, () => {});
+      bySeason[p.season] = (bySeason[p.season] ?? 0) + 1;
     }
-    final top = (counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).take(2).map((e) => e.key.pluralName);
-    final mostly = plants.length == 1 ? 'a ${plants.single.plantName}' : 'mostly ${top.join(' and ')}';
+    Season mainSeason(PlantSpecies s) => (seasons[s]!.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).first.key;
+    final top = (counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).take(2).map((e) => e.key.pluralIn(mainSeason(e.key)));
+    final mostly = plants.length == 1 ? 'a ${plants.single.name}' : 'mostly ${top.join(' and ')}';
     return '${plants.length} ${plants.length == 1 ? 'plant' : 'plants'}, $mostly'
         '${shown < plants.length ? ' · showing $shown in the same mix' : ''}';
   }

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'core/theme/app_theme.dart';
+import 'features/garden/domain/seasonal_plants.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/router/app_routes.dart';
@@ -29,6 +30,9 @@ void main() async {
       defaultTargetPlatform == TargetPlatform.iOS)) {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
+
+  // Seasons flip in the southern hemisphere: take it from the phone's region.
+  Season.southern = Season.isSouthern(PlatformDispatcher.instance.locale.countryCode);
 
   // Initialize Google Drive service
   await GoogleDriveService.instance.initialize();

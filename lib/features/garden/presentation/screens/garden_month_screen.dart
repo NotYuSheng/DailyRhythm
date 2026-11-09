@@ -232,7 +232,7 @@ class _DayCell extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   PlantView(
-                    spec: future ? PlantSpec(species: day.plant.species, logged: false) : day.plant,
+                    spec: future ? PlantSpec.on(day.date, species: day.plant.species, logged: false) : day.plant,
                     width: (box.maxWidth - 6).clamp(20, 48),
                     potColor: future ? '#E4EDE7' : potColors[day.date.day % potColors.length],
                   ),

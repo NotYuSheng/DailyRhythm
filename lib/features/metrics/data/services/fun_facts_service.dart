@@ -462,6 +462,8 @@ class FunFactsService {
         counts[p.species] = (counts[p.species] ?? 0) + 1;
       }
       final mix = counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+      // Named as they grew in a week or month; a longer period uses the family's summer name.
+      final season = last.difference(from).inDays <= 92 ? Season.of(from.add(Duration(days: last.difference(from).inDays ~/ 2))) : Season.summer;
       facts.add(FunFact(
         kind: FactKind.garden,
         title: 'The garden grew',
@@ -469,11 +471,11 @@ class FunFactsService {
           title: 'Plants by kind',
           rows: [
             for (final e in mix)
-              FactRow(label: e.key.label, sub: e.key.pluralName, value: e.value, valueText: '${e.value}'),
+              FactRow(label: e.key.label, sub: e.key.pluralIn(season), value: e.value, valueText: '${e.value}'),
           ],
         ),
         value: '${grown.length} ${grown.length == 1 ? 'plant' : 'plants'}',
-        detail: mix.take(3).map((e) => '${e.value} ${e.value == 1 ? e.key.plantName : e.key.pluralName}').join(', '),
+        detail: mix.take(3).map((e) => '${e.value} ${e.value == 1 ? e.key.nameIn(season) : e.key.pluralIn(season)}').join(', '),
       ));
     }
 

@@ -247,10 +247,11 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
 
   static String _caption(GardenDay g, bool isToday) {
     if (!g.plant.logged) return isToday ? 'An empty pot, ready for whatever today brings.' : 'An empty pot: a quiet day.';
-    if (g.chosen) return 'A ${g.plant.species.plantName} for ${g.plant.species.dayWord}. ${g.reason}';
+    final plant = '${g.plant.aName[0].toUpperCase()}${g.plant.aName.substring(1)}';
+    if (g.chosen) return '$plant for ${g.plant.species.dayWord}. ${g.reason}';
     // Not picked: say plainly the app chose it, and why.
     final why = g.reason.isEmpty ? '' : ' ${g.reason[0].toLowerCase()}${g.reason.substring(1)}';
-    return 'A ${g.plant.species.plantName} for ${g.plant.species.dayWord}, picked for you:$why';
+    return '$plant for ${g.plant.species.dayWord}, picked for you:$why';
   }
 }
 

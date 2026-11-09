@@ -16,32 +16,21 @@ enum SceneLook {
 
   final String label;
 
-  /// Countries in the southern hemisphere's temperate belt, where October
-  /// is spring. Everywhere else, tropics included, follows the northern
-  /// calendar so the seasons still show.
-  static const southernCountries = {'AU', 'NZ', 'AR', 'CL', 'UY', 'PY', 'ZA', 'LS', 'SZ', 'NA', 'BW', 'BR'};
-
-  static bool southern(String? countryCode) => southernCountries.contains(countryCode?.toUpperCase());
-
-  /// The season of [month] (1–12), meteorological: spring is March to May
-  /// in the north, September to November in the south.
-  static SceneLook forMonth(int month, {bool southern = false}) {
-    final m = southern ? (month + 5) % 12 + 1 : month;
-    return switch (m) {
-      3 || 4 || 5 => spring,
-      6 || 7 || 8 => summer,
-      9 || 10 || 11 => autumn,
-      _ => winter,
-    };
-  }
+  /// The look of a season's scene.
+  static SceneLook of(Season season) => switch (season) {
+        Season.spring => spring,
+        Season.summer => summer,
+        Season.autumn => autumn,
+        Season.winter => winter,
+      };
 
   /// The look for a period from [start] to [end]: its season when it fits
   /// in a season (a week or a month), golden hour when it's longer.
-  static SceneLook forPeriod(DateTime start, DateTime end, {bool southern = false, bool dark = false}) {
+  static SceneLook forPeriod(DateTime start, DateTime end, {bool? southern, bool dark = false}) {
     if (dark) return night;
     if (end.difference(start).inDays > 92) return wholeYear;
     final middle = start.add(Duration(days: end.difference(start).inDays ~/ 2));
-    return forMonth(middle.month, southern: southern);
+    return of(Season.of(middle, southern: southern));
   }
 }
 
@@ -78,22 +67,26 @@ class GardenScene {
 
   /// Up to [max] of [plants], keeping each kind's share (largest
   /// remainder), so a year of 300 plants reads like the year it was.
-  static List<PlantSpecies> sample(List<PlantSpecies> plants, {int max = maxPlants}) {
+  static List<PlantSpec> sample(List<PlantSpec> plants, {int max = maxPlants}) {
     if (plants.length <= max) return plants;
-    final counts = <PlantSpecies, int>{};
+    final byKind = <PlantSpecies, List<PlantSpec>>{};
     for (final p in plants) {
-      counts[p] = (counts[p] ?? 0) + 1;
+      byKind.putIfAbsent(p.species, () => []).add(p);
     }
-    final share = {for (final e in counts.entries) e.key: e.value * max / plants.length};
+    final share = {for (final e in byKind.entries) e.key: e.value.length * max / plants.length};
     final out = {for (final e in share.entries) e.key: e.value.floor()};
     final byRemainder = share.keys.toList()..sort((a, b) => (share[b]! - out[b]!).compareTo(share[a]! - out[a]!));
     for (final k in byRemainder.take(max - out.values.fold(0, (a, b) => a + b))) {
       out[k] = out[k]! + 1;
     }
-    return [for (final e in out.entries) for (var i = 0; i < e.value; i++) e.key];
+    // Spread the picks over each kind's days, so every season shows.
+    return [
+      for (final e in out.entries)
+        for (var i = 0; i < e.value; i++) byKind[e.key]![(i * byKind[e.key]!.length) ~/ e.value],
+    ];
   }
 
-  static String svg(List<PlantSpecies> plants, SceneLook look, {int seed = 0, PlantStyle style = PlantStyle.soft}) {
+  static String svg(List<PlantSpec> plants, SceneLook look, {int seed = 0, PlantStyle style = PlantStyle.soft}) {
     final t = _themes[look]!;
     final rng = math.Random(seed);
     final shown = sample(plants);
@@ -145,18 +138,18 @@ class GardenScene {
       // Kinds in runs along the ridge, the runs in a random order.
       final row = pool.sublist(k, math.min(pool.length, k + per[i]));
       k += row.length;
-      final order = {for (final sp in row) sp: rng.nextDouble()};
-      final arranged = row..sort((a, c) => order[a]!.compareTo(order[c]!));
-      final placed = <(double, double, double, PlantSpecies, bool)>[];
+      final order = {for (final sp in row) sp.species: rng.nextDouble()};
+      final arranged = row..sort((a, c) => order[a.species]!.compareTo(order[c.species]!));
+      final placed = <(double, double, double, PlantSpec, bool)>[];
       for (final (j, sp) in arranged.indexed) {
         final x = 18 + (j + 0.5) * 294 / arranged.length + _range(rng, -7, 7);
         // Far plants much smaller than near ones; tall kinds a little shorter.
-        final s = (0.3 + 0.7 * depth) * (big ? 1.0 : 0.8) * 0.36 * (1 - _tallness(sp) * 0.025) * _range(rng, 0.9, 1.08);
+        final s = (0.3 + 0.7 * depth) * (big ? 1.0 : 0.8) * 0.36 * (1 - _tallness(sp.species) * 0.025) * _range(rng, 0.9, 1.08);
         placed.add((ridge.at(x) + 2, x, s, sp, rng.nextDouble() < 0.4));
       }
       placed.sort((a, c) => a.$1.compareTo(c.$1));
       for (final (py, px, s, sp, flip) in placed) {
-        final body = _body(PlantSvg.plant(PlantSpec(species: sp, logged: true), style: style));
+        final body = _body(PlantSvg.plant(sp, style: style));
         if (body == null) continue;
         b
           ..write('<ellipse cx="${_f(px)}" cy="${_f(py)}" rx="${_f(26 * s)}" ry="${_f(6 * s)}" fill="${t.shadow}" opacity="0.16"/>')

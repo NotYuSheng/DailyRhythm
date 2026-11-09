@@ -4,17 +4,18 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('the season follows the month, northern calendar by default', () {
-    expect([for (final m in [1, 4, 7, 10, 12]) SceneLook.forMonth(m)],
-        [SceneLook.winter, SceneLook.spring, SceneLook.summer, SceneLook.autumn, SceneLook.winter]);
+    expect([for (final m in [1, 4, 7, 10, 12]) Season.ofMonth(m, southern: false)],
+        [Season.winter, Season.spring, Season.summer, Season.autumn, Season.winter]);
+    expect(SceneLook.of(Season.autumn), SceneLook.autumn);
   });
 
   test('in the southern hemisphere the seasons flip; the tropics keep the northern calendar', () {
-    expect(SceneLook.southern('AU'), isTrue);
-    expect(SceneLook.southern('nz'), isTrue);
-    expect(SceneLook.southern('SG'), isFalse, reason: 'no seasons, so still show them');
-    expect(SceneLook.southern(null), isFalse);
-    expect(SceneLook.forMonth(10, southern: true), SceneLook.spring);
-    expect(SceneLook.forMonth(1, southern: true), SceneLook.summer);
+    expect(Season.isSouthern('AU'), isTrue);
+    expect(Season.isSouthern('nz'), isTrue);
+    expect(Season.isSouthern('SG'), isFalse, reason: 'no seasons, so still show them');
+    expect(Season.isSouthern(null), isFalse);
+    expect(Season.ofMonth(10, southern: true), Season.spring);
+    expect(Season.ofMonth(1, southern: true), Season.summer);
   });
 
   test('a week or month gets its season, a year golden hour, dark mode night', () {
@@ -25,20 +26,22 @@ void main() {
   });
 
   test('a long period is sampled down in the same mix', () {
+    PlantSpec p(PlantSpecies s, int i) => PlantSpec(species: s, season: Season.values[i % 4]);
     final plants = [
-      for (var i = 0; i < 200; i++) PlantSpecies.sprout,
-      for (var i = 0; i < 100; i++) PlantSpecies.cactus,
-      for (var i = 0; i < 30; i++) PlantSpecies.tree,
+      for (var i = 0; i < 200; i++) p(PlantSpecies.sprout, i),
+      for (var i = 0; i < 100; i++) p(PlantSpecies.cactus, i),
+      for (var i = 0; i < 30; i++) p(PlantSpecies.tree, i),
     ];
     final shown = GardenScene.sample(plants);
     expect(shown.length, GardenScene.maxPlants);
-    int count(PlantSpecies s) => shown.where((p) => p == s).length;
+    int count(PlantSpecies s) => shown.where((p) => p.species == s).length;
     expect((count(PlantSpecies.sprout), count(PlantSpecies.cactus), count(PlantSpecies.tree)), (28, 14, 4));
+    expect({for (final x in shown) if (x.species == PlantSpecies.sprout) x.season}, Season.values.toSet(), reason: 'every season shows');
     expect(GardenScene.sample(plants.take(10).toList()).length, 10, reason: 'short periods show every plant');
   });
 
   test('the same plants and seed draw the same scene, one plant group each', () {
-    final plants = [PlantSpecies.tulip, PlantSpecies.fern, PlantSpecies.sunflower, PlantSpecies.tree];
+    final plants = [for (final s in [PlantSpecies.tulip, PlantSpecies.fern, PlantSpecies.sunflower, PlantSpecies.tree]) PlantSpec(species: s, season: Season.autumn)];
     final a = GardenScene.svg(plants, SceneLook.autumn, seed: 5);
     expect(a, GardenScene.svg(plants, SceneLook.autumn, seed: 5));
     expect(RegExp('opacity="0.16"').allMatches(a).length, plants.length, reason: 'one shadow per plant');
