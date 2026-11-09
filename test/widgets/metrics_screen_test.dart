@@ -12,7 +12,10 @@ import 'package:material_ui/material_ui.dart';
 import '../helpers/test_database.dart';
 
 void main() {
-  setUp(() async => openTestDatabase());
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await openTestDatabase();
+  });
   tearDown(closeTestDatabase);
 
   testWidgets('every time range is on screen on a 360dp phone and selectable', (tester) async {
