@@ -8,6 +8,7 @@ import 'schema_v13.dart';
 import 'schema_v14.dart';
 import 'schema_v15.dart';
 import 'schema_v16.dart';
+import 'schema_v17.dart';
 import '../../../features/sleep/data/models/sleep_entry.dart';
 import '../../models/nap_entry.dart';
 import '../../../features/meals/data/models/meal_entry.dart';
@@ -21,7 +22,7 @@ class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
   static Database? _database;
 
-  static const int schemaVersion = 16;
+  static const int schemaVersion = 17;
 
   /// Overrides the database file location (e.g. `inMemoryDatabasePath`).
   @visibleForTesting
@@ -245,6 +246,9 @@ class DatabaseService {
     }
     if (oldVersion < 16) {
       await SchemaV16.apply(db);
+    }
+    if (oldVersion < 17) {
+      await SchemaV17.apply(db);
     }
   }
 
@@ -502,9 +506,6 @@ class DatabaseService {
       {'name': 'Video Games', 'emoji': 'game_structure', 'category': 'Hobby'},
       {'name': 'Draw', 'emoji': 'brush_alt', 'category': 'Hobby'},
 
-      // Physical Activity
-      {'name': 'Intense Exercise', 'emoji': 'dumbbell', 'category': 'Activity'},
-
       // Social & Family
       {'name': 'Social Event', 'emoji': 'glass_martini', 'category': 'Activity'},
       {'name': 'Family Time', 'emoji': 'home', 'category': 'Activity'},
@@ -523,6 +524,7 @@ class DatabaseService {
     await SchemaV14.apply(db);
     await SchemaV15.apply(db);
     await SchemaV16.apply(db);
+    await SchemaV17.apply(db);
   }
 
   // ==================== Sleep Entry CRUD ====================

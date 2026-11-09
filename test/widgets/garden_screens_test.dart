@@ -171,11 +171,11 @@ void main() {
     await tapVisible(tester, find.text('Log a moment'));
 
     final sheet = find.byType(MomentSheet);
-    final general = find.descendant(of: sheet, matching: find.text('General'));
+    final appointments = find.descendant(of: sheet, matching: find.text('Appointments'));
     final health = find.descendant(of: sheet, matching: find.text('Health'));
-    expect(general, findsOneWidget);
+    expect(appointments, findsOneWidget);
     expect(health, findsOneWidget);
-    expect(tester.getTopLeft(health).dy, greaterThan(tester.getTopLeft(general).dy));
+    expect(tester.getTopLeft(health).dy, greaterThan(tester.getTopLeft(appointments).dy));
     expect(find.descendant(of: sheet, matching: find.widgetWithText(FilterChip, 'Work')), findsOneWidget);
   });
 

@@ -38,7 +38,6 @@ void main() {
       expect(GardenDay.speciesFor(log(tags: ['Study', 'Class', 'Test'])), PlantSpecies.fern);
       expect(GardenDay.speciesFor(log(tags: ['Video Games', 'Watch Videos', 'Takeout'])), PlantSpecies.monstera);
       expect(GardenDay.speciesFor(log(tags: ['Family Time'])), PlantSpecies.tulip);
-      expect(GardenDay.speciesFor(log(tags: ['Nap'])), PlantSpecies.succulent);
     });
 
     test('is a sprout for several kinds or no activity tags', () {
@@ -59,7 +58,6 @@ void main() {
       final everyday = ['Video Games', 'Watch Videos', 'Exercise', 'Work', 'Study'];
       expect(GardenDay.speciesFor(log(tags: everyday, routine: routine)), PlantSpecies.sprout);
       expect(GardenDay.speciesFor(log(tags: [...everyday, 'Social Event'], routine: routine)), PlantSpecies.tulip);
-      expect(GardenDay.speciesFor(log(tags: [...everyday, 'Intense Exercise'], routine: routine)), PlantSpecies.sunflower);
       expect(GardenDay.speciesFor(log(tags: ['Work'], routine: routine)), PlantSpecies.cactus,
           reason: 'routine still decides when it\u2019s all there is');
     });
@@ -78,7 +76,7 @@ void main() {
 
     test('routine tags are those on most recent days, given two weeks of history', () {
       final days = [
-        for (var i = 0; i < 20; i++) ['Work', if (i < 12) 'Study', if (i == 3) 'Nap'],
+        for (var i = 0; i < 20; i++) ['Work', if (i < 12) 'Study', if (i == 3) 'Social Event'],
       ];
       expect(GardenDay.routineTagsFor(days), {'Work', 'Study'});
       expect(GardenDay.routineTagsFor(days.take(10)), isEmpty);
