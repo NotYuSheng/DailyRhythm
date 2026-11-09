@@ -5,6 +5,7 @@ import 'package:daily_rhythm/features/garden/presentation/screens/garden_month_s
 import 'package:daily_rhythm/features/garden/presentation/screens/garden_today_screen.dart';
 import 'package:daily_rhythm/features/garden/presentation/widgets/garden_chip.dart';
 import 'package:daily_rhythm/features/garden/presentation/widgets/moment_sheet.dart';
+import 'package:daily_rhythm/features/garden/domain/plant.dart';
 import 'package:daily_rhythm/features/garden/presentation/widgets/plant_view.dart';
 import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
 import 'package:daily_rhythm/features/exercise/presentation/screens/add_exercise_screen.dart';
@@ -35,6 +36,11 @@ Future<void> tapVisible(WidgetTester tester, Finder finder) async {
 void main() {
   late DatabaseService db;
   final today = dayOf(DateTime.now());
+  // The plant a kind of day grows today, as the caption names it.
+  String grows(PlantSpecies s) {
+    final a = PlantSpec.on(today, species: s).aName;
+    return '${a[0].toUpperCase()}${a.substring(1)}';
+  }
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
@@ -68,17 +74,17 @@ void main() {
   testWidgets('"today was mostly" picks the plant, and picking it again goes back to automatic', (tester) async {
     await db.upsertMoodEntry(MoodEntry(date: today, timestamp: DateTime.now(), moodLevel: 3, emoji: ''));
     await pump(tester, const GardenTodayScreen());
-    expect(find.textContaining('A sprout'), findsOneWidget);
+    expect(find.textContaining(grows(PlantSpecies.sprout)), findsOneWidget);
 
     await tester.tap(find.text('Work'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('A cactus'), findsOneWidget);
+    expect(find.textContaining(grows(PlantSpecies.cactus)), findsOneWidget);
     expect(find.textContaining('(your pick)', findRichText: true), findsOneWidget);
     expect((await CheckinRepository(db).forDay(today))?.plantOverride, 'cactus');
 
     await tester.tap(find.text('Work'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('A sprout'), findsOneWidget);
+    expect(find.textContaining(grows(PlantSpecies.sprout)), findsOneWidget);
     expect((await CheckinRepository(db).forDay(today))?.plantOverride, isNull);
   });
 
@@ -167,7 +173,7 @@ void main() {
 
     expect(find.text('Social Event'), findsOneWidget);
     // The plant follows what the day held (the caption is back at the top).
-    await tester.scrollUntilVisible(find.text('A tulip for time with people, picked for you: from Social Event.'), -300, scrollable: scrollable);
+    await tester.scrollUntilVisible(find.text('${grows(PlantSpecies.tulip)} for time with people, picked for you: from Social Event.'), -300, scrollable: scrollable);
   });
 
   testWidgets('in the small hours Today opens on yesterday until yesterday has its mood', (tester) async {

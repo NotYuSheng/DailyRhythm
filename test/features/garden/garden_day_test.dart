@@ -16,7 +16,7 @@ DayLog log({
   int? effort,
 }) =>
     DayLog(
-      date: DateTime(2026, 10, 20),
+      date: DateTime(2026, 7, 20),
       tagNames: tags,
       exerciseKinds: exercises,
       workouts: workouts,
