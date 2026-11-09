@@ -62,9 +62,9 @@ dependencies:
   file_picker: ^8.1.6
 
   # Google Drive Backup
-  google_sign_in: ^6.2.2
+  google_sign_in: ^7.2.0
   googleapis: ^13.2.0
-  extension_google_sign_in_as_googleapis_auth: ^2.0.12
+  extension_google_sign_in_as_googleapis_auth: ^3.0.0
   permission_handler: ^11.3.1
 
   # Material widgets (moved out of the Flutter SDK in 3.47)
