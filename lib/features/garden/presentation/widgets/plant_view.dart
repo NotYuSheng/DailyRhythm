@@ -8,11 +8,13 @@ import '../../domain/plant.dart';
 /// A plant in its pot, in the chosen [PlantStyle]. With [sway] it rocks
 /// gently from the soil line, unless the system asks for reduced motion.
 class PlantView extends ConsumerStatefulWidget {
-  const PlantView({super.key, required this.spec, this.width = 200, this.potColor = '#F2A27E', this.sway = false});
+  const PlantView({super.key, required this.spec, this.width = 200, this.potColor, this.sway = false});
 
   final PlantSpec spec;
   final double width;
-  final String potColor;
+  /// A fixed pot colour (a future day's pale pot); otherwise the pot follows
+  /// the day's season.
+  final String? potColor;
   final bool sway;
 
   @override
@@ -25,14 +27,15 @@ class _PlantViewState extends ConsumerState<PlantView> with SingleTickerProvider
   String _pot = '';
 
   /// What was drawn last, so a rebuild only redraws when it changed.
-  (PlantSpec, String, PlantStyle)? _drawn;
+  (PlantSpec, String?, PlantStyle)? _drawn;
 
   void _draw(PlantStyle style) {
     final key = (widget.spec, widget.potColor, style);
     if (key == _drawn) return;
     _drawn = key;
     _plant = PlantSvg.plant(widget.spec, style: style);
-    _pot = PlantSvg.pot(widget.potColor, style: style);
+    final colour = widget.potColor;
+    _pot = colour == null ? PlantSvg.seasonalPot(widget.spec, style: style) : PlantSvg.pot(colour, style: style);
   }
 
   @override

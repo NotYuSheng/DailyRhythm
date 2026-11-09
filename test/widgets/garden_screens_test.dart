@@ -321,7 +321,7 @@ void main() {
 
     expect(find.text('2 plants'), findsOneWidget);
     expect(find.byType(PlantView), findsNWidgets(30));
-    expect(find.text('A sprout: a bit of everything'), findsOneWidget);
+    expect(find.textContaining(': a bit of everything'), findsOneWidget);
 
     await tester.tap(find.bySemanticsLabel(RegExp(r'^5 June, nothing logged')));
     await tester.pumpAndSettle();

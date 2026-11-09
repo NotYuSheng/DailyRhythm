@@ -274,7 +274,7 @@ class _PlantBed extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(caption, textAlign: TextAlign.center, style: nunito(15, FontWeight.w800, colors.leaf)),
           ),
-          PlantView(spec: day.plant, width: 210, sway: true, potColor: potColors[day.date.day % potColors.length]),
+          PlantView(spec: day.plant, width: 210, sway: true),
           // The hill the pot stands on.
           Container(
             height: 26,
