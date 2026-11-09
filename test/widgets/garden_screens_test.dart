@@ -137,6 +137,34 @@ void main() {
     await tester.scrollUntilVisible(find.text('Coffee with an old friend'), 200, scrollable: scrollable);
   });
 
+  testWidgets('a moment can be changed, keeping its time, and deleted', (tester) async {
+    final time = DateTime(today.year, today.month, today.day, 9, 15);
+    await JournalRepository(db).save(JournalEntry(date: today, time: time, text: 'Coffe with Sam', mood: 4));
+    await pump(tester, const GardenTodayScreen());
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('Coffe with Sam'), 200, scrollable: scrollable);
+    await tapVisible(tester, find.text('Coffe with Sam'));
+    expect(find.text('Edit moment'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'Coffee with Sam');
+    await tester.tap(find.descendant(of: find.byType(MomentSheet), matching: find.text('Great')));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Save changes'));
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+    final changed = (await JournalRepository(db).forDay(today)).single;
+    expect((changed.text, changed.mood, changed.time), ('Coffee with Sam', 5, time));
+
+    await tester.scrollUntilVisible(find.text('Coffee with Sam'), 200, scrollable: scrollable);
+    await tapVisible(tester, find.text('Coffee with Sam'));
+    await tester.ensureVisible(find.text('Delete moment'));
+    await tester.tap(find.text('Delete moment'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+    await tester.pumpAndSettle();
+    expect(await JournalRepository(db).forDay(today), isEmpty);
+    expect(find.text('Coffee with Sam'), findsNothing);
+  });
+
   testWidgets('a moment’s tags are grouped by category, symptoms last', (tester) async {
     await pump(tester, const GardenTodayScreen());
     await tester.scrollUntilVisible(find.text('Log a moment'), 200, scrollable: find.byType(Scrollable).first);

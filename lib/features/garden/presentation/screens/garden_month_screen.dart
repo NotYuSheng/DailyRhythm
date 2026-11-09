@@ -7,6 +7,7 @@ import '../../../metrics/presentation/screens/metrics_screen.dart';
 import '../../../tags/data/models/tag.dart';
 import '../../../tags/data/providers/tag_providers.dart';
 import '../../data/garden_providers.dart';
+import '../widgets/moment_sheet.dart';
 import '../../domain/garden_day.dart';
 import '../../domain/plant.dart';
 import '../garden_style.dart';
@@ -270,7 +271,15 @@ class _DayCard extends ConsumerWidget {
             Text(day.detail, style: nunito(14, FontWeight.w600, colors.leaf)),
             if (moments.isNotEmpty) ...[
               const SizedBox(height: 10),
-              for (final m in moments) MomentTile(moment: m, tagNames: tags, colors: colors),
+              for (final m in moments)
+                MomentTile(
+                  moment: m,
+                  tagNames: tags,
+                  colors: colors,
+                  onTap: () async {
+                    if (await showMomentSheet(context, day.date, entry: m)) invalidateGardenDay(ref, day.date);
+                  },
+                ),
             ],
             const SizedBox(height: 4),
             Align(
