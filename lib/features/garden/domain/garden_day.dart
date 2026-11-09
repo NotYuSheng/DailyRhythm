@@ -104,9 +104,6 @@ class GardenDay {
   /// plant: they say nothing about what the day was about.
   static const tagSpecies = {
     'Exercise': PlantSpecies.sunflower,
-    'Intense Exercise': PlantSpecies.sunflower,
-    'Nap': PlantSpecies.succulent,
-    'Slept Early': PlantSpecies.succulent,
     'Social Event': PlantSpecies.tulip,
     'Family Time': PlantSpecies.tulip,
     'Family Issues': PlantSpecies.tulip,
