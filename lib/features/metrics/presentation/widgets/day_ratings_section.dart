@@ -6,6 +6,7 @@ import '../../../garden/presentation/garden_style.dart';
 import '../../data/models/metric_data.dart';
 import '../../data/providers/metrics_providers.dart';
 import '../../data/services/day_ratings_service.dart';
+import 'level_sections.dart';
 
 /// How days went (mood, energy, stress, focus), how that differed on days
 /// with each tag, and the watch's averages, as garden cards.
@@ -24,14 +25,8 @@ class DayRatingsSection extends ConsumerWidget {
       data: (r) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          GardenSection(
-            title: 'How days went',
-            subtitle: 'Mood, and energy, stress and focus compared with a usual day',
-            colors: colors,
-            child: r.summaries.every((s) => s.days == 0)
-                ? Text('Rate a day on the Today page to see this.', style: nunito(14, FontWeight.w600, colors.muted))
-                : Column(children: [for (final s in r.summaries) if (s.days > 0) _RatingRow(summary: s, colors: colors)]),
-          ),
+          // Mood, energy, stress and focus, in the same card as food and exercise.
+          HowDaysWentSection(range: range),
           if (r.comparisons.isNotEmpty) ...[
             const SizedBox(height: 16),
             GardenSection(
@@ -78,76 +73,6 @@ class DayRatingsSection extends ConsumerWidget {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _RatingRow extends StatelessWidget {
-  const _RatingRow({required this.summary, required this.colors});
-
-  final RatingSummary summary;
-  final GardenColors colors;
-
-  @override
-  Widget build(BuildContext context) {
-    final rating = summary.rating;
-    final average = summary.average!;
-    final previous = summary.previousAverage;
-    final change = previous == null || summary.days < DayRatingsService.minDays || (average - previous).abs() < 0.3
-        ? ''
-        : ', ${average > previous ? 'higher' : 'lower'} than the period before';
-    final values = [for (var v = rating.min; v <= rating.max; v++) v];
-    // Low to high: pale to deep leaf.
-    final shades = [for (var i = 0; i < values.length; i++) Color.lerp(colors.bed, colors.leaf, i / (values.length - 1))!];
-
-    return Semantics(
-      container: true,
-      label: '${rating.label}: mostly ${rating.wordFor(summary.mostCommon).toLowerCase()} over ${summary.days} days$change. '
-          '${[for (final v in values) if (summary.counts[v]! > 0) '${rating.wordFor(v)} ${summary.counts[v]}'].join(', ')}',
-      excludeSemantics: true,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(rating.label, style: nunito(15, FontWeight.w900, colors.ink)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'mostly ${rating.wordFor(summary.mostCommon).toLowerCase()} · ${summary.days} ${summary.days == 1 ? 'day' : 'days'}$change',
-                    style: nunito(13, FontWeight.w600, colors.muted),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 2,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: SizedBox(
-                height: 14,
-                child: Row(
-                  children: [
-                    for (final (i, v) in values.indexed)
-                      if (summary.counts[v]! > 0) Expanded(flex: summary.counts[v]!, child: ColoredBox(color: shades[i], child: const SizedBox.expand())),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(rating.words.first, style: nunito(11, FontWeight.w700, colors.muted)),
-                Text(rating.words.last, style: nunito(11, FontWeight.w700, colors.muted)),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -80,7 +80,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Sign in failed - Check OAuth configuration in Google Cloud Console'),
+              content: Text('Sign-in didn’t finish. Try again, and check your connection.'),
               duration: Duration(seconds: 7),
             ),
           );
@@ -91,7 +91,6 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.message ?? 'Platform not supported'),
-            backgroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
             duration: const Duration(seconds: 5),
           ),
         );
@@ -101,7 +100,6 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Sign in error: $e'),
-            backgroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         );
       }
@@ -395,11 +393,17 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
                         const SizedBox(height: 16),
                         if (_isSignedIn) ...[
                           ListTile(
-                            leading: const CircleAvatar(
-                              child: Icon(Icons.person),
+                            contentPadding: EdgeInsets.zero,
+                            leading: _AccountPhoto(
+                              url: _driveService.currentUser?.photoUrl,
+                              name: _driveService.currentUser?.displayName ?? _userEmail,
                             ),
-                            title: Text(_userEmail ?? 'Unknown'),
-                            subtitle: const Text('Connected'),
+                            title: Text(_driveService.currentUser?.displayName ?? _userEmail ?? 'Unknown'),
+                            subtitle: Text(
+                              _driveService.currentUser?.displayName == null ? 'Connected' : _userEmail ?? 'Connected',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                             trailing: TextButton(
                               onPressed: _signOut,
                               child: const Text('Sign Out'),
@@ -439,21 +443,19 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
                           Row(
                             children: [
                               Expanded(
-                                child: ElevatedButton.icon(
+                                child: FilledButton.icon(
                                   onPressed: _performBackup,
                                   icon: const Icon(Icons.cloud_upload),
-                                  label: const Text('Backup Now'),
+                                  label: const Text('Back up now'),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: ElevatedButton.icon(
+                                // Second to backing up, and it replaces your data: outlined.
+                                child: OutlinedButton.icon(
                                   onPressed: _performRestore,
                                   icon: const Icon(Icons.cloud_download),
                                   label: const Text('Restore'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
-                                  ),
                                 ),
                               ),
                             ],
@@ -586,5 +588,30 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
       default:
         return 'Every $days days';
     }
+  }
+}
+
+/// The Google account's profile photo, or its first letter while it
+/// loads, offline or when the account has none.
+class _AccountPhoto extends StatelessWidget {
+  const _AccountPhoto({required this.url, required this.name});
+
+  final String? url;
+  final String? name;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final letter = Text(
+      (name?.trim().isNotEmpty ?? false) ? name!.trim()[0].toUpperCase() : '?',
+      style: TextStyle(color: scheme.onPrimaryContainer, fontWeight: FontWeight.w800, fontSize: 18),
+    );
+    return CircleAvatar(
+      radius: 22,
+      backgroundColor: scheme.primaryContainer,
+      foregroundImage: url == null ? null : NetworkImage(url!),
+      onForegroundImageError: url == null ? null : (_, _) {},
+      child: letter,
+    );
   }
 }

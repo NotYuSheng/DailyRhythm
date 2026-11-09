@@ -106,8 +106,8 @@ void main() {
     await tester.tap(find.text('Week'));
     await tester.pumpAndSettle();
     final scrollable = find.byType(Scrollable).first;
-    await tester.scrollUntilVisible(find.widgetWithText(ChoiceChip, 'Mood'), 300, scrollable: scrollable);
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Mood'));
+    await tester.scrollUntilVisible(find.widgetWithText(ChoiceChip, 'Mood').first, 300, scrollable: scrollable);
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Mood').first);
     await tester.pumpAndSettle();
 
     final label = DateFormat('EEE d MMM y').format(today);

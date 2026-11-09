@@ -101,7 +101,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
             // How hard the exercise days were, and how much was eaten
             EffortSection(range: _selectedRange),
             const SizedBox(height: AppTheme.spacePulse3),
-            CalorieSection(range: _selectedRange),
+            FoodSection(range: _selectedRange),
             const SizedBox(height: AppTheme.spacePulse3),
 
             // Mood, energy, stress and focus; tag comparisons; watch
