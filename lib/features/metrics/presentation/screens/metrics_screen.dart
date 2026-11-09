@@ -6,6 +6,7 @@ import '../../data/providers/metrics_providers.dart';
 import '../../../garden/presentation/garden_style.dart';
 import '../widgets/day_ratings_section.dart';
 import '../widgets/fun_facts_section.dart';
+import '../widgets/garden_scene_card.dart';
 import '../../data/models/period_overview.dart';
 import '../widgets/period_overview_section.dart';
 import '../widgets/weight_section.dart';
@@ -65,6 +66,10 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
           children: [
             // Time Range Selector
             _buildTimeRangeSelector(),
+            const SizedBox(height: AppTheme.spacePulse4),
+
+            // The period's plants at a glance; tap for the calendar.
+            GardenSceneCard(range: _selectedRange),
             const SizedBox(height: AppTheme.spacePulse4),
 
             FunFactsSection(range: _selectedRange),
