@@ -131,24 +131,32 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
                     colors: colors,
                     onPressed: isToday ? null : () => _go(1),
                   ),
-                  const Spacer(),
-                  if (!isToday) ...[
-                    _PillButton(
-                      label: 'Today',
-                      colors: colors,
-                      onPressed: () => setState(() {
-                        _day = now;
-                        _lateNight = false;
-                      }),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  _PillButton(
-                    label: 'Garden',
-                    colors: colors,
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(builder: (_) => GardenMonthScreen(month: today)),
+                  const SizedBox(width: 8),
+                  // Wraps under itself with large text or a narrow phone.
+                  Expanded(
+                    child: Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        if (!isToday)
+                          _PillButton(
+                            label: 'Today',
+                            colors: colors,
+                            onPressed: () => setState(() {
+                              _day = now;
+                              _lateNight = false;
+                            }),
+                          ),
+                        _PillButton(
+                          label: 'Garden',
+                          colors: colors,
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute<void>(builder: (_) => GardenMonthScreen(month: today)),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
