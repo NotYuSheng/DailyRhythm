@@ -67,6 +67,8 @@ class DayLogCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = GardenColors.of(context);
     final sleep = ref.watch(sleepEntriesProvider(day)).value ?? const [];
+    // Last night began with the day before's bedtime.
+    final dayBefore = ref.watch(sleepEntriesProvider(DateTime(day.year, day.month, day.day - 1))).value ?? const [];
     final meals = ref.watch(mealEntriesProvider(day)).value ?? const <MealEntry>[];
     final exercises = ref.watch(exerciseEntriesProvider(day)).value ?? const <ExerciseEntry>[];
     final garden = ref.watch(gardenDayProvider(day)).value;
@@ -83,12 +85,11 @@ class DayLogCard extends ConsumerWidget {
 
     final time = DateFormat('HH:mm');
     final night = sleep.isEmpty ? null : sleep.first;
-    final sleepSummary = night == null
-        ? 'Not logged'
-        : [
-            if (night.wakeUpTime != null) 'Woke ${time.format(night.wakeUpTime!)}',
-            if (night.sleepTime != null) 'bed ${time.format(night.sleepTime!)}',
-          ].join(' · ');
+    final wentToBed = dayBefore.isEmpty ? null : dayBefore.first.sleepTime;
+    final woke = night?.wakeUpTime;
+    final bedTonight = night?.sleepTime;
+    final naps = night?.napHours ?? 0;
+    final isToday = dayOf(DateTime.now()) == dayOf(day);
     final spentText = moneyTotals([for (final m in meals) if (m.price != null) (m.price!, m.currency)]);
     // Calories as logged or from each food; an estimate, so "≈".
     final foodKcal = ref.watch(foodCaloriesProvider).value ?? const <int, double>{};
@@ -124,24 +125,34 @@ class DayLogCard extends ConsumerWidget {
           tone: DayTone.sleep,
           icon: Icons.bedtime_outlined,
           label: 'Sleep',
-          // The night's length when known (it needs the night before's
-          // bedtime), else when you woke.
-          headline: hours != null
-              ? formatHours(hours)
-              : night?.wakeUpTime != null
-                  ? 'Woke ${time.format(night!.wakeUpTime!)}'
-                  : night?.sleepTime != null
-                      ? 'Bed ${time.format(night!.sleepTime!)}'
+          // Last night, as when you went to bed and woke; its length below.
+          headline: wentToBed != null && woke != null
+              ? '${time.format(wentToBed)} → ${time.format(woke)}'
+              : woke != null
+                  ? 'Woke ${time.format(woke)}'
+                  : hours != null
+                      ? formatHours(hours)
                       : 'Not logged',
-          summary: night == null
-              ? 'Tap to log when you woke and slept'
-              : hours != null
-                  ? sleepSummary
-                  : night.wakeUpTime != null && night.sleepTime != null
-                      ? 'Bed ${time.format(night.sleepTime!)}'
-                      : 'Hours show once the night before has a bedtime',
+          summary: [
+            if (hours != null && woke != null)
+              '${formatHours(hours)} asleep last night'
+            else if (woke != null)
+              'Add last night’s bedtime to see how long you slept'
+            else
+              'Tap to log when you went to bed and woke',
+            if (naps > 0) 'nap ${formatHours(naps)}',
+          ].join(' · '),
           colors: colors,
           onTap: () => open(AddSleepScreen(entry: night, date: day)),
+          items: [
+            if (bedTonight != null)
+              _Item(
+                text: isToday ? 'Bedtime tonight' : 'Bedtime that night',
+                trailing: time.format(bedTonight),
+                colors: colors,
+                onTap: () => open(AddSleepScreen(entry: night, date: day)),
+              ),
+          ],
         ),
         _Tile(
           tone: DayTone.food,

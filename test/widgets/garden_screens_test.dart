@@ -19,6 +19,7 @@ import 'package:daily_rhythm/shared/services/database/repositories/journal_repos
 import 'package:daily_rhythm/shared/utils/date_utils.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:daily_rhythm/features/sleep/data/models/sleep_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -217,6 +218,23 @@ void main() {
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('1 tag'), 200, scrollable: scrollable);
     expect(find.descendant(of: find.byType(DayLogCard), matching: find.text('Change Bedsheets')), findsOneWidget, reason: 'the picked tag shows as a chip');
+  });
+
+  testWidgets('Sleep reads as last night: bed and wake times, how long, then tonight\'s bedtime', (tester) async {
+    final yesterday = DateTime(today.year, today.month, today.day - 1);
+    await db.saveSleepEntry(SleepEntry(date: yesterday, sleepTime: DateTime(yesterday.year, yesterday.month, yesterday.day, 23, 30)));
+    await db.saveSleepEntry(SleepEntry(
+      date: today,
+      wakeUpTime: DateTime(today.year, today.month, today.day, 7),
+      totalHours: 7.5,
+      sleepTime: DateTime(today.year, today.month, today.day, 23, 45),
+    ));
+    await pump(tester, const GardenTodayScreen());
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('23:30 → 07:00'), 200, scrollable: scrollable);
+    expect(find.text('7h 30m asleep last night'), findsOneWidget);
+    expect(find.text('Bedtime tonight'), findsOneWidget);
+    expect(find.text('23:45'), findsOneWidget);
   });
 
   testWidgets('going back from Activities without Save keeps the day as it was', (tester) async {
