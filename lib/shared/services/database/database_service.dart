@@ -912,6 +912,44 @@ class DatabaseService {
     });
   }
 
+  /// The group tags go to when theirs is deleted.
+  static const defaultGroup = 'General';
+
+  /// Deletes group [group] for [kind]'s tags: they move to [defaultGroup].
+  /// The group's other kinds keep it. Returns how many tags moved.
+  Future<int> deleteGroup(String group, String kind) async {
+    final db = await database;
+    final ids = [
+      for (final r in await db.query('tags', columns: ['id'], where: 'category = ? AND kind = ?', whereArgs: [group, kind])) r['id'] as int,
+    ];
+    if (group != defaultGroup) await moveTagsToGroup(ids, defaultGroup);
+    return ids.length;
+  }
+
+  /// Moves [group] one place earlier ([step] -1) or later (+1) among
+  /// [shown], the groups in the order a kind shows them. Groups are
+  /// ordered once for all kinds, so the two swap places in that order.
+  Future<void> moveGroup(String group, int step, List<String> shown) async {
+    final at = shown.indexOf(group);
+    final to = at + step;
+    if (at < 0 || to < 0 || to >= shown.length) return;
+    final other = shown[to];
+    // Every group shown has an order row to swap (older data may lack one).
+    final db = await database;
+    for (final name in shown) {
+      final order = Sqflite.firstIntValue(await db.rawQuery('SELECT COALESCE(MAX(sort_order) + 1, 0) FROM tag_categories'));
+      await db.rawInsert('INSERT OR IGNORE INTO tag_categories (name, sort_order) VALUES (?, ?)', [name, order]);
+    }
+    final all = await getAllTagCategories();
+    final names = [for (final c in all) c.name];
+    final i = names.indexOf(group), j = names.indexOf(other);
+    if (i < 0 || j < 0) return;
+    final ordered = [...all]
+      ..[i] = all[j]
+      ..[j] = all[i];
+    await updateTagCategoryOrders([for (final c in ordered) c.id!]);
+  }
+
   /// Merges tag [fromId] into [intoId]: its activity entries and moment
   /// links move over (a day or moment that already has both keeps one,
   /// with both notes), then [fromId] is deleted.

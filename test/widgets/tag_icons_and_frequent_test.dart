@@ -72,4 +72,40 @@ void main() {
     final order = [for (final c in tester.widgetList<FilterChip>(find.byType(FilterChip))) ((c.label as Text).data)];
     expect(order.indexOf('Video Games'), lessThan(order.indexOf('Watch Videos')), reason: 'first in its group');
   });
+
+  test('a group can be deleted for one kind, and moved', () async {
+    await db.createTag(Tag(name: 'Pottery', emoji: 'tag', category: 'Crafts'));
+    await db.createTag(Tag(name: 'Knitting', emoji: 'tag', category: 'Crafts'));
+    await db.moveTagsToGroup(const [], 'Crafts');
+    expect(await db.deleteGroup('Crafts', TagKind.activity), 2);
+    final tags = {for (final t in await db.getAllTags()) t.name: t.category};
+    expect((tags['Pottery'], tags['Knitting']), (DatabaseService.defaultGroup, DatabaseService.defaultGroup));
+    expect([for (final c in await db.getAllTagCategories()) c.name], isNot(contains('Crafts')), reason: 'nothing uses it now');
+
+    List<String> names(List<TagCategory> cs) => [for (final c in cs) c.name];
+    final before = names(await db.getAllTagCategories());
+    final shown = [for (final n in before) if (n == 'Work' || n == 'Hobby') n];
+    await db.moveGroup(shown[1], -1, shown);
+    final after = names(await db.getAllTagCategories());
+    expect(after.indexOf(shown[1]), lessThan(after.indexOf(shown[0])));
+  });
+
+  testWidgets('a new tag goes into a group made from the dropdown', (tester) async {
+    await pump(tester, const Scaffold(body: SizedBox()));
+    showTagSheet(tester.element(find.byType(Scaffold)));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Bank');
+    await tester.ensureVisible(find.byType(DropdownButtonFormField<String>));
+    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New group…').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Name').last, 'Errands');
+    await tester.tap(find.text('Add'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Add tag'));
+    await tester.tap(find.text('Add tag'));
+    await tester.pumpAndSettle();
+    expect((await db.getAllTags()).singleWhere((t) => t.name == 'Bank').category, 'Errands');
+  });
 }
