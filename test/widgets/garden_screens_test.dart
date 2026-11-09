@@ -148,17 +148,39 @@ void main() {
     await tester.tap(find.widgetWithText(FilterChip, 'Work'));
     await tester.pumpAndSettle();
     expect(tester.widget<FilterChip>(find.widgetWithText(FilterChip, 'Work')).selected, isTrue);
+    expect(await db.getActivityEntriesByDate(today), isEmpty, reason: 'nothing is saved before Save');
     await tester.tap(find.widgetWithText(FilterChip, 'Work'));
-    await tester.pumpAndSettle();
-    expect(await db.getActivityEntriesByDate(today), isEmpty, reason: 'tapping again removes it');
     await tester.tap(find.widgetWithText(FilterChip, 'Social Event'));
     await tester.pumpAndSettle();
-    Navigator.of(tester.element(find.text('What today included'))).pop();
+    await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
+    expect([for (final e in await db.getActivityEntriesByDate(today)) e.tagId].length, 1, reason: 'Work was unpicked');
 
     expect(find.text('Social Event'), findsOneWidget);
     // The plant follows what the day held (the caption is back at the top).
     await tester.scrollUntilVisible(find.text('A tulip for time with people. From Social Event.'), -300, scrollable: scrollable);
+  });
+
+  testWidgets('going back from Activities without Save keeps the day as it was', (tester) async {
+    await pump(tester, const GardenTodayScreen());
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('Activities'), 200, scrollable: scrollable);
+    await tapVisible(tester, find.text('Activities'));
+    await tester.tap(find.widgetWithText(FilterChip, 'Work'));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(await db.getActivityEntriesByDate(today), isEmpty);
+  });
+
+  testWidgets('meals are listed in the order they were added, first at the top', (tester) async {
+    for (final (i, name) in ['Kaya toast', 'Chicken rice', 'Laksa'].indexed) {
+      await db.createMealEntry(MealEntry(date: today, time: today.add(Duration(hours: 8 + i * 4)), name: name));
+    }
+    await pump(tester, const GardenTodayScreen());
+    await tester.scrollUntilVisible(find.text('Laksa'), 200, scrollable: find.byType(Scrollable).first);
+    final ys = [for (final n in ['Kaya toast', 'Chicken rice', 'Laksa']) tester.getTopLeft(find.text(n)).dy];
+    expect(ys, orderedEquals([...ys]..sort()));
   });
 
   testWidgets('the exercise row shows how hard the day was and what it burned', (tester) async {

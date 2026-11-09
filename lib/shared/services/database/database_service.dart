@@ -761,7 +761,8 @@ class DatabaseService {
       'meal_entries',
       where: 'date >= ? AND date < ?',
       whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
-      orderBy: 'time DESC',
+      // In the order they were added, first at the top.
+      orderBy: 'time ASC, id ASC',
     );
 
     return maps.map((map) => MealEntry.fromMap(map)).toList();
