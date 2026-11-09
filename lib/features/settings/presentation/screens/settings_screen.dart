@@ -1,3 +1,4 @@
+import '../../../ai/presentation/ai_settings_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,6 +53,16 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: const Text('Age, height and weight for typical ranges'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const ProfileScreen())),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacePulse3),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.auto_awesome_outlined),
+              title: const Text('AI assistant'),
+              subtitle: const Text('Optional: your own AI model for estimates'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const AiSettingsScreen())),
             ),
           ),
           const SizedBox(height: AppTheme.spacePulse3),

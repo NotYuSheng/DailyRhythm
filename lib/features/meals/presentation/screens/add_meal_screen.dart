@@ -1,3 +1,5 @@
+import '../../../ai/data/ai_client.dart';
+import '../../../ai/data/ai_providers.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/food_item.dart';
@@ -44,6 +46,9 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
 
   /// A looked-up value per serving, so the calories follow the quantity.
   double? _lookedUpPerServing;
+
+  /// Waiting for the AI's estimate.
+  bool _estimating = false;
 
   /// Whether the calories were typed or looked up on this screen; only
   /// then do they become the food's (editing an old meal shouldn't).
@@ -232,6 +237,33 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     }
   }
 
+  /// Asks the user's AI model for one serving's calories (only when tapped;
+  /// only the name is sent). Saved as an estimate, like the built-in ones.
+  Future<void> _estimateWithAi(AiClient ai) async {
+    final name = _nameController.text.trim();
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _estimating = true);
+    try {
+      final estimate = await ai.estimateCalories(name);
+      if (!mounted) return;
+      if (estimate == null) {
+        messenger.showSnackBar(const SnackBar(content: Text('The AI didn’t think that’s a food or drink.')));
+        return;
+      }
+      setState(() {
+        _caloriesChanged = true;
+        _lookedUpPerServing = estimate.kcal;
+        _caloriesController.text = '${(estimate.kcal * _quantity).round()}';
+        _kcalSource = 'estimate';
+      });
+      messenger.showSnackBar(SnackBar(content: Text('AI estimate for ${estimate.serving}. Adjust it if yours was different.')));
+    } on AiException catch (e) {
+      if (mounted) messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _estimating = false);
+    }
+  }
+
   /// How healthy this meal is and why; opens to change what's in it.
   Widget _healthPanel(String name, String health) {
     final selected = (_currentTags ?? DietScore.detect(name)).toSet();
@@ -412,14 +444,26 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                     selected: {_portion},
                     onSelectionChanged: (s) => setState(() => _portion = s.first),
                   ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
-                      onPressed: text.trim().isEmpty ? null : _lookUpCalories,
-                      icon: const Icon(Icons.search, size: 18),
-                      label: const Text('Look up calories'),
-                    ),
+                  Wrap(
+                    spacing: 4,
+                    children: [
+                      TextButton.icon(
+                        style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+                        onPressed: text.trim().isEmpty ? null : _lookUpCalories,
+                        icon: const Icon(Icons.search, size: 18),
+                        label: const Text('Look up calories'),
+                      ),
+                      // Only when the user has set up their own AI model.
+                      if (ref.watch(aiClientProvider) case final ai?)
+                        TextButton.icon(
+                          style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+                          onPressed: text.trim().isEmpty || _estimating ? null : () => _estimateWithAi(ai),
+                          icon: _estimating
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Icon(Icons.auto_awesome_outlined, size: 18),
+                          label: const Text('Estimate with AI'),
+                        ),
+                    ],
                   ),
                 ],
               ),
