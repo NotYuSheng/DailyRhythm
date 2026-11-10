@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -9,6 +10,8 @@ import 'schema_v14.dart';
 import 'schema_v15.dart';
 import 'schema_v16.dart';
 import 'schema_v17.dart';
+import 'schema_v18.dart';
+import 'schema_v19.dart';
 import '../../../features/sleep/data/models/sleep_entry.dart';
 import '../../models/nap_entry.dart';
 import '../../../features/meals/data/models/meal_entry.dart';
@@ -22,7 +25,7 @@ class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
   static Database? _database;
 
-  static const int schemaVersion = 17;
+  static const int schemaVersion = 19;
 
   /// Overrides the database file location (e.g. `inMemoryDatabasePath`).
   @visibleForTesting
@@ -249,6 +252,12 @@ class DatabaseService {
     }
     if (oldVersion < 17) {
       await SchemaV17.apply(db);
+    }
+    if (oldVersion < 18) {
+      await SchemaV18.apply(db);
+    }
+    if (oldVersion < 19) {
+      await SchemaV19.apply(db);
     }
   }
 
@@ -525,6 +534,7 @@ class DatabaseService {
     await SchemaV15.apply(db);
     await SchemaV16.apply(db);
     await SchemaV17.apply(db);
+    await SchemaV19.apply(db);
   }
 
   // ==================== Sleep Entry CRUD ====================
@@ -768,8 +778,8 @@ class DatabaseService {
       'meal_entries',
       where: 'date >= ? AND date < ?',
       whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
-      // In the order they were added, first at the top.
-      orderBy: 'time ASC, id ASC',
+      // In the user's order when they set one, then as added.
+      orderBy: 'sort_order IS NULL, sort_order ASC, time ASC, id ASC',
     );
 
     return maps.map((map) => MealEntry.fromMap(map)).toList();
@@ -781,23 +791,38 @@ class DatabaseService {
     return maps.map((map) => MealEntry.fromMap(map)).toList();
   }
 
-  Future<int> updateMealEntry(MealEntry entry) async {
+  /// Puts a day's meals in the order of [mealIds], first at the top.
+  Future<void> reorderMeals(List<int> mealIds) async {
     final db = await database;
-    return await db.update(
-      'meal_entries',
-      _withDay(entry.toMap()),
-      where: 'id = ?',
-      whereArgs: [entry.id],
-    );
+    await db.transaction((txn) async {
+      for (final (i, id) in mealIds.indexed) {
+        await txn.update('meal_entries', {'sort_order': i}, where: 'id = ?', whereArgs: [id]);
+      }
+    });
   }
 
+  /// Saves a changed meal. A food it no longer uses that nothing else
+  /// does (a rename) folds into the new one: its name becomes an alias.
+  Future<int> updateMealEntry(MealEntry entry) async {
+    final db = await database;
+    return db.transaction((txn) async {
+      final before = await txn.query('meal_entries', columns: ['food_item_id'], where: 'id = ?', whereArgs: [entry.id]);
+      final count = await txn.update('meal_entries', _withDay(entry.toMap()), where: 'id = ?', whereArgs: [entry.id]);
+      final old = before.isEmpty ? null : before.first['food_item_id'] as int?;
+      await _dropUnused(txn, 'food_items', 'meal_entries', 'food_item_id', old, into: entry.foodItemId);
+      return count;
+    });
+  }
+
+  /// Deletes a meal, and its food if nothing else uses it.
   Future<int> deleteMealEntry(int id) async {
     final db = await database;
-    return await db.delete(
-      'meal_entries',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return db.transaction((txn) async {
+      final before = await txn.query('meal_entries', columns: ['food_item_id'], where: 'id = ?', whereArgs: [id]);
+      final count = await txn.delete('meal_entries', where: 'id = ?', whereArgs: [id]);
+      await _dropUnused(txn, 'food_items', 'meal_entries', 'food_item_id', before.isEmpty ? null : before.first['food_item_id'] as int?);
+      return count;
+    });
   }
 
   // ==================== Tag CRUD ====================
@@ -1143,23 +1168,60 @@ class DatabaseService {
     return maps.map((map) => ExerciseEntry.fromMap(map)).toList();
   }
 
+  /// Saves a changed exercise; an exercise item it no longer uses that
+  /// nothing else does folds into the new one, as for foods.
   Future<int> updateExerciseEntry(ExerciseEntry entry) async {
     final db = await database;
-    return await db.update(
-      'exercise_entries',
-      _withDay(entry.toMap()),
-      where: 'id = ?',
-      whereArgs: [entry.id],
-    );
+    return db.transaction((txn) async {
+      final before = await txn.query('exercise_entries', columns: ['exercise_item_id'], where: 'id = ?', whereArgs: [entry.id]);
+      final count = await txn.update('exercise_entries', _withDay(entry.toMap()), where: 'id = ?', whereArgs: [entry.id]);
+      final old = before.isEmpty ? null : before.first['exercise_item_id'] as int?;
+      await _dropUnused(txn, 'exercise_items', 'exercise_entries', 'exercise_item_id', old, into: entry.exerciseItemId);
+      return count;
+    });
   }
 
+  /// Deletes an exercise entry, and its exercise item if nothing else
+  /// uses it.
   Future<int> deleteExerciseEntry(int id) async {
     final db = await database;
-    return await db.delete(
-      'exercise_entries',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return db.transaction((txn) async {
+      final before = await txn.query('exercise_entries', columns: ['exercise_item_id'], where: 'id = ?', whereArgs: [id]);
+      final count = await txn.delete('exercise_entries', where: 'id = ?', whereArgs: [id]);
+      await _dropUnused(txn, 'exercise_items', 'exercise_entries', 'exercise_item_id', before.isEmpty ? null : before.first['exercise_item_id'] as int?);
+      return count;
+    });
+  }
+
+  /// Removes catalog item [id] from [items] when no row of [entries] uses
+  /// it any more. With [into] (the item an entry moved to), its name and
+  /// aliases become aliases of that item, and what it knew that the new one
+  /// doesn't (calories, health tags) carries over: a renamed food keeps its
+  /// old spelling as "Did you mean".
+  static Future<void> _dropUnused(DatabaseExecutor txn, String items, String entries, String column, int? id, {int? into}) async {
+    if (id == null || id == into) return;
+    final used = Sqflite.firstIntValue(await txn.rawQuery('SELECT COUNT(*) FROM $entries WHERE $column = ?', [id]))!;
+    if (used > 0) return;
+    final rows = await txn.query(items, where: 'id = ?', whereArgs: [id]);
+    if (rows.isEmpty) return;
+    final old = rows.first;
+    if (into != null) {
+      final target = await txn.query(items, where: 'id = ?', whereArgs: [into]);
+      if (target.isNotEmpty) {
+        final t = target.first;
+        final aliases = <String>{
+          ...(jsonDecode(t['aliases'] as String? ?? '[]') as List).cast<String>(),
+          ...(jsonDecode(old['aliases'] as String? ?? '[]') as List).cast<String>(),
+          old['name'] as String,
+        }..removeWhere((a) => a.toLowerCase() == (t['name'] as String).toLowerCase());
+        final update = <String, Object?>{'aliases': jsonEncode(aliases.toList()..sort())};
+        for (final field in ['kcal', 'kcal_source', 'health_tags']) {
+          if (old.containsKey(field) && t[field] == null && old[field] != null) update[field] = old[field];
+        }
+        await txn.update(items, update, where: 'id = ?', whereArgs: [into]);
+      }
+    }
+    await txn.delete(items, where: 'id = ?', whereArgs: [id]);
   }
 
   // ==================== Task Entry CRUD ====================

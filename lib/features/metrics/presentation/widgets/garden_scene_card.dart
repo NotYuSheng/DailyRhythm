@@ -14,6 +14,7 @@ import '../../../garden/presentation/garden_style.dart';
 import '../../../garden/presentation/screens/garden_month_screen.dart';
 import '../../../garden/presentation/screens/year_gardens_screen.dart';
 import '../../data/models/metric_data.dart';
+import '../../data/services/level_report.dart' show previousPeriod, previousWord;
 import 'garden_motion.dart';
 
 /// Every day of a period, all time from the first entry.
@@ -34,6 +35,8 @@ class GardenSceneCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = GardenColors.of(context);
     final days = ref.watch(periodGardenProvider(range)).value;
+    final before = previousPeriod(range);
+    final previous = before == null ? null : ref.watch(periodGardenProvider(before)).value;
     final style = ref.watch(plantStyleProvider);
     final plants = [for (final d in days ?? const <GardenDay>[]) if (d.plant.logged) d.plant];
     final look = SceneLook.forPeriod(days?.first.date ?? range.start, range.end, dark: Theme.of(context).brightness == Brightness.dark);
@@ -59,7 +62,7 @@ class GardenSceneCard extends ConsumerWidget {
 
     return Semantics(
       button: true,
-      label: '$title: ${_caption(plants, shown)}. ${look.label}. Opens the calendar.',
+      label: '$title: ${caption(days ?? const [], previous, range, shown: shown)}. ${look.label}. Opens the calendar.',
       excludeSemantics: true,
       child: Material(
         color: colors.card,
@@ -100,7 +103,7 @@ class GardenSceneCard extends ConsumerWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(6, 8, 6, 2),
-                  child: Text(_caption(plants, shown), style: nunito(14, FontWeight.w700, colors.ink)),
+                  child: Text(caption(days ?? const [], previous, range, shown: shown), style: nunito(14, FontWeight.w700, colors.ink)),
                 ),
                 if (plants.length > 1)
                   Padding(
@@ -115,15 +118,64 @@ class GardenSceneCard extends ConsumerWidget {
     );
   }
 
-  /// What the garden says about the days: how many grew a plant, and the
-  /// kinds of day there were most of.
-  static String _caption(List<PlantSpec> plants, int shown) {
-    if (plants.isEmpty) return 'Nothing grew in this period yet.';
-    final top = _counts(plants).take(2).map((e) => e.key.daysWord).toList();
-    final days = '${plants.length} ${plants.length == 1 ? 'day' : 'days'} grew a plant';
-    final mostly = plants.length == 1 ? 'a ${plants.single.species.dayWord}' : 'mostly ${top.join(' and ')}';
-    return '$days: $mostly'
-        '${shown < plants.length ? ' (showing $shown in the same mix)' : ''}.';
+  /// What's worth noticing in the period's garden, the kinds of day being
+  /// listed below it: how much of the period was logged, then the most
+  /// telling thing about it. That's a clear change from the period before,
+  /// else a run of the same kind of day, else the kind there was most of.
+  static String caption(List<GardenDay> days, List<GardenDay>? previous, DateRange range, {int? shown}) {
+    final grown = [for (final d in days) if (d.plant.logged) d];
+    if (grown.isEmpty) return 'Nothing grew in this period yet.';
+    final number = NumberFormat.decimalPattern();
+    final logged = range.isAllTime
+        ? '${number.format(grown.length)} ${grown.length == 1 ? 'day' : 'days'} logged since ${DateFormat('MMM y').format(grown.first.date)}'
+        : '${grown.length} of ${days.length} ${days.length == 1 ? 'day' : 'days'} logged';
+    final sampled = shown != null && shown < grown.length ? ' (showing $shown in the same mix)' : '';
+    return '$logged$sampled. ${_notable(grown, previous, range)}.';
+  }
+
+  static String _notable(List<GardenDay> grown, List<GardenDay>? previous, DateRange range) {
+    String capital(String s) => '${s[0].toUpperCase()}${s.substring(1)}';
+    // A kind whose share of the logged days moved a lot against the period
+    // before (not the catch-all sprout): shares, so a month still under way
+    // compares fairly with a whole one.
+    final before = [for (final d in previous ?? const <GardenDay>[]) if (d.plant.logged) d];
+    if (before.length >= 5 && !range.isAllTime) {
+      double share(List<GardenDay> list, PlantSpecies s) => list.where((d) => d.plant.species == s).length / list.length;
+      (PlantSpecies, double, double)? best;
+      for (final s in PlantSpecies.values) {
+        if (s == PlantSpecies.sprout) continue;
+        final now = share(grown, s), was = share(before, s);
+        final enough = grown.where((d) => d.plant.species == s).length >= 3 || before.where((d) => d.plant.species == s).length >= 3;
+        if (enough && (now - was).abs() >= 0.2 && (best == null || (now - was).abs() > (best.$2 - best.$3).abs())) best = (s, now, was);
+      }
+      if (best case (final s, final now, final was)) {
+        String pc(double v) => '${(v * 100).round()}%';
+        return '${now > was ? 'More' : 'Fewer'} ${s.daysWord} than ${previousWord(range)}: ${pc(now)} of days, ${now > was ? 'up' : 'down'} from ${pc(was)}';
+      }
+    }
+    // The longest run of one kind of day (sprouts aside), when 3 or more.
+    (PlantSpecies, DateTime, DateTime, int)? run;
+    PlantSpecies? kind;
+    DateTime? start, last;
+    var length = 0;
+    for (final d in grown) {
+      final continues = kind == d.plant.species && last != null && daysBetween(last, d.date) == 1;
+      if (continues) {
+        length++;
+      } else {
+        kind = d.plant.species;
+        start = d.date;
+        length = 1;
+      }
+      last = d.date;
+      if (kind != PlantSpecies.sprout && length >= 3 && (run == null || length > run.$4)) run = (kind!, start!, d.date, length);
+    }
+    if (run case (final s, final from, final to, final n)) {
+      final span = from.month == to.month ? '${from.day}–${DateFormat('d MMM').format(to)}' : '${DateFormat('d MMM').format(from)} – ${DateFormat('d MMM').format(to)}';
+      return '$n ${s.daysWord} in a row, $span';
+    }
+    final top = _counts([for (final d in grown) d.plant]).take(2).map((e) => e.key.daysWord).toList();
+    return grown.length == 1 ? capital(grown.single.plant.species.dayWord) : 'Mostly ${top.join(' and ')}';
   }
 
   /// Each kind of day and how many, most first.

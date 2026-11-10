@@ -102,7 +102,7 @@ void main() {
   group('CatalogRepository', () {
     test('finds foods by name or alias, ignoring case', () async {
       final repo = CatalogRepository(service);
-      final id = await repo.saveFood(FoodItem(name: 'Mixed rice', aliases: ['Cai peng', 'economy rice']));
+      final id = await repo.saveFood(FoodItem(name: 'Mixed Rice', aliases: ['Cai peng', 'economy rice']));
 
       expect((await repo.findFood('mixed RICE'))?.id, id);
       expect((await repo.findFood('cai peng'))?.id, id);
@@ -123,27 +123,27 @@ void main() {
 
     test('search puts prefix matches first, then the most logged', () async {
       final repo = CatalogRepository(service);
-      final rice = await repo.saveFood(FoodItem(name: 'Chicken rice'));
-      await repo.saveFood(FoodItem(name: 'Rice bowl'));
-      await repo.saveFood(FoodItem(name: 'Fried rice'));
+      final rice = await repo.saveFood(FoodItem(name: 'Chicken Rice'));
+      await repo.saveFood(FoodItem(name: 'Rice Bowl'));
+      await repo.saveFood(FoodItem(name: 'Fried Rice'));
       for (var i = 0; i < 3; i++) {
         await service.createMealEntry(
-          MealEntry(date: DateTime(2025, 6, 1), time: DateTime(2025, 6, 1, 12), name: 'Chicken rice', foodItemId: rice),
+          MealEntry(date: DateTime(2025, 6, 1), time: DateTime(2025, 6, 1, 12), name: 'Chicken Rice', foodItemId: rice),
         );
       }
 
-      expect((await repo.searchFoods('rice')).map((f) => f.name), ['Rice bowl', 'Chicken rice', 'Fried rice']);
-      expect((await repo.searchFoods('')).first.name, 'Chicken rice');
+      expect((await repo.searchFoods('rice')).map((f) => f.name), ['Rice Bowl', 'Chicken Rice', 'Fried Rice']);
+      expect((await repo.searchFoods('')).first.name, 'Chicken Rice');
       expect(await repo.searchFoods('100%'), isEmpty);
     });
 
     test('exercises work the same way', () async {
       final repo = CatalogRepository(service);
-      await repo.saveExercise(ExerciseItem(name: 'Chin ups', aliases: ['chinups']));
+      await repo.saveExercise(ExerciseItem(name: 'Chin Ups', aliases: ['chinups']));
       await repo.saveExercise(ExerciseItem(name: 'Run', category: ExerciseItem.cardio));
 
-      expect((await repo.findExercise('CHINUPS'))?.name, 'Chin ups');
-      expect((await repo.searchExercises('chin')).single.name, 'Chin ups');
+      expect((await repo.findExercise('CHINUPS'))?.name, 'Chin Ups');
+      expect((await repo.searchExercises('chin')).single.name, 'Chin Ups');
       expect((await repo.findExercise('run'))?.category, ExerciseItem.cardio);
     });
   });

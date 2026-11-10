@@ -103,8 +103,8 @@ void main() {
     Future<void> seedFoods(DatabaseService db) async {
       final catalog = CatalogRepository(db);
       final maggi = await catalog.saveFood(FoodItem(name: 'Maggi', aliases: ['Maggie'], lastPrice: 1.2));
-      final rice = await catalog.saveFood(FoodItem(name: 'Mixed rice', aliases: ['Cai peng'], lastPrice: 4.5));
-      for (final (d, id, name) in [(18, rice, 'Mixed rice'), (19, rice, 'Mixed rice'), (19, maggi, 'Maggi')]) {
+      final rice = await catalog.saveFood(FoodItem(name: 'Mixed Rice', aliases: ['Cai peng'], lastPrice: 4.5));
+      for (final (d, id, name) in [(18, rice, 'Mixed Rice'), (19, rice, 'Mixed Rice'), (19, maggi, 'Maggi')]) {
         await db.createMealEntry(MealEntry(date: DateTime(2026, 10, d), time: DateTime(2026, 10, d, 12), name: name, foodItemId: id));
       }
     }
@@ -114,18 +114,18 @@ void main() {
       await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
       await tester.pumpAndSettle();
       expect(find.text('Your usual'), findsOneWidget);
-      expect(find.widgetWithText(ActionChip, 'Mixed rice'), findsOneWidget);
+      expect(find.widgetWithText(ActionChip, 'Mixed Rice'), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(ActionChip, 'Mixed rice'));
+      await tester.tap(find.widgetWithText(ActionChip, 'Mixed Rice'));
       await tester.pumpAndSettle();
-      expect(tester.widget<TextField>(_field('Meal Name')).controller!.text, 'Mixed rice');
+      expect(tester.widget<TextField>(_field('Meal Name')).controller!.text, 'Mixed Rice');
       expect(tester.widget<TextField>(_field('Price (optional)')).controller!.text, '4.50');
     });
 
     testWidgets('shows how healthy a meal is while typing it', (tester) async {
       await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
       await tester.pumpAndSettle();
-      await tester.enterText(_field('Meal Name'), 'Fried rice');
+      await tester.enterText(_field('Meal Name'), 'Fried Rice');
       await tester.pumpAndSettle();
       expect(find.text('Health 2/5 · fried'), findsOneWidget);
     });
@@ -137,7 +137,7 @@ void main() {
 
       await tester.enterText(_field('Meal Name'), 'cai');
       await tester.pump();
-      expect(find.widgetWithText(ListTile, 'Mixed rice'), findsOneWidget);
+      expect(find.widgetWithText(ListTile, 'Mixed Rice'), findsOneWidget);
 
       await tester.enterText(_field('Meal Name'), 'maggie');
       await tester.pump();
@@ -161,8 +161,8 @@ void main() {
       await tester.pumpAndSettle();
 
       final meal = (await db.getMealEntriesByDate(pastDay)).single;
-      final rice = await CatalogRepository(db).findFood('Mixed rice');
-      expect((meal.name, meal.foodItemId, meal.foodSource), ('Mixed rice', rice!.id, FoodSource.foodCourt));
+      final rice = await CatalogRepository(db).findFood('Mixed Rice');
+      expect((meal.name, meal.foodItemId, meal.foodSource), ('Mixed Rice', rice!.id, FoodSource.foodCourt));
     });
 
     testWidgets('what\'s in a meal can be ticked, for the food or just this meal', (tester) async {
@@ -171,7 +171,7 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
       await tester.pumpAndSettle();
-      await tester.enterText(_field('Meal Name'), 'Mixed rice');
+      await tester.enterText(_field('Meal Name'), 'Mixed Rice');
       await tester.pumpAndSettle();
       await tester.tap(find.text('Health 3/5 · a typical plate'));
       await tester.pumpAndSettle();
@@ -180,7 +180,7 @@ void main() {
       expect(find.text('Health 4/5 · vegetables'), findsOneWidget);
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
-      final rice = (await CatalogRepository(db).findFood('Mixed rice'))!;
+      final rice = (await CatalogRepository(db).findFood('Mixed Rice'))!;
       expect(rice.healthTags, ['vegetables'], reason: 'remembered for the food');
       expect((await db.getMealEntriesByDate(pastDay)).single.healthTags, isNull);
 
@@ -189,7 +189,7 @@ void main() {
       await tester.pumpWidget(const SizedBox()); // saving closed the screen: start a new app
       await tester.pumpWidget(_app(AddMealScreen(date: other)));
       await tester.pumpAndSettle();
-      await tester.enterText(_field('Meal Name'), 'Mixed rice');
+      await tester.enterText(_field('Meal Name'), 'Mixed Rice');
       await tester.pumpAndSettle();
       await tester.tap(find.text('Health 4/5 · vegetables'), warnIfMissed: false);
       await tester.pumpAndSettle();
@@ -201,7 +201,7 @@ void main() {
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect((await db.getMealEntriesByDate(other)).single.healthTags, ['fried']);
-      expect((await CatalogRepository(db).findFood('Mixed rice'))!.healthTags, ['vegetables'], reason: 'the food keeps its own');
+      expect((await CatalogRepository(db).findFood('Mixed Rice'))!.healthTags, ['vegetables'], reason: 'the food keeps its own');
     });
 
     testWidgets('a large portion is this meal\'s calories, not the food\'s', (tester) async {
@@ -278,15 +278,15 @@ void main() {
 
     testWidgets('editing an old meal never gives its food an estimate', (tester) async {
       await CatalogRepository(db).saveFood(FoodItem(name: 'Laksa', kcal: 590, kcalSource: 'user'));
-      final rebus = await CatalogRepository(db).saveFood(FoodItem(name: 'Spicy laksa'));
-      await db.createMealEntry(MealEntry(date: pastDay, time: DateTime(2026, 10, 20, 12), name: 'Spicy laksa', foodItemId: rebus));
+      final rebus = await CatalogRepository(db).saveFood(FoodItem(name: 'Spicy Laksa'));
+      await db.createMealEntry(MealEntry(date: pastDay, time: DateTime(2026, 10, 20, 12), name: 'Spicy Laksa', foodItemId: rebus));
       final meal = (await db.getMealEntriesByDate(pastDay)).single;
       await tester.pumpWidget(_app(AddMealScreen(entry: meal)));
       await tester.pumpAndSettle();
       expect(find.textContaining('An estimate'), findsNothing);
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
-      expect((await CatalogRepository(db).findFood('Spicy laksa'))!.kcal, isNull);
+      expect((await CatalogRepository(db).findFood('Spicy Laksa'))!.kcal, isNull);
     });
 
     testWidgets('a quantity of 0 isn\'t saved', (tester) async {
@@ -329,12 +329,12 @@ void main() {
       await db.createMealEntry(MealEntry(date: DateTime(2026, 10, 1), time: DateTime(2026, 10, 1, 12), name: 'Laksa'));
       await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
       await tester.pumpAndSettle();
-      await tester.enterText(_field('Meal Name'), 'Spicy laksa');
+      await tester.enterText(_field('Meal Name'), 'Spicy Laksa');
       await tester.pump();
       expect(find.text('An estimate, like your Laksa. Type your own to change it.'), findsOneWidget);
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
-      final food = (await CatalogRepository(db).findFood('Spicy laksa'))!;
+      final food = (await CatalogRepository(db).findFood('Spicy Laksa'))!;
       expect((food.kcal, food.kcalSource), (590.0, 'estimate'));
     });
 
@@ -377,13 +377,13 @@ void main() {
       final entry = (await db.getAllMealEntries()).single;
 
       await tester.pumpWidget(_app(AddMealScreen(entry: entry)));
-      await tester.enterText(_field('Meal Name'), 'Wanton noodles');
+      await tester.enterText(_field('Meal Name'), 'Wanton Noodles');
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
       final saved = (await db.getAllMealEntries()).single;
       expect(saved.id, id);
-      expect(saved.name, 'Wanton noodles');
+      expect(saved.name, 'Wanton Noodles');
       expect(saved.date, pastDay);
     });
   });
@@ -431,12 +431,12 @@ void main() {
 
     Future<void> seedExercises(DatabaseService db) async {
       final catalog = CatalogRepository(db);
-      final pushups = await catalog.saveExercise(ExerciseItem(name: 'Push ups', aliases: ['pushups']));
+      final pushups = await catalog.saveExercise(ExerciseItem(name: 'Push Ups', aliases: ['pushups']));
       final run = await catalog.saveExercise(ExerciseItem(name: 'Run', category: ExerciseItem.cardio));
       for (final d in [17, 18, 19]) {
         await db.createExerciseEntry(ExerciseEntry(
           date: DateTime(2026, 10, d), timestamp: DateTime(2026, 10, d, 19), type: ExerciseType.weightLifting,
-          exerciseName: 'Push ups', equipmentType: EquipmentType.bodyweight, reps: 20 + d - 17, sets: 3,
+          exerciseName: 'Push Ups', equipmentType: EquipmentType.bodyweight, reps: 20 + d - 17, sets: 3,
           exerciseItemId: pushups,
         ));
       }
@@ -452,14 +452,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Your usual'), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(ActionChip, 'Push ups'));
+      await tester.tap(find.widgetWithText(ActionChip, 'Push Ups'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
       final saved = (await db.getExerciseEntriesByDate(pastDay)).single;
-      final item = await CatalogRepository(db).findExercise('Push ups');
-      expect((saved.exerciseName, saved.reps, saved.sets, saved.equipmentType), ('Push ups', 22, 3, EquipmentType.bodyweight));
+      final item = await CatalogRepository(db).findExercise('Push Ups');
+      expect((saved.exerciseName, saved.reps, saved.sets, saved.equipmentType), ('Push Ups', 22, 3, EquipmentType.bodyweight));
       expect(saved.exerciseItemId, item!.id);
     });
 
@@ -481,11 +481,11 @@ void main() {
       await openWeights(tester, AddExerciseScreen(date: pastDay));
       await tester.enterText(_field('Exercise Name'), 'pus');
       await tester.pump();
-      expect(find.widgetWithText(ListTile, 'Push ups'), findsOneWidget);
+      expect(find.widgetWithText(ListTile, 'Push Ups'), findsOneWidget);
 
       await tester.enterText(_field('Exercise Name'), 'pushups');
       await tester.pump();
-      expect(find.text('Did you mean Push ups?', findRichText: true), findsOneWidget);
+      expect(find.text('Did you mean Push Ups?', findRichText: true), findsOneWidget);
     });
 
     testWidgets('a typed alias saves under the catalog name', (tester) async {
@@ -499,7 +499,7 @@ void main() {
       await tester.enterText(_field('Exercise Name'), 'pushups');
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
-      expect((await db.getExerciseEntriesByDate(pastDay)).single.exerciseName, 'Push ups');
+      expect((await db.getExerciseEntriesByDate(pastDay)).single.exerciseName, 'Push Ups');
     });
 
     testWidgets('a new exercise joins the catalog', (tester) async {
@@ -522,7 +522,7 @@ void main() {
       await seedExercises(db);
       await openWeights(tester, AddExerciseScreen(date: pastDay));
       await tester.enterText(_field('Reps'), '15');
-      await tester.tap(find.widgetWithText(ActionChip, 'Push ups'));
+      await tester.tap(find.widgetWithText(ActionChip, 'Push Ups'));
       await tester.pumpAndSettle();
       expect(tester.widget<TextField>(_field('Reps')).controller!.text, '15');
       expect(tester.widget<TextField>(_field('Sets')).controller!.text, '');
@@ -531,14 +531,14 @@ void main() {
     testWidgets('switching to Run drops a weights exercise name', (tester) async {
       await seedExercises(db);
       await openWeights(tester, AddExerciseScreen(date: pastDay));
-      await tester.enterText(_field('Exercise Name'), 'Push ups');
+      await tester.enterText(_field('Exercise Name'), 'Push Ups');
       await tester.tap(find.descendant(of: find.byType(SegmentedButton<ExerciseType>), matching: find.text('Run')));
       await tester.pumpAndSettle();
       expect(tester.widget<TextField>(_field('Exercise Name')).controller!.text, '');
     });
 
     testWidgets('editing keeps an imported entry\'s catalog link', (tester) async {
-      final bench = await CatalogRepository(db).saveExercise(ExerciseItem(name: 'Bench press'));
+      final bench = await CatalogRepository(db).saveExercise(ExerciseItem(name: 'Bench Press'));
       await db.createExerciseEntry(ExerciseEntry(
         date: pastDay, timestamp: DateTime(2026, 10, 20, 19), type: ExerciseType.weightLifting,
         exerciseName: 'chest day', equipmentType: EquipmentType.barbell, reps: 8, weight: 60, sets: 3,
@@ -590,10 +590,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(_field('Meal Name'), 'Chiken rice');
     await tester.pump();
-    expect(find.text('Did you mean Chicken rice?', findRichText: true), findsOneWidget);
+    expect(find.text('Did you mean Chicken Rice?', findRichText: true), findsOneWidget);
     await tester.tap(find.text('Use it'));
     await tester.pump();
-    expect(tester.widget<TextField>(_field('Meal Name')).controller!.text, 'Chicken rice');
+    expect(tester.widget<TextField>(_field('Meal Name')).controller!.text, 'Chicken Rice');
     expect(find.textContaining('Did you mean', findRichText: true), findsNothing);
   });
 }

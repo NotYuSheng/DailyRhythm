@@ -34,35 +34,35 @@ void main() {
   Map<String, FunFact> byTitle(List<FunFact> facts) => {for (final f in facts) f.title: f};
 
   test('food facts: go-to, new foods, biggest treat, weekday habit', () async {
-    await meal(2, 'Chicken rice', price: 4); // earlier ones make it not new
+    await meal(2, 'Chicken Rice', price: 4); // earlier ones make it not new
     for (final d in [2, 9, 16, 23]) {
-      await meal(d, 'Wing rice', price: 5);
+      await meal(d, 'Wing Rice', price: 5);
     }
-    await meal(5, 'Chicken rice', price: 4.5);
-    await meal(12, 'Wagyu don', price: 28);
-    await meal(20, 'Chicken rice', price: 4);
-    final id = (await CatalogRepository(db).findFood('Chicken rice'))!.id;
-    await db.createMealEntry(MealEntry(date: DateTime(2026, 2, 1), time: DateTime(2026, 2, 1), name: 'Chicken rice', foodItemId: id));
+    await meal(5, 'Chicken Rice', price: 4.5);
+    await meal(12, 'Wagyu Don', price: 28);
+    await meal(20, 'Chicken Rice', price: 4);
+    final id = (await CatalogRepository(db).findFood('Chicken Rice'))!.id;
+    await db.createMealEntry(MealEntry(date: DateTime(2026, 2, 1), time: DateTime(2026, 2, 1), name: 'Chicken Rice', foodItemId: id));
 
     final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
-    expect(facts['Go-to food']!.value, anyOf('Wing rice', 'Chicken rice'));
-    expect(facts['New foods tried']!.value, '2', reason: 'Wing rice and Wagyu don; Chicken rice was eaten in February');
+    expect(facts['Go-to food']!.value, anyOf('Wing Rice', 'Chicken Rice'));
+    expect(facts['New foods tried']!.value, '2', reason: 'Wing Rice and Wagyu Don; Chicken rice was eaten in February');
     expect(facts['Biggest treat']!.value, '\$28.00');
-    expect(facts['Biggest treat']!.detail, 'Wagyu don, 12 Mar', reason: 'the total is its own fact');
+    expect(facts['Biggest treat']!.detail, 'Wagyu Don, 12 Mar', reason: 'the total is its own fact');
     expect(facts['Food spending']!.value, '\$60.50');
     expect(facts['Food spending']!.detail, '8 priced meals, \$7.56 each on average');
-    expect((facts['Mondays are for']!.value, facts['Mondays are for']!.detail), ('Wing rice', '4 of 4 times on a Monday'));
+    expect((facts['Mondays are for']!.value, facts['Mondays are for']!.detail), ('Wing Rice', '4 of 4 times on a Monday'));
 
     // Each fact opens the list behind it.
     final treats = await facts['Biggest treat']!.details!();
     expect(treats.rows.length, 8);
     expect(treats.rows.map((r) => r.value).reduce((a, b) => a! > b! ? a : b), 28);
     final foods = await facts['Go-to food']!.details!();
-    expect({for (final r in foods.rows) r.label: r.value}, {'Wing rice': 4, 'Chicken rice': 3, 'Wagyu don': 1});
+    expect({for (final r in foods.rows) r.label: r.value}, {'Wing Rice': 4, 'Chicken Rice': 3, 'Wagyu Don': 1});
     final spending = await facts['Food spending']!.details!();
-    expect({for (final r in spending.rows) r.label: r.value}['Wing rice'], 20);
+    expect({for (final r in spending.rows) r.label: r.value}['Wing Rice'], 20);
     final weekdays = await facts['Mondays are for']!.details!();
-    expect([for (final r in weekdays.rows) (r.group, r.label)], contains(('Mondays', 'Wing rice')));
+    expect([for (final r in weekdays.rows) (r.group, r.label)], contains(('Mondays', 'Wing Rice')));
   });
 
   test('days logged lists the days with nothing logged', () async {
@@ -160,7 +160,7 @@ void main() {
 
   test('events and gifts are their own fact, not food spending', () async {
     for (var d = 1; d <= 5; d++) {
-      await meal(d, 'Chicken rice', price: 4);
+      await meal(d, 'Chicken Rice', price: 4);
     }
     await SpendingRepository(db).save(SpendingEntry(date: DateTime(2026, 3, 8), label: 'A wedding', amount: 200, category: SpendingEntry.gift));
     await SpendingRepository(db).save(SpendingEntry(date: DateTime(2026, 3, 9), label: 'Farewell dinner', amount: 60));
@@ -185,12 +185,12 @@ void main() {
 
   test('the biggest treat is per item, and all time has no new foods', () async {
     for (var d = 1; d <= 5; d++) {
-      await meal(d, 'Chicken rice', price: 4);
+      await meal(d, 'Chicken Rice', price: 4);
     }
-    await db.createMealEntry(MealEntry(date: DateTime(2026, 3, 6), time: DateTime(2026, 3, 6, 12), name: 'Fried rice for six', price: 60, quantity: 6));
-    await meal(7, 'Wagyu don', price: 28);
+    await db.createMealEntry(MealEntry(date: DateTime(2026, 3, 6), time: DateTime(2026, 3, 6, 12), name: 'Fried Rice for six', price: 60, quantity: 6));
+    await meal(7, 'Wagyu Don', price: 28);
     final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
-    expect(facts['Biggest treat']!.detail, startsWith('Wagyu don'));
+    expect(facts['Biggest treat']!.detail, startsWith('Wagyu Don'));
     final all = DateRange(start: DateTime(2020), end: DateTime(2026, 3, 31), label: 'All Time', isAllTime: true);
     expect(byTitle(await FunFactsService(db).factsFor(all, today: DateTime(2026, 3, 31))).containsKey('New foods tried'), isFalse);
   });

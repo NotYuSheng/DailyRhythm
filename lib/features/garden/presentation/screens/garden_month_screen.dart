@@ -11,6 +11,7 @@ import '../widgets/moment_sheet.dart';
 import '../../domain/garden_day.dart';
 import '../../domain/plant.dart';
 import '../garden_style.dart';
+import '../../../tags/presentation/screens/tag_calendar_screen.dart';
 import '../widgets/plant_view.dart';
 import 'garden_today_screen.dart';
 import 'year_gardens_screen.dart';
@@ -132,6 +133,17 @@ class _GardenMonthScreenState extends ConsumerState<GardenMonthScreen> {
                         icon: Icon(icon, size: 18),
                         label: Text(label, style: nunito(14, FontWeight.w800, colors.accent)),
                       ),
+                    // Any tag's days, on a calendar of their own.
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 44),
+                        foregroundColor: colors.accent,
+                        side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
+                      ),
+                      onPressed: () => pickTagCalendar(context, ref),
+                      icon: const Icon(Icons.sell_outlined, size: 18),
+                      label: Text('By tag', style: nunito(14, FontWeight.w800, colors.accent)),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 14),

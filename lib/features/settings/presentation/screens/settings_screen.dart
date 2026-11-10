@@ -1,5 +1,6 @@
 import '../../../ai/presentation/ai_settings_screen.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/app_version.dart';
@@ -22,13 +23,15 @@ import '../../../profile/presentation/profile_screen.dart';
 import 'backup_settings_screen.dart';
 import 'debug_database_screen.dart';
 
+/// Where the app's code is published.
+const sourceCodeUrl = 'github.com/NotYuSheng/DailyRhythm';
+
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
-    final isDarkMode = themeMode == ThemeMode.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -109,14 +112,26 @@ class SettingsScreen extends ConsumerWidget {
           Card(
             child: Column(
               children: [
-                SwitchListTile(
-                  secondary: Icon(isDarkMode ? Icons.dark_mode : Icons.light_mode),
-                  title: const Text('Dark Mode'),
-                  subtitle: Text(isDarkMode ? 'Dark theme enabled' : 'Light theme enabled'),
-                  value: isDarkMode,
-                  onChanged: (bool value) {
-                    ref.read(themeModeProvider.notifier).toggleTheme();
-                  },
+                ListTile(
+                  leading: Icon(switch (themeMode) {
+                    ThemeMode.system => Icons.brightness_auto_outlined,
+                    ThemeMode.light => Icons.light_mode_outlined,
+                    ThemeMode.dark => Icons.dark_mode_outlined,
+                  }),
+                  title: const Text('Appearance'),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: SegmentedButton<ThemeMode>(
+                      showSelectedIcon: false,
+                      segments: const [
+                        ButtonSegment(value: ThemeMode.system, label: Text('System')),
+                        ButtonSegment(value: ThemeMode.light, label: Text('Light')),
+                        ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+                      ],
+                      selected: {themeMode},
+                      onSelectionChanged: (s) => ref.read(themeModeProvider.notifier).setThemeMode(s.first),
+                    ),
+                  ),
                 ),
                 const Divider(height: 1),
                 ListTile(
@@ -194,8 +209,23 @@ class SettingsScreen extends ConsumerWidget {
       children: [
         const SizedBox(height: AppTheme.spacePulse3),
         Text(
-          'Track your daily rhythms:\n• Sleep patterns\n• Meal habits\n• Custom tags\n• Data insights',
+          'A local-first journal that grows a memory garden. Free, with no ads, no accounts and no tracking. '
+          'Its code is public, so you can read every line, check what it does with your data, or build it yourself.',
           style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: AppTheme.spacePulse2),
+        Row(
+          children: [
+            const Expanded(child: SelectableText(sourceCodeUrl)),
+            IconButton(
+              tooltip: 'Copy link',
+              icon: const Icon(Icons.copy, size: 18),
+              onPressed: () {
+                Clipboard.setData(const ClipboardData(text: 'https://$sourceCodeUrl'));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copied')));
+              },
+            ),
+          ],
         ),
       ],
     );

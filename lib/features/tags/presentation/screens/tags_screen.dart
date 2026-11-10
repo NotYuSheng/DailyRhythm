@@ -6,6 +6,7 @@ import '../../../../shared/services/database/database_service.dart';
 import '../../../garden/data/garden_providers.dart';
 import '../../../garden/presentation/garden_style.dart';
 import '../tag_icons.dart';
+import 'tag_calendar_screen.dart';
 import '../../data/models/tag.dart';
 import '../../data/providers/tag_providers.dart';
 
@@ -508,6 +509,19 @@ class _TagSheetState extends ConsumerState<TagSheet> {
               ),
               child: Text(tag == null ? 'Add tag' : 'Save', style: nunito(15, FontWeight.w900, colors.onAccent)),
             ),
+            if (tag != null && uses > 0) ...[
+              const SizedBox(height: 6),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48), foregroundColor: colors.accent),
+                onPressed: () {
+                  final navigator = Navigator.of(context);
+                  navigator.pop();
+                  navigator.push(MaterialPageRoute<void>(builder: (_) => TagCalendarScreen(tag: tag)));
+                },
+                icon: const Icon(Icons.calendar_month_outlined),
+                label: const Text('See on calendar'),
+              ),
+            ],
             if (tag != null) ...[
               const SizedBox(height: 6),
               Row(
