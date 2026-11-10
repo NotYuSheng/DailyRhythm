@@ -11,6 +11,7 @@ import '../../domain/diet_score.dart';
 import '../../domain/portion.dart';
 import '../../domain/food_matcher.dart';
 import '../../domain/food_spelling.dart';
+import '../../../../shared/utils/name_case.dart';
 import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/services/database/repositories/catalog_repository.dart';
 import '../../data/providers/meal_providers.dart';
@@ -407,7 +408,11 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                       _choose(f);
                       _nameFocus.unfocus();
                     },
-                    spelling: _spelling.correct,
+                    // Suggested in the style names are saved in.
+                    spelling: (text, {bool typing = false}) => switch (_spelling.correct(text, typing: typing)) {
+                      final fixed? => tidyName(fixed),
+                      null => null,
+                    },
                     onCorrect: (name) => setState(() {
                       _nameController.text = name;
                       _nameController.selection = TextSelection.collapsed(offset: name.length);
@@ -696,7 +701,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
 
       // Link to the canonical food (by name or alias), adding a new one if
       // needed, and remember the price for next time.
-      final name = _nameController.text.trim();
+      // Names are kept in one style, however they were typed.
+      final name = tidyName(_nameController.text);
       final known = _matcher.exact(name)?.item;
       final estimate = calories == null && known?.kcal == null ? _estimate : null;
       // A small or large portion: this meal's own calories, the food's kept.

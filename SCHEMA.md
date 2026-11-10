@@ -80,6 +80,12 @@ Data only (`shared/services/database/schema_v17.dart`):
 - **Deleted:** the activity tags `Woke Up Early`, `Slept Early`, `Intense Exercise` and `Nap`, along with their `activity_entries` and `journal_entry_tags` rows. Bedtimes, exercise effort and the sleep log now cover them. New installs no longer seed `Intense Exercise`.
 - **Moved:** activity tags whose names read as appointments or one-offs (haircut, barber, salon, dentist, doctor, clinic, check-up, appointment, cab, taxi) go to an `Appointments` group, added to `tag_categories` when any moved.
 
+## v18
+
+Data only (`shared/services/database/schema_v18.dart`):
+- **Tidied names:** food and exercise names, on both the catalog items and the entries, get one style, Title Case (`shared/utils/name_case.dart`). Brand-style capitals (KFC, McChicken) and words with digits stay as typed. Two items whose tidied names match are merged: entries move to the earlier one, and the other's name becomes an alias.
+- **Unused items removed:** `food_items` and `exercise_items` that no entry uses are deleted. From now on, editing or deleting an entry removes an item nothing uses any more; on a rename, its name is kept as an alias of the new one.
+
 ## Export and import
 
 Every table is exported as a CSV in the export zip. New columns go at the end of a

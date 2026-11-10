@@ -54,7 +54,7 @@ Future<void> _createVersion10Schema(Database db) async {
   await db.insert('meal_entries', {
     'date': '2024-03-01T00:00:00.000',
     'time': '2024-03-01T12:30:00.000',
-    'name': 'Wanton noodles',
+    'name': 'Wanton Noodles',
     'price': 3.5,
     'quantity': 1,
   });
@@ -153,7 +153,7 @@ void main() {
 
       test('keeps existing meals and makes price optional', () async {
         final meals = await service.getAllMealEntries();
-        expect(meals.single.name, 'Wanton noodles');
+        expect(meals.single.name, 'Wanton Noodles');
         expect(meals.single.price, 3.5);
 
         final db = await service.database;

@@ -6,6 +6,7 @@ import '../../../../features/exercise/domain/exercise_matcher.dart';
 import '../../../../features/meals/data/models/food_item.dart';
 import '../../../../features/meals/domain/diet_score.dart';
 import '../../../../features/meals/domain/food_matcher.dart';
+import '../../../utils/name_case.dart';
 import '../database_service.dart';
 
 /// Canonical foods and exercises, with aliases, for autocomplete.
@@ -18,7 +19,16 @@ class CatalogRepository {
 
   /// Inserts [item], or merges it into the food with the same name
   /// (aliases are combined; non-null fields overwrite). Returns its id.
+  /// Names are kept in one style ([tidyName]).
   Future<int> saveFood(FoodItem item) async {
+    item = FoodItem(
+      name: tidyName(item.name),
+      aliases: item.aliases,
+      kcal: item.kcal,
+      kcalSource: item.kcalSource,
+      lastPrice: item.lastPrice,
+      healthTags: item.healthTags,
+    );
     final db = await _db.database;
     return db.transaction((txn) async {
       final existing = await txn.query('food_items', where: 'name = ?', whereArgs: [item.name]);
@@ -92,7 +102,10 @@ class CatalogRepository {
 
   // ==================== Exercises ====================
 
+  /// Inserts [item] or merges it into the exercise of that name, kept in
+  /// one style ([tidyName]). Returns its id.
   Future<int> saveExercise(ExerciseItem item) async {
+    item = ExerciseItem(name: tidyName(item.name), aliases: item.aliases, category: item.category);
     final db = await _db.database;
     return db.transaction((txn) async {
       final existing = await txn.query('exercise_items', where: 'name = ?', whereArgs: [item.name]);
