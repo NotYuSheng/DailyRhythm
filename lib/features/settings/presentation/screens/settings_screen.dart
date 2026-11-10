@@ -28,7 +28,6 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
-    final isDarkMode = themeMode == ThemeMode.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -109,14 +108,26 @@ class SettingsScreen extends ConsumerWidget {
           Card(
             child: Column(
               children: [
-                SwitchListTile(
-                  secondary: Icon(isDarkMode ? Icons.dark_mode : Icons.light_mode),
-                  title: const Text('Dark Mode'),
-                  subtitle: Text(isDarkMode ? 'Dark theme enabled' : 'Light theme enabled'),
-                  value: isDarkMode,
-                  onChanged: (bool value) {
-                    ref.read(themeModeProvider.notifier).toggleTheme();
-                  },
+                ListTile(
+                  leading: Icon(switch (themeMode) {
+                    ThemeMode.system => Icons.brightness_auto_outlined,
+                    ThemeMode.light => Icons.light_mode_outlined,
+                    ThemeMode.dark => Icons.dark_mode_outlined,
+                  }),
+                  title: const Text('Appearance'),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: SegmentedButton<ThemeMode>(
+                      showSelectedIcon: false,
+                      segments: const [
+                        ButtonSegment(value: ThemeMode.system, label: Text('System')),
+                        ButtonSegment(value: ThemeMode.light, label: Text('Light')),
+                        ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+                      ],
+                      selected: {themeMode},
+                      onSelectionChanged: (s) => ref.read(themeModeProvider.notifier).setThemeMode(s.first),
+                    ),
+                  ),
                 ),
                 const Divider(height: 1),
                 ListTile(

@@ -6,10 +6,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ThemeModeNotifier extends Notifier<ThemeMode> {
   static const String _themeModeKey = 'theme_mode';
 
+  /// Follows the phone's light or dark setting until the user picks one.
   @override
   ThemeMode build() {
     _loadThemeMode();
-    return ThemeMode.light;
+    return ThemeMode.system;
   }
 
   /// Load the saved theme mode from shared preferences
@@ -57,7 +58,7 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
       case 'system':
         return ThemeMode.system;
       default:
-        return ThemeMode.light;
+        return ThemeMode.system;
     }
   }
 
