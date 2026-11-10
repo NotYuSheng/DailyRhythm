@@ -6,7 +6,8 @@
 
 <p align="center">
   <b>A local-first daily journal that grows a memory garden.</b><br>
-  Log how your day went, what you ate, how you slept and how you moved, and every day becomes a plant.
+  Log how your day went, what you ate, how you slept and how you moved, and every day becomes a plant.<br>
+  Free, no ads, no accounts, and every line of code is public.
 </p>
 
 <p align="center">
@@ -57,6 +58,14 @@ The numbers are still there when you want them, in Metrics. They show patterns w
 
 Read the full [privacy policy](https://notyusheng.github.io/DailyRhythm/privacy-policy.html).
 
+## Code you can check
+
+A journal holds some of the most personal things you'll write down, so you shouldn't have to take its privacy on trust. All of DailyRhythm's code is here:
+
+- **Check the promises:** what's stored, what's sent and when (the AI and backup code are short and readable).
+- **Build it yourself** and install your own copy.
+- **Suggest changes or report bugs** in [Issues](https://github.com/NotYuSheng/DailyRhythm/issues).
+
 ## Build it yourself
 
 DailyRhythm is a Flutter app (Android first). To run it:
@@ -70,6 +79,6 @@ Setup, signing, releases and Google Sign-In configuration are in [DEVELOPMENT.md
 
 ## Licence
 
-[MIT with the Commons Clause](LICENSE): free to use, study and change; not to be sold.
+[MIT with the Commons Clause](LICENSE): free to use, study, change and share; not to be sold. (Because of the no-selling clause, this is *source-available* rather than open source by the OSI definition.)
 
 Made by [NotYuSheng](https://github.com/NotYuSheng).
