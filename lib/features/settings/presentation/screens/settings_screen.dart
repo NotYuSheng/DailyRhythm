@@ -1,5 +1,6 @@
 import '../../../ai/presentation/ai_settings_screen.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/app_version.dart';
@@ -21,6 +22,9 @@ import '../../../metrics/data/providers/metrics_providers.dart';
 import '../../../profile/presentation/profile_screen.dart';
 import 'backup_settings_screen.dart';
 import 'debug_database_screen.dart';
+
+/// Where the app's code is published.
+const sourceCodeUrl = 'github.com/NotYuSheng/DailyRhythm';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -205,8 +209,23 @@ class SettingsScreen extends ConsumerWidget {
       children: [
         const SizedBox(height: AppTheme.spacePulse3),
         Text(
-          'Track your daily rhythms:\n• Sleep patterns\n• Meal habits\n• Custom tags\n• Data insights',
+          'A local-first journal that grows a memory garden. Free, with no ads, no accounts and no tracking. '
+          'Its code is public, so you can read every line, check what it does with your data, or build it yourself.',
           style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: AppTheme.spacePulse2),
+        Row(
+          children: [
+            const Expanded(child: SelectableText(sourceCodeUrl)),
+            IconButton(
+              tooltip: 'Copy link',
+              icon: const Icon(Icons.copy, size: 18),
+              onPressed: () {
+                Clipboard.setData(const ClipboardData(text: 'https://$sourceCodeUrl'));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copied')));
+              },
+            ),
+          ],
         ),
       ],
     );
