@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../shared/models/activity_entry.dart';
+import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/providers/common_providers.dart';
 import '../../../../shared/utils/date_utils.dart';
 import '../../../exercise/data/models/exercise_entry.dart';
@@ -168,9 +169,16 @@ class DayLogCard extends ConsumerWidget {
           colors: colors,
           adds: true,
           onTap: () => open(AddMealScreen(date: day)),
+          onReorder: (from, to) async {
+            final ids = [for (final m in meals) m.id!];
+            ids.insert(to, ids.removeAt(from));
+            await ref.read(databaseProvider).reorderMeals(ids);
+            ref.invalidate(mealEntriesProvider(day));
+          },
           items: [
             for (final m in meals)
               _Item(
+                key: ValueKey(('meal', m.id)),
                 text: m.quantity > 1 ? '${m.quantity}× ${m.name}' : m.name,
                 // Its calories, then how healthy it is and why.
                 detail: [
@@ -255,6 +263,7 @@ class _Tile extends StatelessWidget {
     required this.onTap,
     this.adds = false,
     this.items = const [],
+    this.onReorder,
   });
 
   final DayTone tone;
@@ -268,6 +277,10 @@ class _Tile extends StatelessWidget {
   /// Tapping adds an entry (a + button) rather than opening one (a chevron).
   final bool adds;
   final List<Widget> items;
+
+  /// When set, the items can be dragged into another order (press and
+  /// hold, or use the handle); called with the old and new positions.
+  final void Function(int from, int to)? onReorder;
 
   @override
   Widget build(BuildContext context) {
@@ -320,7 +333,34 @@ class _Tile extends StatelessWidget {
             if (items.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
-                child: Column(children: items),
+                child: onReorder == null || items.length < 2
+                    ? Column(children: items)
+                    : ReorderableListView(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        buildDefaultDragHandles: false,
+                        proxyDecorator: (child, _, _) => Material(color: colors.card, elevation: 4, borderRadius: BorderRadius.circular(10), child: child),
+                        onReorderItem: (from, to) => onReorder!(from, to),
+                        children: [
+                          for (final (i, item) in items.indexed)
+                            ReorderableDelayedDragStartListener(
+                              key: item.key ?? ValueKey(i),
+                              index: i,
+                              child: Row(
+                                children: [
+                                  Expanded(child: item),
+                                  ReorderableDragStartListener(
+                                    index: i,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(left: 4),
+                                      child: Icon(Icons.drag_indicator, size: 20, color: colors.muted, semanticLabel: 'Drag to reorder'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
               ),
           ],
         ),
@@ -331,7 +371,7 @@ class _Tile extends StatelessWidget {
 
 /// One logged entry in its tile; tap to edit.
 class _Item extends StatelessWidget {
-  const _Item({required this.text, required this.colors, required this.onTap, this.trailing, this.detail});
+  const _Item({super.key, required this.text, required this.colors, required this.onTap, this.trailing, this.detail});
 
   final String text;
 

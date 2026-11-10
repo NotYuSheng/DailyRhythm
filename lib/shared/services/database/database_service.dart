@@ -11,6 +11,7 @@ import 'schema_v15.dart';
 import 'schema_v16.dart';
 import 'schema_v17.dart';
 import 'schema_v18.dart';
+import 'schema_v19.dart';
 import '../../../features/sleep/data/models/sleep_entry.dart';
 import '../../models/nap_entry.dart';
 import '../../../features/meals/data/models/meal_entry.dart';
@@ -24,7 +25,7 @@ class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
   static Database? _database;
 
-  static const int schemaVersion = 18;
+  static const int schemaVersion = 19;
 
   /// Overrides the database file location (e.g. `inMemoryDatabasePath`).
   @visibleForTesting
@@ -254,6 +255,9 @@ class DatabaseService {
     }
     if (oldVersion < 18) {
       await SchemaV18.apply(db);
+    }
+    if (oldVersion < 19) {
+      await SchemaV19.apply(db);
     }
   }
 
@@ -530,6 +534,7 @@ class DatabaseService {
     await SchemaV15.apply(db);
     await SchemaV16.apply(db);
     await SchemaV17.apply(db);
+    await SchemaV19.apply(db);
   }
 
   // ==================== Sleep Entry CRUD ====================
@@ -773,8 +778,8 @@ class DatabaseService {
       'meal_entries',
       where: 'date >= ? AND date < ?',
       whereArgs: [startOfDay.toIso8601String(), endOfDay.toIso8601String()],
-      // In the order they were added, first at the top.
-      orderBy: 'time ASC, id ASC',
+      // In the user's order when they set one, then as added.
+      orderBy: 'sort_order IS NULL, sort_order ASC, time ASC, id ASC',
     );
 
     return maps.map((map) => MealEntry.fromMap(map)).toList();
@@ -784,6 +789,16 @@ class DatabaseService {
     final db = await database;
     final maps = await db.query('meal_entries', orderBy: 'date DESC, time DESC, id DESC');
     return maps.map((map) => MealEntry.fromMap(map)).toList();
+  }
+
+  /// Puts a day's meals in the order of [mealIds], first at the top.
+  Future<void> reorderMeals(List<int> mealIds) async {
+    final db = await database;
+    await db.transaction((txn) async {
+      for (final (i, id) in mealIds.indexed) {
+        await txn.update('meal_entries', {'sort_order': i}, where: 'id = ?', whereArgs: [id]);
+      }
+    });
   }
 
   /// Saves a changed meal. A food it no longer uses that nothing else
