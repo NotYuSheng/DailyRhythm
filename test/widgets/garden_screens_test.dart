@@ -166,6 +166,24 @@ void main() {
     expect(find.text('Coffee with Sam'), findsNothing);
   });
 
+  testWidgets('meals on Today can be dragged into another order', (tester) async {
+    for (final (name, hour) in [('Kaya Toast', 8), ('Laksa', 19)]) {
+      await db.createMealEntry(MealEntry(date: today, time: DateTime(today.year, today.month, today.day, hour), name: name, quantity: 1));
+    }
+    await pump(tester, const GardenTodayScreen());
+    await tester.scrollUntilVisible(find.text('Laksa'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
+    final handles = find.byIcon(Icons.drag_indicator);
+    expect(handles, findsNWidgets(2));
+    final gesture = await tester.startGesture(tester.getCenter(handles.last));
+    await tester.pump(const Duration(milliseconds: 100));
+    await gesture.moveBy(const Offset(0, -120));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect([for (final m in await db.getMealEntriesByDate(today)) m.name], ['Laksa', 'Kaya Toast']);
+  });
+
   testWidgets('a moment’s tags are grouped by category, symptoms last', (tester) async {
     await pump(tester, const GardenTodayScreen());
     await tester.scrollUntilVisible(find.text('Log a moment'), 200, scrollable: find.byType(Scrollable).first);
