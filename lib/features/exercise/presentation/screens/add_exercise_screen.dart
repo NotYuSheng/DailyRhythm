@@ -1,4 +1,6 @@
 import 'package:material_ui/material_ui.dart';
+
+import '../../../../shared/utils/name_case.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/exercise_entry.dart';
@@ -780,6 +782,8 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
       // link (imports can link a name to a differently named item), and
       // keeps the imported line.
       final db = ref.read(databaseProvider);
+      // Names are kept in one style, however they were typed.
+      if (entry.exerciseName case final typed?) entry = entry.copyWith(exerciseName: tidyName(typed));
       final old = widget.entry;
       final unchanged = old != null &&
           old.type == entry.type &&
