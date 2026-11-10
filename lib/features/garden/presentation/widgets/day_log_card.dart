@@ -25,6 +25,7 @@ import '../../../tags/data/providers/tag_providers.dart';
 import '../../data/garden_providers.dart';
 import '../../../tags/presentation/tag_icons.dart';
 import '../garden_style.dart';
+import '../../../tags/presentation/screens/tag_calendar_screen.dart';
 import '../screens/activities_screen.dart';
 
 /// Refreshes entries and plants after an edit. Every day, not just [day]:
@@ -54,8 +55,7 @@ String moneyTotals(Iterable<(double, String)> amounts) {
 
 /// "$3.50" for Singapore dollars, the app's home currency; "USD 22.00"
 /// for anything else.
-String formatMoney(double amount, String currency) =>
-    currency == 'SGD' ? '\$${amount.toStringAsFixed(2)}' : '$currency ${amount.toStringAsFixed(2)}';
+String formatMoney(double amount, String currency) => currency == 'SGD' ? '\$${amount.toStringAsFixed(2)}' : '$currency ${amount.toStringAsFixed(2)}';
 
 /// The day's stats: sleep, meals, exercise and activities, each opening
 /// its editor.
@@ -91,22 +91,25 @@ class DayLogCard extends ConsumerWidget {
     final bedTonight = night?.sleepTime;
     final naps = night?.napHours ?? 0;
     final isToday = dayOf(DateTime.now()) == dayOf(day);
-    final spentText = moneyTotals([for (final m in meals) if (m.price != null) (m.price!, m.currency)]);
+    final spentText = moneyTotals([
+      for (final m in meals)
+        if (m.price != null) (m.price!, m.currency),
+    ]);
     // Calories as logged or from each food; an estimate, so "≈".
     final foodKcal = ref.watch(foodCaloriesProvider).value ?? const <int, double>{};
     final foodTags = ref.watch(foodHealthTagsProvider).value ?? const <int, List<String>>{};
     final kcal = [for (final m in meals) ?m.caloriesWith(foodKcal)];
     final weight = ref.watch(profileProvider).value?.weightKg ?? Effort.defaultWeightKg;
     double burned(ExerciseEntry x) => Effort.kcalBurned(
-          run: x.type == ExerciseType.run,
-          weightKg: weight,
-          name: x.exerciseName,
-          reps: x.reps,
-          sets: x.sets,
-          km: x.distance,
-          notes: x.notes,
-          duration: x.duration,
-        );
+      run: x.type == ExerciseType.run,
+      weightKg: weight,
+      name: x.exerciseName,
+      reps: x.reps,
+      sets: x.sets,
+      km: x.distance,
+      notes: x.notes,
+      duration: x.duration,
+    );
     final burnedTotal = exercises.fold(0.0, (sum, x) => sum + burned(x));
     String approx(double kcal) => '≈${NumberFormat.decimalPattern().format(kcal.round())} kcal';
     final dayTags = [for (final a in activities) ?tags[a.tagId]]..sort((a, b) => a.name.compareTo(b.name));
@@ -130,10 +133,10 @@ class DayLogCard extends ConsumerWidget {
           headline: wentToBed != null && woke != null
               ? '${time.format(wentToBed)} → ${time.format(woke)}'
               : woke != null
-                  ? 'Woke ${time.format(woke)}'
-                  : hours != null
-                      ? formatHours(hours)
-                      : 'Not logged',
+              ? 'Woke ${time.format(woke)}'
+              : hours != null
+              ? formatHours(hours)
+              : 'Not logged',
           summary: [
             if (hours != null && woke != null)
               '${formatHours(hours)} asleep last night'
@@ -162,7 +165,7 @@ class DayLogCard extends ConsumerWidget {
           headline: meals.isEmpty
               ? 'Add a meal'
               : [if (kcalTotal != null) '≈${number.format(kcalTotal.round())} kcal', if (spentText.isNotEmpty) spentText].join(' · ').ifEmpty ??
-                  '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'}',
+                    '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'}',
           summary: meals.isEmpty
               ? 'Breakfast, lunch, dinner, snacks'
               : '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'}${health == null ? '' : ' · health $health/5'}',
@@ -195,7 +198,11 @@ class DayLogCard extends ConsumerWidget {
           tone: DayTone.move,
           icon: Icons.fitness_center_outlined,
           label: 'Exercise',
-          headline: exercises.isEmpty ? 'Add exercise' : effort == null ? '${exercises.length} logged' : '${Effort.labelFor(effort)} effort',
+          headline: exercises.isEmpty
+              ? 'Add exercise'
+              : effort == null
+              ? '${exercises.length} logged'
+              : '${Effort.labelFor(effort)} effort',
           summary: exercises.isEmpty ? 'Workouts, runs, walks' : '${exercises.length} logged · ${approx(burnedTotal)} burned',
           colors: colors,
           adds: true,
@@ -222,7 +229,12 @@ class DayLogCard extends ConsumerWidget {
           onTap: () => open(AddSpendingScreen(date: day)),
           items: [
             for (final e in spending)
-              _Item(text: e.label, trailing: formatMoney(e.amount, e.currency), colors: colors, onTap: () => open(AddSpendingScreen(entry: e))),
+              _Item(
+                text: e.label,
+                trailing: formatMoney(e.amount, e.currency),
+                colors: colors,
+                onTap: () => open(AddSpendingScreen(entry: e)),
+              ),
           ],
         ),
         _Tile(
@@ -321,7 +333,10 @@ class _Tile extends StatelessWidget {
                       Container(
                         width: 40,
                         height: 40,
-                        decoration: BoxDecoration(border: Border.all(color: colors.hill, width: 1.5), borderRadius: BorderRadius.circular(13)),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: colors.hill, width: 1.5),
+                          borderRadius: BorderRadius.circular(13),
+                        ),
                         child: Icon(Icons.add, size: 20, color: colors.accent, semanticLabel: 'Add'),
                       )
                     else
@@ -339,7 +354,8 @@ class _Tile extends StatelessWidget {
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         buildDefaultDragHandles: false,
-                        proxyDecorator: (child, _, _) => Material(color: colors.card, elevation: 4, borderRadius: BorderRadius.circular(10), child: child),
+                        proxyDecorator: (child, _, _) =>
+                            Material(color: colors.card, elevation: 4, borderRadius: BorderRadius.circular(10), child: child),
                         onReorderItem: (from, to) => onReorder!(from, to),
                         children: [
                           for (final (i, item) in items.indexed)
@@ -389,7 +405,9 @@ class _Item extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 40),
         child: DecoratedBox(
-          decoration: BoxDecoration(border: Border(top: BorderSide(color: colors.ground, width: 1.5))),
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: colors.ground, width: 1.5)),
+          ),
           child: Row(
             children: [
               Expanded(
@@ -423,16 +441,24 @@ class _TagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(8, 5, 11, 5),
-      decoration: BoxDecoration(color: tone.tint(context), borderRadius: BorderRadius.circular(999)),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(tagIcon(tag), size: 16, color: tone.ink(context)),
-          const SizedBox(width: 5),
-          Text(tag.name, style: nunito(13, FontWeight.w800, colors.ink)),
-        ],
+    // Tapping a tag shows every day it was logged.
+    return Material(
+      color: tone.tint(context),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: () => openTagCalendar(context, tag),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 5, 11, 5),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(tagIcon(tag), size: 16, color: tone.ink(context)),
+              const SizedBox(width: 5),
+              Text(tag.name, style: nunito(13, FontWeight.w800, colors.ink)),
+            ],
+          ),
+        ),
       ),
     );
   }
