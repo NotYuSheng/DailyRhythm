@@ -52,6 +52,26 @@ void main() {
     expect(await FoodSourceTags(db).recoverFrom(path), 0, reason: 'running it again adds nothing');
   });
 
+  test('a failed run keeps what was matched and the tags, and the next run carries on', () async {
+    final mon = DateTime(2026, 3, 2), tue = DateTime(2026, 3, 3);
+    await tagDay(mon, 'Takeout');
+    final only = await meal(mon, 'Chicken Rice');
+    await tagDay(tue, 'Fast Food');
+    await meal(tue, 'Toast', hour: 8);
+    await meal(tue, 'McSpicy');
+
+    await expectLater(FoodSourceTags(db).run(ai: _Down()), throwsA(isA<AiException>()));
+    expect((await db.getMealEntriesByDate(mon)).single.foodSource, FoodSource.takeout, reason: 'the obvious day was saved');
+    expect(await FoodSourceTags(db).any(), isTrue, reason: 'tags kept to carry on');
+    expect((await FoodSourceTags(db).days()).where((d) => d.meals.isNotEmpty).map((d) => d.date), ['2026-03-03']);
+
+    final result = await FoodSourceTags(db).run(ai: _All(FoodSource.fastFood));
+    expect(result.mealsSet, 2);
+    expect([for (final m in await db.getMealEntriesByDate(tue)) m.foodSource], [FoodSource.fastFood, FoodSource.fastFood]);
+    expect(await FoodSourceTags(db).any(), isFalse);
+    expect(only, isPositive);
+  });
+
   test('old tag names map to meal sources; Supplement has none', () {
     expect(FoodSourceTags.sourceFor('Fast Food'), FoodSource.fastFood);
     expect(FoodSourceTags.sourceFor('Free Food'), FoodSource.free);
@@ -98,7 +118,33 @@ void main() {
 /// An assistant that matches nothing.
 class _NoMatches implements AiClient {
   @override
-  Future<String> complete({required String system, required String user, List<AiTool> tools = const []}) async => '{"meals": {}}';
+  Future<String> complete({required String system, required String user, List<AiTool> tools = const [], Duration timeout = AiClient.defaultTimeout}) async =>
+      '{"meals": {}}';
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// An assistant that fails every time.
+class _Down implements AiClient {
+  @override
+  Future<String> complete({required String system, required String user, List<AiTool> tools = const [], Duration timeout = AiClient.defaultTimeout}) async =>
+      throw const AiException('down');
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// An assistant that gives every meal it is asked about [source].
+class _All implements AiClient {
+  _All(this.source);
+  final String source;
+
+  @override
+  Future<String> complete({required String system, required String user, List<AiTool> tools = const [], Duration timeout = AiClient.defaultTimeout}) async {
+    final ids = [for (final line in user.split('\n')) for (final m in line.split(' | ').last.split('; ')) m.split(' ').first];
+    return '{"meals": {${ids.map((id) => '"$id": "$source"').join(', ')}}}';
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

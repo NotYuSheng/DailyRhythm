@@ -20,7 +20,7 @@ const tagKinds = [
 
 /// Refreshes everything that shows tags after one changes. Takes the
 /// container, read before any await, so it works after a sheet closes.
-void _invalidateTags(ProviderContainer container) {
+void invalidateTags(ProviderContainer container) {
   for (final provider in [allTagsProvider, allTagCategoriesProvider, tagUseCountsProvider]) {
     container.invalidate(provider);
   }
@@ -122,7 +122,7 @@ class _OldFoodSourceCardState extends ConsumerState<_OldFoodSourceCard> {
       builder: (context) => AlertDialog(
         title: const Text('Move onto meals?'),
         content: const Text('Days with one tag and one meal get that meal’s source. For the others, the AI assistant matches tags to meals; '
-            'this sends the dates and meal names to your AI provider, and can take a while. Keep this screen open. '
+            'this sends the dates and meal names to your AI provider, and can take a while. Keep this screen open; if it stops, tap Move again to carry on. '
             'The tags are then deleted, with Supplement.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
@@ -139,13 +139,17 @@ class _OldFoodSourceCardState extends ConsumerState<_OldFoodSourceCard> {
           if (mounted) setState(() => _progress = 'Matching days $done of $total…');
         },
       );
-      _invalidateTags(container);
+      invalidateTags(container);
       messenger.showSnackBar(SnackBar(
         content: Text('Set where ${result.mealsSet} ${result.mealsSet == 1 ? 'meal' : 'meals'} came from'
             '${result.daysSkipped > 0 ? '. ${result.daysSkipped} ${result.daysSkipped == 1 ? 'day had' : 'days had'} no meal to match' : ''}.'),
       ));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Nothing changed: $e')));
+      invalidateTags(container);
+      messenger.showSnackBar(SnackBar(
+        duration: const Duration(seconds: 8),
+        content: Text('Stopped: $e Meals matched so far keep their source; tap Move onto meals to carry on.'),
+      ));
     } finally {
       if (mounted) setState(() => _progress = null);
     }
@@ -296,7 +300,7 @@ class _KindCard extends ConsumerWidget {
       case 'delete':
         await db.deleteGroup(group, kind);
     }
-    _invalidateTags(container);
+    invalidateTags(container);
   }
 
   /// Renames a group for this kind's tags only; renaming to a group that
@@ -311,7 +315,7 @@ class _KindCard extends ConsumerWidget {
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Couldn’t rename the group: $e')));
     }
-    _invalidateTags(container);
+    invalidateTags(container);
   }
 }
 
@@ -456,7 +460,7 @@ class _TagSheetState extends ConsumerState<TagSheet> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
-    _invalidateTags(container);
+    invalidateTags(container);
     if (mounted) navigator.pop();
   }
 
