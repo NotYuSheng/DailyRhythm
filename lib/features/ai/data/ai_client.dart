@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -66,6 +67,9 @@ class AiClient {
   /// Look-ups the model may make for one answer before it must reply.
   static const maxToolRounds = 4;
 
+  /// How long one answer may take.
+  static const defaultTimeout = Duration(seconds: 45);
+
   Uri get _endpoint {
     var base = settings.baseUrl.trim();
     while (base.endsWith('/')) {
@@ -80,7 +84,7 @@ class AiClient {
   /// With [tools] the model may ask for look-ups first; each is run and its
   /// result sent back, up to [maxToolRounds] times. A model or server that
   /// doesn't do tools is asked again without them.
-  Future<String> complete({required String system, required String user, List<AiTool> tools = const []}) async {
+  Future<String> complete({required String system, required String user, List<AiTool> tools = const [], Duration timeout = defaultTimeout}) async {
     if (!settings.ready) throw const AiException('Set up the AI assistant in Settings first.');
     final messages = <Map<String, dynamic>>[
       {'role': 'system', 'content': system},
@@ -91,12 +95,12 @@ class AiClient {
       final last = round >= maxToolRounds;
       Map<String, dynamic> message;
       try {
-        message = await _send(messages, last ? const [] : offered);
+        message = await _send(messages, last ? const [] : offered, timeout);
       } on _Rejected {
         // Most likely no tool support: answer from what it knows.
         if (offered.isEmpty) throw const AiException('The provider answered 400. Check the model name.');
         offered = const [];
-        message = await _send(messages, const []);
+        message = await _send(messages, const [], timeout);
       }
       final calls = (message['tool_calls'] as List?)?.whereType<Map>().toList() ?? const [];
       if (calls.isEmpty || offered.isEmpty || last) {
@@ -129,7 +133,7 @@ class AiClient {
       content is String ? content : content is List ? content.map((p) => p is Map ? p['text'] ?? '' : '').join() : '';
 
   /// One request; the reply's message.
-  Future<Map<String, dynamic>> _send(List<Map<String, dynamic>> messages, List<AiTool> tools) async {
+  Future<Map<String, dynamic>> _send(List<Map<String, dynamic>> messages, List<AiTool> tools, Duration timeout) async {
     final http.Response response;
     try {
       response = await _http
@@ -145,9 +149,11 @@ class AiClient {
               if (tools.isNotEmpty) 'tools': [for (final t in tools) t.toJson()],
             }),
           )
-          .timeout(const Duration(seconds: 45));
+          .timeout(timeout);
     } on FormatException {
       throw const AiException('That address doesn’t look right.');
+    } on TimeoutException {
+      throw AiException('The AI took longer than ${timeout.inSeconds} seconds to answer. Try again.');
     } catch (e) {
       throw AiException('Couldn’t reach ${_endpoint.host}. Check the address and your connection.');
     }

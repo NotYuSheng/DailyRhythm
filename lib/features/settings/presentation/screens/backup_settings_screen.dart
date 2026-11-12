@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart' show GoogleSignInException;
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../tags/presentation/screens/tags_screen.dart' show invalidateTags;
 import '../../../../shared/services/backup/google_drive_service.dart';
 import '../../../../shared/services/backup/backup_service.dart';
 
@@ -199,9 +201,12 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
 
     setState(() => _isLoading = true);
 
+    if (!mounted) return;
+    final container = ProviderScope.containerOf(context);
     final result = choice == 'tags'
         ? await _backupService.recoverFoodTagsFromGoogleDrive(backup!.id)
         : await _backupService.restoreFromGoogleDrive(fileId: backup?.id);
+    if (choice == 'tags' && result.success) invalidateTags(container);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
