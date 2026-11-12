@@ -129,13 +129,16 @@ class FoodSourceTags {
   static List<SourceDay> unclear(Iterable<SourceDay> days) =>
       [for (final d in days) if (d.meals.isNotEmpty && (d.started || !(d.sources.length == 1 && d.meals.length == 1))) d];
 
-  static const _system = 'Each day below was tagged, as a whole, with where some of its food came from. '
-      'Work out which meals each tag was about, from the meal names and times. '
+  // Checked against real days: with "at least one meal per tag" a briefly
+  // thinking model stopped at one meal, so every meal a tag fits is asked for.
+  static const _system = 'Each day below was tagged, as a whole, with where its food came from. '
+      'For each meal, pick the source it most likely came from, from that day\'s tags only. '
       'Sources: takeout (bought and taken away), fast_food (burger, fried chicken or pizza chains and the like), '
       'homemade (cooked at home), free (given or treated), restaurant (sit-down), food_court (hawker centre, '
       'food court, coffee shop stall), delivery (delivered). '
-      'Rules: only use a source tagged on that day; give each tag to at least one meal of that day when any fits; '
-      'a meal gets at most one source; leave a meal out when no tag fits it (a snack or drink often has none). '
+      'Rules: give a source to every meal one fits, not just one meal per tag; with one tag, every proper meal gets it; '
+      'with several, split them by what each meal is, and use every tag at least once. '
+      'Leave out only things no tag fits, such as a snack, drink or supplement. '
       'Answer with only a JSON object: {"meals": {"<meal id>": "<source>", ...}}. No other text.';
 
   /// The prompt lines for [days]: "2026-03-04 | tags: takeout | 12 08:10 Kaya Toast; 13 Chicken Rice".
@@ -210,7 +213,7 @@ class FoodSourceTags {
   }
 
   Future<Map<int, String>> _ask(AiClient ai, List<SourceDay> part) async =>
-      parse(await ai.complete(system: _system, user: describe(part), timeout: timeout), part);
+      parse(await ai.complete(system: _system, user: describe(part), timeout: timeout, quick: true), part);
 
   /// Brings the movable food-source tags, with the days they were on, back
   /// from the backup database at [path], leaving everything else as it is.
