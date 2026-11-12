@@ -34,6 +34,13 @@ List<TimeOfDay> laterTimes(DateTime now, {int count = 4}) {
   return [for (final m in times) TimeOfDay(hour: m ~/ 60 % 24, minute: m % 60)];
 }
 
+/// Whether [now] is still the night that starts on [day]: the day itself, or
+/// the small hours after it. A bedtime of 00:30 still belongs to the day before.
+bool stillNightOf(DateTime day, DateTime now) {
+  final today = dayOf(now);
+  return today == dayOf(day) || (today == DateTime(day.year, day.month, day.day + 1) && now.hour < 6);
+}
+
 class AddSleepScreen extends ConsumerStatefulWidget {
   final SleepEntry? entry; // For editing existing entries
   final DateTime? date; // For specifying the date when creating new entries
@@ -217,7 +224,9 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
   }) {
     final format = DateFormat('HH:mm');
     final now = DateTime.now();
-    final isToday = dayOf(now) == dayOf(_date);
+    // Waking is in the morning of this day. A bedtime can be past midnight,
+    // so Now is offered for it until 6 the next morning.
+    final isToday = soon ? stillNightOf(_date, now) : dayOf(now) == dayOf(_date);
     final selected = time == null ? null : TimeOfDay.fromDateTime(time);
     // Today: Now first; for bedtime also the next few rounded times, since
     // it is often logged just before going to bed. Then the usual times.
