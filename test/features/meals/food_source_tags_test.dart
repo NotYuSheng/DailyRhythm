@@ -39,7 +39,7 @@ void main() {
     expect(() => FoodSourceTags.parse('no idea', days), throwsA(isA<AiException>()));
   });
 
-  test('the obvious days move without the AI, and every food-source tag goes', () async {
+  test('the obvious days move directly, and every food-source tag goes', () async {
     final mon = DateTime(2026, 3, 2), tue = DateTime(2026, 3, 3), wed = DateTime(2026, 3, 4);
     await tagDay(mon, 'Takeout');
     final chickenRice = await meal(mon, 'Chicken Rice');
@@ -53,7 +53,10 @@ void main() {
     expect(days.map((d) => d.date), ['2026-03-02', '2026-03-03'], reason: 'Supplement moves nowhere');
     expect(FoodSourceTags.unclear(days).single.date, '2026-03-03');
 
-    final result = await FoodSourceTags(db).run();
+    await expectLater(FoodSourceTags(db).run(), throwsA(isA<AiException>()), reason: 'unclear days need the AI');
+    expect(await FoodSourceTags(db).any(), isTrue, reason: 'nothing deleted');
+
+    final result = await FoodSourceTags(db).run(ai: _NoMatches());
     expect(result.mealsSet, 1);
     expect(result.daysSkipped, 1);
     final meals = {for (final d in [mon, tue, wed]) for (final m in await db.getMealEntriesByDate(d)) m.id: m.foodSource};
@@ -62,4 +65,13 @@ void main() {
     expect((await db.getAllTags()).where((t) => t.kind == TagKind.foodSource), isEmpty);
     expect(await FoodSourceTags(db).any(), isFalse);
   });
+}
+
+/// An assistant that matches nothing.
+class _NoMatches implements AiClient {
+  @override
+  Future<String> complete({required String system, required String user, List<AiTool> tools = const []}) async => '{"meals": {}}';
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

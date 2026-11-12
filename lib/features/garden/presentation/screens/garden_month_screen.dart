@@ -110,7 +110,11 @@ class _GardenMonthScreenState extends ConsumerState<GardenMonthScreen> {
                   today: today,
                   picked: _picked,
                   colors: colors,
-                  onPick: (d) => setState(() => _picked = d),
+                  // A plant opens its day; coming back, it stays picked.
+                  onPick: (d) {
+                    setState(() => _picked = d);
+                    Navigator.push(context, MaterialPageRoute<void>(builder: (_) => GardenTodayScreen(day: d)));
+                  },
                 ),
                 const SizedBox(height: 14),
                 _DayCard(day: picked, colors: colors),

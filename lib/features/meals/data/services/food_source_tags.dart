@@ -49,7 +49,7 @@ class FoodSourceTags {
   final DatabaseService db;
 
   /// Days per AI request.
-  static const batch = 40;
+  static const batch = 20;
 
   /// The meal source an old tag stands for; null for one with none
   /// (Supplement), which is deleted without moving.
@@ -149,14 +149,15 @@ class FoodSourceTags {
     };
   }
 
-  /// Moves the tags onto meals, asking [ai] about the unclear days when
-  /// given, then deletes every food-source tag with its history. Nothing
+  /// Moves the tags onto meals, asking [ai] about the unclear days (needed
+  /// when there are any, or they would be lost), then deletes every food-source tag with its history. Nothing
   /// changes if the AI fails part way.
   Future<SourceTagMoveResult> run({AiClient? ai, void Function(int done, int total)? progress}) async {
     final all = await days();
     final picks = obvious(all);
+    final ask = unclear(all);
+    if (ask.isNotEmpty && ai == null) throw const AiException('Set up the AI assistant first.');
     if (ai != null) {
-      final ask = unclear(all);
       for (var i = 0; i < ask.length; i += batch) {
         progress?.call(i, ask.length);
         final part = ask.sublist(i, i + batch > ask.length ? ask.length : i + batch);
