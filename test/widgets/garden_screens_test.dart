@@ -393,7 +393,7 @@ void main() {
     await tester.scrollUntilVisible(find.text('Today\u2019s plant'), -300, scrollable: scrollable);
   });
 
-  testWidgets('the month garden counts plants and shows a picked day', (tester) async {
+  testWidgets('the month garden counts plants, and a plant opens its day', (tester) async {
     await db.upsertMoodEntry(MoodEntry(date: DateTime(2025, 6, 3), timestamp: DateTime(2025, 6, 3), moodLevel: 4, emoji: ''));
     await db.upsertMoodEntry(MoodEntry(date: DateTime(2025, 6, 4), timestamp: DateTime(2025, 6, 4), moodLevel: 3, emoji: ''));
     await pump(tester, GardenMonthScreen(month: DateTime(2025, 6, 4)));
@@ -404,7 +404,10 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel(RegExp(r'^5 June, nothing logged')));
     await tester.pumpAndSettle();
-    expect(find.text('A quiet day'), findsOneWidget);
+    expect(tester.widget<GardenTodayScreen>(find.byType(GardenTodayScreen)).day, DateTime(2025, 6, 5));
+    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+    await tester.pumpAndSettle();
+    expect(find.text('A quiet day'), findsOneWidget, reason: 'still picked on the way back');
 
     await tester.tap(find.byTooltip('Previous month'));
     await tester.pumpAndSettle();

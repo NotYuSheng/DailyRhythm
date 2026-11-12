@@ -104,18 +104,26 @@ class _OldFoodSourceCardState extends ConsumerState<_OldFoodSourceCard> {
   String? _progress;
 
   Future<void> _move() async {
-    final ai = ref.read(aiClientProvider);
     final container = ProviderScope.containerOf(context);
     final messenger = ScaffoldMessenger.of(context);
+    // The settings load on first use: wait for them, or a set-up assistant
+    // reads as missing.
+    await ref.read(aiSettingsProvider.future);
+    if (!mounted) return;
+    final ai = ref.read(aiClientProvider);
+    if (ai == null) {
+      // Without the AI most days can't be matched, and the tags would be
+      // lost, so nothing moves until it is set up.
+      messenger.showSnackBar(const SnackBar(content: Text('Set up the AI assistant in Settings first. Nothing has changed.')));
+      return;
+    }
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Move onto meals?'),
-        content: Text(ai == null
-            ? 'Days with one tag and one meal get that meal’s source. Set up the AI assistant first to sort out the other days too. '
-                'The tags are then deleted, with Supplement.'
-            : 'Days with one tag and one meal get that meal’s source. For the others, the AI assistant matches tags to meals; '
-                'this sends the dates and meal names to your AI provider. The tags are then deleted, with Supplement.'),
+        content: const Text('Days with one tag and one meal get that meal’s source. For the others, the AI assistant matches tags to meals; '
+            'this sends the dates and meal names to your AI provider, and can take a while. Keep this screen open. '
+            'The tags are then deleted, with Supplement.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Move')),
