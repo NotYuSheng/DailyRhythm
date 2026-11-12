@@ -72,6 +72,23 @@ void main() {
     expect(only, isPositive);
   });
 
+  test('a day is done once each of its tags is on a meal, even with meals left over', () async {
+    final tue = DateTime(2026, 3, 3), wed = DateTime(2026, 3, 4);
+    await tagDay(tue, 'Fast Food');
+    await meal(tue, 'McSpicy', source: FoodSource.fastFood);
+    await meal(tue, 'Bubble Tea', hour: 16);
+    await tagDay(wed, 'Takeout');
+    await tagDay(wed, 'Homemade');
+    await meal(wed, 'Chicken Rice', source: FoodSource.takeout);
+    final dinner = await meal(wed, 'Omelette', hour: 19);
+
+    final days = await FoodSourceTags(db).days();
+    expect(days.map((d) => d.date), ['2026-03-04'], reason: 'Tuesday is done');
+    expect(days.single.sources, {FoodSource.homemade});
+    expect(FoodSourceTags.obvious(days), isEmpty, reason: 'a started day goes to the AI');
+    expect(FoodSourceTags.unclear(days).single.meals.single.id, dinner);
+  });
+
   test('old tag names map to meal sources; Supplement has none', () {
     expect(FoodSourceTags.sourceFor('Fast Food'), FoodSource.fastFood);
     expect(FoodSourceTags.sourceFor('Free Food'), FoodSource.free);
