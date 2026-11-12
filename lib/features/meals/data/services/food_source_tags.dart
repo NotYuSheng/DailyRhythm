@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:sqflite/sqflite.dart';
+
 import '../../../../shared/services/database/database_service.dart';
 import '../../../ai/data/ai_client.dart';
 import '../../../tags/data/models/tag.dart';
@@ -180,5 +182,54 @@ class FoodSourceTags {
     });
     final done = {for (final d in all) for (final m in d.meals) if (picks.containsKey(m.id)) d.date};
     return SourceTagMoveResult(mealsSet: picks.length, daysSkipped: all.length - done.length);
+  }
+
+  /// Brings the movable food-source tags, with the days they were on, back
+  /// from the backup database at [path], leaving everything else as it is.
+  /// Returns how many days were brought back.
+  Future<int> recoverFrom(String path) async {
+    final backup = await databaseFactory.openDatabase(path, options: OpenDatabaseOptions(readOnly: true, singleInstance: false));
+    try {
+      final hasKind = (await backup.rawQuery("PRAGMA table_info('tags')")).any((c) => c['name'] == 'kind');
+      final old = [
+        for (final t in await backup.query('tags', columns: ['id', 'name', 'emoji', 'category', if (hasKind) 'kind']))
+          if (sourceFor(t['name'] as String) != null && (!hasKind || t['kind'] == TagKind.foodSource)) t,
+      ];
+      if (old.isEmpty) return 0;
+      final columns = {for (final c in await backup.rawQuery("PRAGMA table_info('activity_entries')")) c['name'] as String};
+      final entries = await backup.query(
+        'activity_entries',
+        columns: [for (final c in ['tagId', 'date', 'timestamp', 'notes', 'severity']) if (columns.contains(c)) c],
+        where: 'tagId IN (${old.map((_) => '?').join(', ')})',
+        whereArgs: [for (final t in old) t['id']],
+      );
+      final d = await db.database;
+      var added = 0;
+      await d.transaction((txn) async {
+        final ids = <int, int>{};
+        for (final t in old) {
+          final same = await txn.query('tags', columns: ['id'], where: 'name = ?', whereArgs: [t['name']]);
+          ids[t['id'] as int] = same.isNotEmpty
+              ? same.first['id'] as int
+              : await txn.insert('tags', {
+                  'name': t['name'],
+                  'emoji': t['emoji'] ?? 'tag',
+                  'category': t['category'] ?? 'Food',
+                  'kind': TagKind.foodSource,
+                });
+        }
+        for (final e in entries) {
+          final tagId = ids[e['tagId'] as int]!;
+          final day = (e['date'] as String).substring(0, 10);
+          final there = await txn.query('activity_entries', columns: ['id'], where: 'tagId = ? AND substr(date, 1, 10) = ?', whereArgs: [tagId, day], limit: 1);
+          if (there.isNotEmpty) continue;
+          await txn.insert('activity_entries', {...e, 'tagId': tagId});
+          added++;
+        }
+      });
+      return added;
+    } finally {
+      await backup.close();
+    }
   }
 }
