@@ -32,6 +32,14 @@ void main() {
   tearDown(closeTestDatabase);
 
   group('AddSleepScreen', () {
+    test('a bedtime can still be logged as now in the small hours', () {
+      final day = DateTime(2026, 11, 11);
+      expect(stillNightOf(day, DateTime(2026, 11, 11, 22)), isTrue);
+      expect(stillNightOf(day, DateTime(2026, 11, 12, 0, 40)), isTrue, reason: 'just past midnight');
+      expect(stillNightOf(day, DateTime(2026, 11, 12, 7)), isFalse, reason: 'morning is the next day');
+      expect(stillNightOf(day, DateTime(2026, 11, 13, 1)), isFalse);
+    });
+
     testWidgets('saves a wake time on its own, picked from usual times', (tester) async {
       for (final d in [17, 18, 19]) {
         await db.saveSleepEntry(SleepEntry(date: DateTime(2026, 10, d), wakeUpTime: DateTime(2026, 10, d, 7, 32)));
