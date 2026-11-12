@@ -20,14 +20,17 @@ class SourcelessMeal {
 
 /// A day tagged, as a whole, with where its food came from.
 class SourceDay {
-  const SourceDay({required this.date, required this.sources, required this.meals});
+  const SourceDay({required this.date, required this.sources, required this.meals, this.started = false});
 
   /// yyyy-MM-dd.
   final String date;
 
-  /// [FoodSource] values.
+  /// [FoodSource] values not yet on any of the day's meals.
   final Set<String> sources;
   final List<SourcelessMeal> meals;
+
+  /// Some of the day's meals already have a source (from an earlier run).
+  final bool started;
 }
 
 /// What moving the old tags did.
@@ -75,7 +78,9 @@ class FoodSourceTags {
     return (await d.query('tags', columns: ['id'], where: 'kind = ?', whereArgs: [TagKind.foodSource], limit: 1)).isNotEmpty;
   }
 
-  /// Every day with a movable tag, with its meals that have no source yet.
+  /// Every day with a movable tag not yet on one of its meals, with its
+  /// meals that have no source yet. A day whose tags are all on meals is
+  /// done, so a run that stopped carries on without asking again.
   Future<List<SourceDay>> days() async {
     final d = await db.database;
     final rows = await d.rawQuery('''
@@ -89,13 +94,17 @@ class FoodSourceTags {
     }
     if (sources.isEmpty) return const [];
     final meals = <String, List<SourcelessMeal>>{};
+    final used = <String, Set<String>>{};
     for (final r in await d.rawQuery('''
-      SELECT id, substr(date, 1, 10) AS day, time, time_known, name FROM meal_entries
-      WHERE food_source IS NULL OR food_source = ''
+      SELECT id, substr(date, 1, 10) AS day, time, time_known, name, food_source FROM meal_entries
       ORDER BY sort_order IS NULL, sort_order, time, id
     ''')) {
       final day = r['day'] as String;
       if (!sources.containsKey(day)) continue;
+      if (r['food_source'] case final String source when source.isNotEmpty) {
+        (used[day] ??= {}).add(source);
+        continue;
+      }
       final time = r['time'] as String?;
       (meals[day] ??= []).add(SourcelessMeal(
         id: r['id'] as int,
@@ -105,19 +114,20 @@ class FoodSourceTags {
     }
     return [
       for (final e in (sources.entries.toList()..sort((a, b) => a.key.compareTo(b.key))))
-        SourceDay(date: e.key, sources: e.value, meals: meals[e.key] ?? const []),
+        if (e.value.difference(used[e.key] ?? const {}) case final left when left.isNotEmpty)
+          SourceDay(date: e.key, sources: left, meals: meals[e.key] ?? const [], started: used.containsKey(e.key)),
     ];
   }
 
-  /// One source and one meal: that meal is the one.
+  /// One source and one meal, on a day not started: that meal is the one.
   static Map<int, String> obvious(Iterable<SourceDay> days) => {
         for (final d in days)
-          if (d.sources.length == 1 && d.meals.length == 1) d.meals.single.id: d.sources.single,
+          if (!d.started && d.sources.length == 1 && d.meals.length == 1) d.meals.single.id: d.sources.single,
       };
 
   /// The days the AI is needed for.
   static List<SourceDay> unclear(Iterable<SourceDay> days) =>
-      [for (final d in days) if (d.meals.isNotEmpty && !(d.sources.length == 1 && d.meals.length == 1)) d];
+      [for (final d in days) if (d.meals.isNotEmpty && (d.started || !(d.sources.length == 1 && d.meals.length == 1))) d];
 
   static const _system = 'Each day below was tagged, as a whole, with where some of its food came from. '
       'Work out which meals each tag was about, from the meal names and times. '
