@@ -1,3 +1,4 @@
+import '../../../features/meals/data/services/food_source_tags.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
@@ -113,6 +114,27 @@ class BackupService {
         success: false,
         message: 'Error during restore: $e',
       );
+    }
+  }
+
+  /// Brings back only the old "Food from" tags and their days from a
+  /// backup, keeping everything logged since.
+  Future<BackupResult> recoverFoodTagsFromGoogleDrive(String fileId) async {
+    if (!_driveService.isSignedIn) return BackupResult(success: false, message: 'Not signed in to Google Drive');
+    final file = await _driveService.downloadBackup(fileId);
+    if (file == null || !await file.exists()) return BackupResult(success: false, message: 'The backup couldn’t be downloaded');
+    try {
+      final problem = await DatabaseService.checkRestorable(file.path);
+      if (problem != null) return BackupResult(success: false, message: problem);
+      final days = await FoodSourceTags(_dbService).recoverFrom(file.path);
+      return BackupResult(
+        success: true,
+        message: days == 0 ? 'That backup has no old food tags to bring back.' : 'Brought back $days days of food tags. Move them onto meals from Tags.',
+      );
+    } catch (e) {
+      return BackupResult(success: false, message: 'Couldn’t bring the food tags back: $e');
+    } finally {
+      if (await file.exists()) await file.delete();
     }
   }
 

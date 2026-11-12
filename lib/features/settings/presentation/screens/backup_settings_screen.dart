@@ -167,33 +167,41 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
         ? 'the latest backup'
         : 'the backup from ${DateFormat.yMMMd().add_jm().format(backup.createdTime)}';
     // Show confirmation dialog
-    final confirmed = await showDialog<bool>(
+    final choice = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Restore from Backup'),
         content: Text(
           'This will replace all current data with $which. '
           'Your current data will be kept on this device as a fallback.\n\n'
+          '${backup == null ? '' : 'Or bring back only the old “Food from” tags from it, keeping everything else as it is now.\n\n'}'
           'Continue?',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
+          if (backup != null)
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'tags'),
+              child: const Text('Food tags only'),
+            ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(context, 'all'),
             child: const Text('Restore'),
           ),
         ],
       ),
     );
 
-    if (confirmed != true) return;
+    if (choice == null) return;
 
     setState(() => _isLoading = true);
 
-    final result = await _backupService.restoreFromGoogleDrive(fileId: backup?.id);
+    final result = choice == 'tags'
+        ? await _backupService.recoverFoodTagsFromGoogleDrive(backup!.id)
+        : await _backupService.restoreFromGoogleDrive(fileId: backup?.id);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
