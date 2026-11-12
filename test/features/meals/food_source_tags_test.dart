@@ -135,7 +135,7 @@ void main() {
 /// An assistant that matches nothing.
 class _NoMatches implements AiClient {
   @override
-  Future<String> complete({required String system, required String user, List<AiTool> tools = const [], Duration timeout = AiClient.defaultTimeout}) async =>
+  Future<String> complete({required String system, required String user, List<AiTool> tools = const [], Duration timeout = AiClient.defaultTimeout, bool quick = false}) async =>
       '{"meals": {}}';
 
   @override
@@ -145,7 +145,7 @@ class _NoMatches implements AiClient {
 /// An assistant that fails every time.
 class _Down implements AiClient {
   @override
-  Future<String> complete({required String system, required String user, List<AiTool> tools = const [], Duration timeout = AiClient.defaultTimeout}) async =>
+  Future<String> complete({required String system, required String user, List<AiTool> tools = const [], Duration timeout = AiClient.defaultTimeout, bool quick = false}) async =>
       throw const AiException('down');
 
   @override
@@ -158,7 +158,7 @@ class _All implements AiClient {
   final String source;
 
   @override
-  Future<String> complete({required String system, required String user, List<AiTool> tools = const [], Duration timeout = AiClient.defaultTimeout}) async {
+  Future<String> complete({required String system, required String user, List<AiTool> tools = const [], Duration timeout = AiClient.defaultTimeout, bool quick = false}) async {
     final ids = [for (final line in user.split('\n')) for (final m in line.split(' | ').last.split('; ')) m.split(' ').first];
     return '{"meals": {${ids.map((id) => '"$id": "$source"').join(', ')}}}';
   }

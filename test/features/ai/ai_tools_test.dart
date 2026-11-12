@@ -38,6 +38,24 @@ void main() {
   Map<String, dynamic> call(String id, String name, Map<String, dynamic> args) =>
       {'id': id, 'type': 'function', 'function': {'name': name, 'arguments': jsonEncode(args)}};
 
+  test('a quick ask thinks briefly, and a server that refuses that is asked again without it', () async {
+    final bodies = <Map<String, dynamic>>[];
+    final client = AiClient(
+      settings,
+      MockClient((r) async {
+        final body = jsonDecode(r.body) as Map<String, dynamic>;
+        bodies.add(body);
+        if (body.containsKey('reasoning_effort')) return http.Response('{"error": "unknown field"}', 400);
+        return message({'role': 'assistant', 'content': 'ok'});
+      }),
+    );
+    expect(await client.complete(system: 's', user: 'u', quick: true), 'ok');
+    expect([for (final b in bodies) b['reasoning_effort']], ['low', null]);
+    bodies.clear();
+    await client.complete(system: 's', user: 'u');
+    expect(bodies.single.containsKey('reasoning_effort'), isFalse, reason: 'only when asked');
+  });
+
   test('the model searches the web, the phone runs it, the answer names the source', () async {
     final bodies = <Map<String, dynamic>>[];
     final web = _Web();

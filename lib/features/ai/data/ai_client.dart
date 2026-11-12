@@ -84,23 +84,40 @@ class AiClient {
   /// With [tools] the model may ask for look-ups first; each is run and its
   /// result sent back, up to [maxToolRounds] times. A model or server that
   /// doesn't do tools is asked again without them.
-  Future<String> complete({required String system, required String user, List<AiTool> tools = const [], Duration timeout = defaultTimeout}) async {
+  ///
+  /// [quick] asks a thinking model to think briefly (`reasoning_effort:
+  /// low`), for simple bulk work; a server that rejects it is asked again
+  /// without it.
+  Future<String> complete({
+    required String system,
+    required String user,
+    List<AiTool> tools = const [],
+    Duration timeout = defaultTimeout,
+    bool quick = false,
+  }) async {
     if (!settings.ready) throw const AiException('Set up the AI assistant in Settings first.');
     final messages = <Map<String, dynamic>>[
       {'role': 'system', 'content': system},
       {'role': 'user', 'content': user},
     ];
     var offered = tools;
+    var extra = quick ? const {'reasoning_effort': 'low'} : const <String, Object>{};
     for (var round = 0;; round++) {
       final last = round >= maxToolRounds;
       Map<String, dynamic> message;
       try {
-        message = await _send(messages, last ? const [] : offered, timeout);
+        message = await _send(messages, last ? const [] : offered, timeout, extra);
       } on _Rejected {
+        if (extra.isNotEmpty) {
+          // Not a thinking model, or the server doesn't take the setting.
+          extra = const {};
+          round--;
+          continue;
+        }
         // Most likely no tool support: answer from what it knows.
         if (offered.isEmpty) throw const AiException('The provider answered 400. Check the model name.');
         offered = const [];
-        message = await _send(messages, const [], timeout);
+        message = await _send(messages, const [], timeout, extra);
       }
       final calls = (message['tool_calls'] as List?)?.whereType<Map>().toList() ?? const [];
       if (calls.isEmpty || offered.isEmpty || last) {
@@ -133,7 +150,7 @@ class AiClient {
       content is String ? content : content is List ? content.map((p) => p is Map ? p['text'] ?? '' : '').join() : '';
 
   /// One request; the reply's message.
-  Future<Map<String, dynamic>> _send(List<Map<String, dynamic>> messages, List<AiTool> tools, Duration timeout) async {
+  Future<Map<String, dynamic>> _send(List<Map<String, dynamic>> messages, List<AiTool> tools, Duration timeout, [Map<String, Object> extra = const {}]) async {
     final http.Response response;
     try {
       response = await _http
@@ -147,6 +164,7 @@ class AiClient {
               'model': settings.model.trim(),
               'messages': messages,
               if (tools.isNotEmpty) 'tools': [for (final t in tools) t.toJson()],
+              ...extra,
             }),
           )
           .timeout(timeout);
