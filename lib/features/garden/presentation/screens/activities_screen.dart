@@ -39,7 +39,6 @@ class ActivitiesScreen extends ConsumerStatefulWidget {
 
   static const groups = [
     (TagKind.activity, 'Activities'),
-    (TagKind.foodSource, 'Food from'),
     (TagKind.symptom, 'Symptoms'),
   ];
 

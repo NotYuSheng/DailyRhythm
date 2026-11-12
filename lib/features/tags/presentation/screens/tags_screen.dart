@@ -5,6 +5,8 @@ import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/services/database/database_service.dart';
 import '../../../garden/data/garden_providers.dart';
 import '../../../garden/presentation/garden_style.dart';
+import '../../../ai/data/ai_providers.dart';
+import '../../../meals/data/services/food_source_tags.dart';
 import '../tag_icons.dart';
 import 'tag_calendar_screen.dart';
 import '../../data/models/tag.dart';
@@ -13,7 +15,6 @@ import '../../data/providers/tag_providers.dart';
 /// The kinds of tag, in the order they are shown.
 const tagKinds = [
   (TagKind.activity, 'Activities', 'What you did'),
-  (TagKind.foodSource, 'Food from', 'Where meals came from'),
   (TagKind.symptom, 'Symptoms', 'How your body felt'),
 ];
 
@@ -69,6 +70,10 @@ class TagsScreen extends ConsumerWidget {
               'Tap a tag to rename it, change its kind, group or icon, merge it or delete it. Tap a group’s name to rename, move or delete it.',
               style: nunito(14, FontWeight.w600, colors.muted),
             ),
+            if (list.any((t) => t.kind == TagKind.foodSource)) ...[
+              const SizedBox(height: 20),
+              _OldFoodSourceCard(tags: [for (final t in list) if (t.kind == TagKind.foodSource) t], colors: colors),
+            ],
             for (final (kind, title, subtitle) in tagKinds) ...[
               const SizedBox(height: 20),
               Semantics(header: true, child: Text(title, style: nunito(20, FontWeight.w900, colors.ink))),
@@ -78,6 +83,92 @@ class TagsScreen extends ConsumerWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The old day-level "Food from" tags, now that meals record their source:
+/// moves them onto meals (with the AI for unclear days) and deletes them.
+class _OldFoodSourceCard extends ConsumerStatefulWidget {
+  const _OldFoodSourceCard({required this.tags, required this.colors});
+
+  final List<Tag> tags;
+  final GardenColors colors;
+
+  @override
+  ConsumerState<_OldFoodSourceCard> createState() => _OldFoodSourceCardState();
+}
+
+class _OldFoodSourceCardState extends ConsumerState<_OldFoodSourceCard> {
+  String? _progress;
+
+  Future<void> _move() async {
+    final ai = ref.read(aiClientProvider);
+    final container = ProviderScope.containerOf(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Move onto meals?'),
+        content: Text(ai == null
+            ? 'Days with one tag and one meal get that meal’s source. Set up the AI assistant first to sort out the other days too. '
+                'The tags are then deleted, with Supplement.'
+            : 'Days with one tag and one meal get that meal’s source. For the others, the AI assistant matches tags to meals; '
+                'this sends the dates and meal names to your AI provider. The tags are then deleted, with Supplement.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Move')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _progress = 'Starting…');
+    try {
+      final result = await FoodSourceTags(ref.read(databaseProvider)).run(
+        ai: ai,
+        progress: (done, total) {
+          if (mounted) setState(() => _progress = 'Matching days $done of $total…');
+        },
+      );
+      _invalidateTags(container);
+      messenger.showSnackBar(SnackBar(
+        content: Text('Set where ${result.mealsSet} ${result.mealsSet == 1 ? 'meal' : 'meals'} came from'
+            '${result.daysSkipped > 0 ? '. ${result.daysSkipped} ${result.daysSkipped == 1 ? 'day had' : 'days had'} no meal to match' : ''}.'),
+      ));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Nothing changed: $e')));
+    } finally {
+      if (mounted) setState(() => _progress = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(26)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Old “Food from” tags', style: nunito(17, FontWeight.w900, colors.ink)),
+          const SizedBox(height: 4),
+          Text(
+            'Meals now say where they came from. ${widget.tags.map((t) => t.name).join(', ')} '
+            'can move onto the meals of the days they were on, then go.',
+            style: nunito(13, FontWeight.w600, colors.muted),
+          ),
+          const SizedBox(height: 10),
+          if (_progress case final p?)
+            Row(children: [
+              const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+              const SizedBox(width: 10),
+              Flexible(child: Text(p, style: nunito(13, FontWeight.w700, colors.muted))),
+            ])
+          else
+            FilledButton.tonalIcon(onPressed: _move, icon: const Icon(Icons.restaurant_outlined), label: const Text('Move onto meals')),
+        ],
       ),
     );
   }
