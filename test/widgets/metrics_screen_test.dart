@@ -130,30 +130,21 @@ void main() {
     expect(find.byType(GardenTodayScreen), findsOneWidget);
   });
 
-  testWidgets('weight is logged from Metrics and shown with its change', (tester) async {
+  testWidgets('Metrics shows weight with its change; it is logged on Today', (tester) async {
     stillGarden(tester);
     SharedPreferences.setMockInitialValues({});
     final db = await openTestDatabase();
     final now = DateTime.now();
-    final earlier = DateTime(now.year, now.month, now.day).subtract(const Duration(days: 3));
-    await WeightRepository(db).log(earlier, 60);
+    final today = DateTime(now.year, now.month, now.day);
+    await WeightRepository(db).log(today.subtract(const Duration(days: 3)), 60);
+    await WeightRepository(db).log(today, 60.8);
     await tester.pumpWidget(ProviderScope(child: MaterialApp(theme: AppTheme.lightTheme, home: const MetricsScreen())));
     await tester.pumpAndSettle();
     await tester.tap(find.text('All'));
     await tester.pumpAndSettle();
-    final scrollable = find.byType(Scrollable).first;
-    await tester.scrollUntilVisible(find.text('Log weight'), 300, scrollable: scrollable);
-    expect(find.textContaining('60.0 kg on'), findsOneWidget);
-
-    await tester.tap(find.text('Log weight'));
-    await tester.pumpAndSettle();
-    expect(find.widgetWithText(TextField, '60.0'), findsOneWidget, reason: 'starts from the latest');
-    await tester.enterText(find.byType(TextField), '60.8');
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.textContaining('60.8 kg on'), 300, scrollable: scrollable);
+    await tester.scrollUntilVisible(find.textContaining('60.8 kg on'), 300, scrollable: find.byType(Scrollable).first);
     expect(find.textContaining('+0.8 kg since'), findsOneWidget);
-    expect((await WeightRepository(db).latest())!.value, 60.8);
+    expect(find.text('Log weight'), findsNothing);
   });
 }
 

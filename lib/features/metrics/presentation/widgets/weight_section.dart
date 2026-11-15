@@ -11,7 +11,7 @@ import '../../../profile/data/weight_repository.dart';
 import '../../data/models/metric_data.dart';
 
 /// Weight over the period: the latest, the change since the first, and a
-/// line between them; and a button to log today's.
+/// line between them. Weight is logged on Today.
 class WeightSection extends ConsumerWidget {
   const WeightSection({super.key, required this.range});
 
@@ -23,7 +23,6 @@ class WeightSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = GardenColors.of(context);
     final weights = ref.watch(weightsProvider(range)).value ?? const <HealthMetric>[];
-    final latest = ref.watch(profileProvider).value?.weightKg;
 
     String kg(double v) => '${v.toStringAsFixed(1)} kg';
     final first = weights.isEmpty ? null : weights.first;
@@ -37,7 +36,7 @@ class WeightSection extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (last == null)
-            Text('Log your weight now and then to see how it changes.', style: nunito(14, FontWeight.w600, colors.muted))
+            Text('Log your weight on Today now and then to see how it changes.', style: nunito(14, FontWeight.w600, colors.muted))
           else ...[
             Text('${kg(last.value)} on ${_day.format(last.date)}', style: nunito(18, FontWeight.w900, colors.ink)),
             if (change != null)
@@ -57,35 +56,44 @@ class WeightSection extends ConsumerWidget {
               ),
             ],
           ],
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44), foregroundColor: colors.accent),
-              onPressed: () => logWeight(context, ref, latest),
-              icon: const Icon(Icons.monitor_weight_outlined, size: 18),
-              label: const Text('Log weight'),
-            ),
-          ),
         ],
       ),
     );
   }
 }
 
-/// Asks for today's weight and saves it.
-Future<void> logWeight(BuildContext context, WidgetRef ref, double? current) async {
-  final kg = await showDialog<double>(context: context, builder: (_) => _WeightDialog(current: current));
+/// Asks for the weight on [day] and saves it; [existing] is the one
+/// already there, which can be changed or removed.
+Future<void> logWeight(BuildContext context, WidgetRef ref, DateTime day, {HealthMetric? existing, double? suggested}) async {
+  final isToday = dayOf(DateTime.now()) == dayOf(day);
+  final kg = await showDialog<double>(
+    context: context,
+    builder: (_) => _WeightDialog(
+      title: isToday ? 'Today’s weight' : 'Weight on ${DateFormat('d MMM').format(day)}',
+      current: existing?.value ?? suggested,
+      removable: existing?.source == HealthSource.manual,
+    ),
+  );
   if (kg == null) return;
-  await WeightRepository().log(DateTime.now(), kg);
+  final weights = WeightRepository();
+  if (kg == 0) {
+    await weights.remove(day);
+  } else {
+    await weights.log(day, kg);
+  }
   ref.invalidate(weightsProvider);
+  ref.invalidate(weightOnProvider);
   ref.invalidate(profileProvider);
 }
 
 class _WeightDialog extends StatefulWidget {
-  const _WeightDialog({this.current});
+  const _WeightDialog({required this.title, this.current, this.removable = false});
 
+  final String title;
   final double? current;
+
+  /// Offers Remove, which pops 0.
+  final bool removable;
 
   @override
   State<_WeightDialog> createState() => _WeightDialogState();
@@ -107,7 +115,7 @@ class _WeightDialogState extends State<_WeightDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Today’s weight'),
+        title: Text(widget.title),
         content: TextField(
           controller: _controller,
           autofocus: true,
@@ -117,6 +125,7 @@ class _WeightDialogState extends State<_WeightDialog> {
           onSubmitted: (_) => _save(),
         ),
         actions: [
+          if (widget.removable) TextButton(onPressed: () => Navigator.pop(context, 0.0), child: const Text('Remove')),
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           FilledButton(onPressed: _save, child: const Text('Save')),
         ],
