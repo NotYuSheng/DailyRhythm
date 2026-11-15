@@ -11,6 +11,7 @@ import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
 import 'package:daily_rhythm/features/exercise/presentation/screens/add_exercise_screen.dart';
 import 'package:daily_rhythm/features/meals/presentation/screens/add_meal_screen.dart';
 import 'package:daily_rhythm/main.dart';
+import 'package:daily_rhythm/features/profile/data/weight_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:daily_rhythm/shared/models/mood_entry.dart';
 import 'package:daily_rhythm/shared/services/database/database_service.dart';
@@ -391,6 +392,26 @@ void main() {
     await tapVisible(tester, find.text('Today'));
     expect(find.text('Today'), findsNothing, reason: 'no jump button on today itself');
     await tester.scrollUntilVisible(find.text('Today\u2019s plant'), -300, scrollable: scrollable);
+  });
+
+  testWidgets('weight is logged, changed and removed on the day', (tester) async {
+    await pump(tester, const GardenTodayScreen());
+    final tile = find.text('Weight');
+    await tester.scrollUntilVisible(tile, 300, scrollable: find.byType(Scrollable).first);
+    await tapVisible(tester, tile);
+    expect(find.text('Today\u2019s weight'), findsOneWidget);
+    expect(find.text('Remove'), findsNothing, reason: 'nothing to remove yet');
+    await tester.enterText(find.byType(TextField), '70.4');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('70.4 kg'), findsOneWidget);
+    expect((await WeightRepository(db).on(today))?.value, 70.4);
+
+    await tapVisible(tester, tile);
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
+    expect(await WeightRepository(db).on(today), isNull);
+    expect(find.text('70.4 kg'), findsNothing);
   });
 
   testWidgets('the month garden counts plants, and a plant opens its day', (tester) async {

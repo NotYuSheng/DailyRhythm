@@ -19,3 +19,8 @@ final profileProvider = FutureProvider<Profile>((ref) async {
 final weightsProvider = FutureProvider.autoDispose.family<List<HealthMetric>, DateRange>((ref, range) {
   return WeightRepository(ref.watch(databaseProvider)).inRange(range.start, range.end);
 });
+
+/// The weight on a day, or null.
+final weightOnProvider = FutureProvider.autoDispose.family<HealthMetric?, DateTime>((ref, day) {
+  return WeightRepository(ref.watch(databaseProvider)).on(day);
+});

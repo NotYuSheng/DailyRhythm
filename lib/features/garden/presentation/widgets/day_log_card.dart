@@ -10,6 +10,7 @@ import '../../../exercise/data/models/exercise_entry.dart';
 import '../../../exercise/data/providers/exercise_providers.dart';
 import '../../../exercise/domain/effort.dart';
 import '../../../meals/domain/diet_score.dart';
+import '../../../metrics/presentation/widgets/weight_section.dart';
 import '../../../profile/data/profile_providers.dart';
 import '../../../exercise/presentation/screens/add_exercise_screen.dart';
 import '../../../meals/data/models/meal_entry.dart';
@@ -40,6 +41,7 @@ void invalidateDayLog(WidgetRef ref, DateTime day) {
   ref.invalidate(exerciseEntriesProvider);
   ref.invalidate(moodEntryProvider);
   ref.invalidate(activityEntriesProvider);
+  ref.invalidate(weightOnProvider);
   invalidateGardenDay(ref, day);
 }
 
@@ -99,7 +101,9 @@ class DayLogCard extends ConsumerWidget {
     final foodKcal = ref.watch(foodCaloriesProvider).value ?? const <int, double>{};
     final foodTags = ref.watch(foodHealthTagsProvider).value ?? const <int, List<String>>{};
     final kcal = [for (final m in meals) ?m.caloriesWith(foodKcal)];
-    final weight = ref.watch(profileProvider).value?.weightKg ?? Effort.defaultWeightKg;
+    final latestWeight = ref.watch(profileProvider).value?.weightKg;
+    final weight = latestWeight ?? Effort.defaultWeightKg;
+    final weighed = ref.watch(weightOnProvider(dayOf(day))).value;
     double burned(ExerciseEntry x) => Effort.kcalBurned(
       run: x.type == ExerciseType.run,
       weightKg: weight,
@@ -219,6 +223,16 @@ class DayLogCard extends ConsumerWidget {
           ],
         ),
         _Tile(
+          tone: DayTone.body,
+          icon: Icons.monitor_weight_outlined,
+          label: 'Weight',
+          headline: weighed == null ? 'Not logged' : '${weighed.value.toStringAsFixed(1)} kg',
+          summary: weighed == null ? 'Now and then is enough' : 'Tap to change · trend in Metrics',
+          colors: colors,
+          adds: weighed == null,
+          onTap: () => logWeight(context, ref, day, existing: weighed, suggested: latestWeight),
+        ),
+        _Tile(
           tone: DayTone.gift,
           icon: Icons.celebration_outlined,
           label: 'Events & gifts',
@@ -242,7 +256,7 @@ class DayLogCard extends ConsumerWidget {
           icon: Icons.local_activity_outlined,
           label: 'Activities',
           headline: activityNames.isEmpty ? 'Tag what you did' : '${activityNames.length} ${activityNames.length == 1 ? 'tag' : 'tags'}',
-          summary: activityNames.isEmpty ? 'Activities, where food came from, symptoms' : 'Tap to change',
+          summary: activityNames.isEmpty ? 'Activities, symptoms and more' : 'Tap to change',
           colors: colors,
           onTap: () => open(ActivitiesScreen(day: day)),
           items: [

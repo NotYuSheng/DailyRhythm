@@ -1,5 +1,6 @@
 import '../../../shared/services/database/database_service.dart';
 import '../../../shared/services/database/repositories/health_repository.dart';
+import '../../../shared/utils/date_utils.dart';
 import '../../health/data/models/health_metric.dart';
 
 /// Body weight over time, as the `weight_kg` health metric (one a day).
@@ -12,6 +13,16 @@ class WeightRepository {
 
   Future<void> log(DateTime day, double kg) =>
       HealthRepository(_db).saveMetrics([HealthMetric(date: day, metric: metric, value: kg, source: HealthSource.manual)]);
+
+  /// The weight on [day], from the preferred source; null when none.
+  Future<HealthMetric?> on(DateTime day) async => (await HealthRepository(_db).forDay(day))[metric];
+
+  /// Removes the weight typed in for [day]; one from a connected app stays.
+  Future<void> remove(DateTime day) async {
+    final db = await _db.database;
+    await db.delete('health_metrics',
+        where: 'metric = ? AND date = ? AND source = ?', whereArgs: [metric, dayOf(day).toIso8601String(), HealthSource.manual]);
+  }
 
   Future<List<HealthMetric>> inRange(DateTime start, DateTime end) => HealthRepository(_db).series(metric, start, end);
 
