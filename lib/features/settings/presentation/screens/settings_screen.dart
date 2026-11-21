@@ -31,7 +31,7 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider);
+    final appearance = ref.watch(appearanceProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -113,23 +113,37 @@ class SettingsScreen extends ConsumerWidget {
             child: Column(
               children: [
                 ListTile(
-                  leading: Icon(switch (themeMode) {
-                    ThemeMode.system => Icons.brightness_auto_outlined,
-                    ThemeMode.light => Icons.light_mode_outlined,
-                    ThemeMode.dark => Icons.dark_mode_outlined,
+                  leading: Icon(switch (appearance) {
+                    Appearance.system => Icons.brightness_auto_outlined,
+                    Appearance.light => Icons.light_mode_outlined,
+                    Appearance.dark => Icons.dark_mode_outlined,
+                    Appearance.time => Icons.schedule_outlined,
                   }),
                   title: const Text('Appearance'),
                   subtitle: Padding(
                     padding: const EdgeInsets.only(top: 8),
-                    child: SegmentedButton<ThemeMode>(
-                      showSelectedIcon: false,
-                      segments: const [
-                        ButtonSegment(value: ThemeMode.system, label: Text('System')),
-                        ButtonSegment(value: ThemeMode.light, label: Text('Light')),
-                        ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Chips, which wrap on a narrow phone with large text.
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final a in Appearance.values)
+                              ChoiceChip(
+                                label: Text(a.label),
+                                selected: appearance == a,
+                                onSelected: (_) => ref.read(appearanceProvider.notifier).set(a),
+                              ),
+                          ],
+                        ),
+                        if (appearance == Appearance.time)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 6),
+                            child: Text('Light from 7am, dark from 7pm'),
+                          ),
                       ],
-                      selected: {themeMode},
-                      onSelectionChanged: (s) => ref.read(themeModeProvider.notifier).setThemeMode(s.first),
                     ),
                   ),
                 ),
