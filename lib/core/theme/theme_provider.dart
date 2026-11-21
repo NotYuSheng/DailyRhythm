@@ -1,72 +1,79 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Theme mode notifier that persists the user's theme preference
-class ThemeModeNotifier extends Notifier<ThemeMode> {
-  static const String _themeModeKey = 'theme_mode';
+/// How the app picks light or dark.
+enum Appearance {
+  system('System'),
+  light('Light'),
+  dark('Dark'),
+
+  /// Light by day, dark by night, whatever the phone is set to.
+  time('Time');
+
+  const Appearance(this.label);
+
+  final String label;
+
+  /// Light from 7am, dark from 7pm.
+  static const lightFrom = 7, darkFrom = 19;
+
+  static bool isDaytime(DateTime t) => t.hour >= lightFrom && t.hour < darkFrom;
+
+  /// When daytime next starts or ends after [t].
+  static DateTime nextSwitch(DateTime t) {
+    final hour = isDaytime(t) ? darkFrom : lightFrom;
+    final today = DateTime(t.year, t.month, t.day, hour);
+    return today.isAfter(t) ? today : DateTime(t.year, t.month, t.day + 1, hour);
+  }
+}
+
+/// The appearance the user picked, saved on the phone.
+class AppearanceNotifier extends Notifier<Appearance> {
+  static const String _key = 'theme_mode';
 
   /// Follows the phone's light or dark setting until the user picks one.
   @override
-  ThemeMode build() {
-    _loadThemeMode();
-    return ThemeMode.system;
+  Appearance build() {
+    _load();
+    return Appearance.system;
   }
 
-  /// Load the saved theme mode from shared preferences
-  Future<void> _loadThemeMode() async {
-    final prefs = await SharedPreferences.getInstance();
-    final themeModeString = prefs.getString(_themeModeKey);
-
-    if (themeModeString != null) {
-      state = _themeModeFromString(themeModeString);
+  Future<void> _load() async {
+    final saved = (await SharedPreferences.getInstance()).getString(_key);
+    for (final a in Appearance.values) {
+      if (a.name == saved) state = a;
     }
   }
 
-  /// Toggle between light and dark theme
-  Future<void> toggleTheme() async {
-    final newThemeMode = state == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-    await setThemeMode(newThemeMode);
+  Future<void> set(Appearance appearance) async {
+    state = appearance;
+    await (await SharedPreferences.getInstance()).setString(_key, appearance.name);
   }
-
-  /// Set a specific theme mode
-  Future<void> setThemeMode(ThemeMode mode) async {
-    state = mode;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_themeModeKey, _themeModeToString(mode));
-  }
-
-  /// Convert ThemeMode to String for storage
-  String _themeModeToString(ThemeMode mode) {
-    switch (mode) {
-      case ThemeMode.light:
-        return 'light';
-      case ThemeMode.dark:
-        return 'dark';
-      case ThemeMode.system:
-        return 'system';
-    }
-  }
-
-  /// Convert String to ThemeMode
-  ThemeMode _themeModeFromString(String modeString) {
-    switch (modeString) {
-      case 'light':
-        return ThemeMode.light;
-      case 'dark':
-        return ThemeMode.dark;
-      case 'system':
-        return ThemeMode.system;
-      default:
-        return ThemeMode.system;
-    }
-  }
-
-  /// Check if current theme is dark
-  bool get isDarkMode => state == ThemeMode.dark;
 }
 
-/// Provider for theme mode
-final themeModeProvider = NotifierProvider<ThemeModeNotifier, ThemeMode>(() {
-  return ThemeModeNotifier();
+final appearanceProvider = NotifierProvider<AppearanceNotifier, Appearance>(AppearanceNotifier.new);
+
+/// The clock the Time appearance reads; tests set it.
+DateTime Function() themeClock = DateTime.now;
+
+/// The theme mode the app uses now. With Time it changes by itself at 7am
+/// and 7pm.
+final themeModeProvider = Provider<ThemeMode>((ref) {
+  switch (ref.watch(appearanceProvider)) {
+    case Appearance.system:
+      return ThemeMode.system;
+    case Appearance.light:
+      return ThemeMode.light;
+    case Appearance.dark:
+      return ThemeMode.dark;
+    case Appearance.time:
+      final now = themeClock();
+      // A second past the hour, so the check lands after the switch.
+      final timer = Timer(Appearance.nextSwitch(now).difference(now) + const Duration(seconds: 1), ref.invalidateSelf);
+      ref.onDispose(timer.cancel);
+      return Appearance.isDaytime(now) ? ThemeMode.light : ThemeMode.dark;
+  }
 });
