@@ -1,3 +1,4 @@
+import 'package:daily_rhythm/shared/utils/date_utils.dart';
 import 'package:daily_rhythm/features/exercise/data/models/exercise_entry.dart';
 import 'package:daily_rhythm/features/exercise/data/models/exercise_item.dart';
 import 'package:daily_rhythm/features/exercise/presentation/screens/add_exercise_screen.dart';
@@ -82,6 +83,23 @@ void main() {
       final entry = (await db.getSleepEntryByDate(pastDay))!;
       final picked = entry.wakeUpTime ?? entry.sleepTime;
       expect(label, 'Set ${picked!.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}');
+    });
+
+    testWidgets('Now shows as picked once tapped, until another time is', (tester) async {
+      await tester.pumpWidget(_app(AddSleepScreen(date: dayOf(DateTime.now()))));
+      await tester.pumpAndSettle();
+      ChoiceChip chip(String text) => tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, text).first);
+      expect(chip('Now').selected, isFalse);
+      await tester.tap(find.text('Now').first);
+      await tester.pump();
+      expect(chip('Now').selected, isTrue);
+      await tester.tap(find.text('Other\u2026').first);
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(ListWheelScrollView).first, const Offset(0, -96));
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('Set '));
+      await tester.pumpAndSettle();
+      expect(chip('Now').selected, isFalse);
     });
 
     testWidgets('asks for at least one time', (tester) async {

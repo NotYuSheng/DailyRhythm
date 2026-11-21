@@ -55,6 +55,10 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
   late DateTime _date;
   DateTime? _sleepTime;
   DateTime? _wakeUpTime;
+
+  /// The pickers (by label) set with Now, shown picked although the clock
+  /// has moved on.
+  final Set<String> _pickedNow = {};
   final TextEditingController _napHoursController = TextEditingController();
   DateTime? _previousDaySleepTime;
   List<TimeOfDay> _usualWake = const [];
@@ -245,7 +249,9 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
         title: label,
         initial: selected ?? (usual.isNotEmpty ? usual.first : fallback),
       );
-      if (picked != null) onSelect(atTimeOfDay(_date, picked.hour, picked.minute));
+      if (picked == null) return;
+      setState(() => _pickedNow.remove(label));
+      onSelect(atTimeOfDay(_date, picked.hour, picked.minute));
     }
 
     return Card(
@@ -262,7 +268,10 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
                   IconButton(
                     tooltip: 'Clear',
                     icon: const Icon(Icons.close),
-                    onPressed: () => onSelect(null),
+                    onPressed: () {
+                      setState(() => _pickedNow.remove(label));
+                      onSelect(null);
+                    },
                   ),
               ],
             ),
@@ -274,8 +283,12 @@ class _AddSleepScreenState extends ConsumerState<AddSleepScreen> {
                 for (final (i, t) in choices.indexed)
                   ChoiceChip(
                     label: Text(isToday && i == 0 ? 'Now' : t.format24()),
-                    selected: !(isToday && i == 0) && selected == t,
-                    onSelected: (_) => onSelect(atTimeOfDay(_date, t.hour, t.minute)),
+                    // Now stays picked as the minutes pass; a time is picked when it matches.
+                    selected: isToday && i == 0 ? _pickedNow.contains(label) : !_pickedNow.contains(label) && selected == t,
+                    onSelected: (_) {
+                      setState(() => isToday && i == 0 ? _pickedNow.add(label) : _pickedNow.remove(label));
+                      onSelect(atTimeOfDay(_date, t.hour, t.minute));
+                    },
                   ),
                 ActionChip(label: const Text('Other\u2026'), onPressed: pickOther),
               ],
