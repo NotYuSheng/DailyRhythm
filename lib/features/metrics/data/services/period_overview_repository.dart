@@ -5,7 +5,6 @@ import '../../../../shared/services/database/repositories/spending_repository.da
 import '../../../../shared/utils/date_utils.dart';
 import '../../../garden/data/garden_repository.dart';
 import '../../../garden/domain/garden_day.dart';
-import '../../../tags/data/models/tag.dart';
 import '../models/period_overview.dart';
 
 /// Reads a period from every table for [PeriodOverview].
@@ -69,15 +68,6 @@ class PeriodOverviewRepository {
         if (c.energy != null) dayOf(c.date): c.energy!,
     };
 
-    // Activities and symptoms; food sources say where meals came from.
-    final foodSources = {for (final t in await _db.getAllTags()) if (t.knownKind == TagKind.foodSource) t.name};
-    final tagDays = <String, Set<DateTime>>{};
-    for (final l in logs) {
-      for (final name in l.tagNames) {
-        if (!foodSources.contains(name)) (tagDays[name] ??= {}).add(l.date);
-      }
-    }
-
     return _build(
       scale,
       start,
@@ -92,7 +82,6 @@ class PeriodOverviewRepository {
       effort: effort,
       diet: diet,
       nights: nights,
-      tagDays: tagDays,
       foodSpend: foodSpend,
       eventSpend: eventSpend,
     );
@@ -112,7 +101,6 @@ class PeriodOverviewRepository {
     Map<DateTime, int> effort = const {},
     Map<DateTime, double> diet = const {},
     List<NightSpan> nights = const [],
-    Map<String, Set<DateTime>> tagDays = const {},
     Map<DateTime, double> foodSpend = const {},
     Map<DateTime, double> eventSpend = const {},
   }) =>
@@ -130,8 +118,7 @@ class PeriodOverviewRepository {
         effort: effort,
         diet: diet,
         nights: nights,
-        tagDays: tagDays,
-        foodSpend: foodSpend,
+          foodSpend: foodSpend,
         eventSpend: eventSpend,
       );
 }

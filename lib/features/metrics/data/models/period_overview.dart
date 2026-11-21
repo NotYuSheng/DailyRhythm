@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:intl/intl.dart';
 
 import '../../../../shared/utils/date_utils.dart';
-import 'metric_data.dart';
 
 /// How far an overview looks, and so how it groups days: a week by day, a
 /// month by week, a year by month, all time by year.
@@ -145,14 +144,6 @@ class GroupRow {
   final double events;
 }
 
-/// A tag the user logs only some days, and which days.
-class RareTag {
-  const RareTag(this.name, this.days);
-
-  final String name;
-  final List<DateTime> days;
-}
-
 /// One row of the "every day" grid; a null cell is outside the period.
 class PixelRow {
   const PixelRow(this.label, this.cells);
@@ -162,7 +153,7 @@ class PixelRow {
 }
 
 /// A period at a glance: every day coloured by a measure, mood and sleep by
-/// group, the tags that stood out, and a row per group. Built from plain
+/// group, and a row per group. Built from plain
 /// inputs so it can be tested without a database.
 class PeriodOverview {
   PeriodOverview._({
@@ -175,8 +166,6 @@ class PeriodOverview {
     required this.loggedDays,
     required this.moodByGroup,
     required this.sleepByGroup,
-    required this.rareTags,
-    required this.everydayTags,
     required this.rows,
     required this.averageSteps,
   });
@@ -200,15 +189,7 @@ class PeriodOverview {
   final List<List<int>> moodByGroup;
   final List<GroupSleep> sleepByGroup;
 
-  /// Tags on fewer than [ActivityMetrics.everydayShare] of logged days, most
-  /// used first.
-  final List<RareTag> rareTags;
-
-  /// Tags on most days, left out of [rareTags] and named instead.
-  final List<String> everydayTags;
   final List<GroupRow> rows;
-
-  static const maxRareTags = 5;
 
   /// Average daily steps over the period, for the calorie range.
   final double? averageSteps;
@@ -262,7 +243,6 @@ class PeriodOverview {
     Map<DateTime, int> effort = const {},
     Map<DateTime, double> diet = const {},
     required List<NightSpan> nights,
-    required Map<String, Set<DateTime>> tagDays,
     required Map<DateTime, double> foodSpend,
     required Map<DateTime, double> eventSpend,
   }) {
@@ -327,21 +307,6 @@ class PeriodOverview {
           }(),
     ];
 
-    final everyday = <String>[];
-    final rare = <RareTag>[];
-    for (final MapEntry(key: name, value: dates) in tagDays.entries) {
-      final used = [for (final d in dates) if (inPeriod.contains(d)) d]..sort();
-      if (used.isEmpty) continue;
-      // The same rule as Metrics' "Most days".
-      if (inPeriod.length >= ActivityMetrics.everydayMinDays && used.length >= inPeriod.length * ActivityMetrics.everydayShare) {
-        everyday.add(name);
-      } else {
-        rare.add(RareTag(name, used));
-      }
-    }
-    rare.sort((a, b) => b.days.length.compareTo(a.days.length));
-    everyday.sort();
-
     final stepGroups = byGroup(steps);
     final kcalGroups = byGroup(kcal);
     final dietGroups = byGroup(diet);
@@ -379,8 +344,6 @@ class PeriodOverview {
       loggedDays: inPeriod.length,
       moodByGroup: moodByGroup,
       sleepByGroup: sleepByGroup,
-      rareTags: rare.take(maxRareTags).toList(),
-      everydayTags: everyday,
       rows: rows,
       averageSteps: _mean([for (final MapEntry(key: d, value: v) in steps.entries) if (inRange(d)) v]),
     );

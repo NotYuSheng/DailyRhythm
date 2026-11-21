@@ -1,10 +1,8 @@
-import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../../shared/utils/date_utils.dart';
 import '../../../garden/presentation/garden_style.dart';
 import '../../../garden/presentation/screens/garden_today_screen.dart';
 import '../../data/models/metric_data.dart';
@@ -77,7 +75,7 @@ enum YearMetric {
 
 /// Metrics for a period: every day coloured by a chosen measure, mood and
 /// sleep by group (a week by day, a month by week, a year by month, all
-/// time by year), the tags that stood out, and a row per group.
+/// time by year), and a row per group.
 class PeriodOverviewSection extends ConsumerStatefulWidget {
   const PeriodOverviewSection({super.key, required this.scale, required this.range});
 
@@ -130,15 +128,6 @@ class _PeriodOverviewSectionState extends ConsumerState<PeriodOverviewSection> {
                         : 'Bar: usual bedtime to usual waking. Pale ends: how much that moved.',
                     colors: colors,
                     child: _SleepByGroup(overview: o, colors: colors),
-                  ),
-                ],
-                if (o.rareTags.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  GardenSection(
-                    title: scale == OverviewScale.week ? 'What the days held' : 'Days that stood out',
-                    subtitle: o.everydayTags.isEmpty ? null : 'Left out, as they were on almost every day: ${o.everydayTags.join(', ')}.',
-                    colors: colors,
-                    child: _RareTags(overview: o, colors: colors),
                   ),
                 ],
                 const SizedBox(height: 14),
@@ -506,65 +495,6 @@ class _SleepByGroup extends StatelessWidget {
                       g.hours == null ? '' : '${g.hours!.toStringAsFixed(1)}h',
                       textAlign: TextAlign.right,
                       style: nunito(12, g.hours == shortest ? FontWeight.w900 : FontWeight.w700, colors.ink),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _RareTags extends StatelessWidget {
-  const _RareTags({required this.overview, required this.colors});
-
-  final PeriodOverview overview;
-  final GardenColors colors;
-
-  static const _palette = [Color(0xFF2F7D4C), Color(0xFFD9467A), Color(0xFFB7791F), Color(0xFF6B46C1), Color(0xFF2B6CB0)];
-
-  @override
-  Widget build(BuildContext context) {
-    final start = overview.start;
-    final length = math.max(1, daysBetween(start, overview.end));
-    return Column(
-      children: [
-        for (final (i, tag) in overview.rareTags.indexed)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Semantics(
-              label: '${tag.name} on ${tag.days.length} ${tag.days.length == 1 ? 'day' : 'days'}',
-              excludeSemantics: true,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: Text(tag.name, style: nunito(13, FontWeight.w800, colors.ink))),
-                      Text('${tag.days.length} ${tag.days.length == 1 ? 'day' : 'days'}', style: nunito(13, FontWeight.w800, colors.muted)),
-                    ],
-                  ),
-                  const SizedBox(height: 3),
-                  LayoutBuilder(
-                    builder: (context, box) => Container(
-                      height: 14,
-                      decoration: BoxDecoration(color: colors.ground, borderRadius: BorderRadius.circular(7)),
-                      child: Stack(
-                        children: [
-                          for (final d in tag.days)
-                            Positioned(
-                              left: (box.maxWidth - 8) * daysBetween(start, d) / length,
-                              top: 3,
-                              child: Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(color: _palette[i % _palette.length], shape: BoxShape.circle),
-                              ),
-                            ),
-                        ],
-                      ),
                     ),
                   ),
                 ],

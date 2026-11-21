@@ -89,8 +89,7 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
             _buildInsights(),
             const SizedBox(height: AppTheme.spacePulse3),
 
-            // Every day, mood and sleep by group, tags that stood out, and
-            // a row per group: a week by day up to all time by year.
+            // Every day, mood and sleep by group, and a row per group: a week by day up to all time by year.
             PeriodOverviewSection(scale: _period.scale, range: _selectedRange),
             const SizedBox(height: AppTheme.spacePulse3),
 

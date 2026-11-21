@@ -12,7 +12,6 @@ PeriodOverview build({
   Map<DateTime, int> moods = const {},
   Map<DateTime, double> sleep = const {},
   List<NightSpan> nights = const [],
-  Map<String, Set<DateTime>> tags = const {},
   Map<DateTime, double> food = const {},
   Map<DateTime, double> events = const {},
   DateTime? today,
@@ -29,7 +28,6 @@ PeriodOverview build({
       moods: moods,
       energy: const {},
       nights: nights,
-      tagDays: tags,
       foodSpend: food,
       eventSpend: events,
     );
@@ -82,13 +80,6 @@ void main() {
     expect(NightSpan.fromClock(DateTime(2025, 1, 1, 12, 30)), 18.5, reason: 'so does a late lie-in');
   });
 
-  test('everyday tags are named, not listed; rare tags most used first', () {
-    final everyDay = {for (var i = 1; i <= 20; i++) d(3, i)};
-    final o = build(tags: {'Work': everyDay, 'Hike': {d(3, 2), d(3, 9)}, 'Party': {d(3, 5)}});
-    expect(o.everydayTags, ['Work']);
-    expect(o.rareTags.map((t) => (t.name, t.days.length)), [('Hike', 2), ('Party', 1)]);
-  });
-
   test('a year with only watch data still has its months', () {
     final o = build(logged: const {}, sleep: {d(2, 1): 6.5});
     expect((o.loggedDays, o.hasData, o.rows.single.group.label), (0, true, 'Feb'));
@@ -113,7 +104,6 @@ void main() {
       moods: const {},
       energy: const {},
       nights: const [],
-      tagDays: const {},
       foodSpend: const {},
       eventSpend: const {},
     );

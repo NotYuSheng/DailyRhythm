@@ -51,8 +51,7 @@ final dayRatingsProvider = FutureProvider.autoDispose.family<DayRatingsReport, D
 /// Recomputes every metric, for when entries may have changed since the
 /// Metrics tab was last built (it stays alive when switching tabs).
 /// A period at a glance: every day, mood and sleep by group (a week by day,
-/// a month by week, a year by month, all time by year), tags that stood out
-/// and a row per group.
+/// a month by week, a year by month, all time by year) and a row per group.
 final periodOverviewProvider = FutureProvider.autoDispose.family<PeriodOverview, (OverviewScale, DateRange)>((ref, key) {
   final (scale, range) = key;
   return PeriodOverviewRepository(ref.watch(databaseProvider)).load(scale, range.start, range.end);
