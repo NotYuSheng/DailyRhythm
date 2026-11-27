@@ -302,6 +302,7 @@ class FunFactsService {
       final x = ExerciseEntry.fromMap(r);
       final kcal = Effort.kcalBurned(
         run: x.type == ExerciseType.run,
+        sport: x.type == ExerciseType.sport,
         weightKg: weightKg ?? Effort.defaultWeightKg,
         name: x.exerciseName,
         reps: x.reps,
@@ -311,7 +312,7 @@ class FunFactsService {
         duration: x.duration,
       );
       allKcal += kcal;
-      final name = (r['shown'] as String?) ?? (x.type == ExerciseType.run ? 'Run' : 'Weights');
+      final name = (r['shown'] as String?) ?? x.type.fallbackName;
       final key = name.toLowerCase();
       final was = byExercise[key];
       byExercise[key] = (

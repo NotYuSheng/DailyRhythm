@@ -30,4 +30,16 @@ void main() {
     expect(Effort.kcalBurned(run: true, weightKg: 60, km: 5), 300);
     expect(Effort.kcalBurned(run: false, weightKg: 60, name: 'Plank', notes: 'duration_min 2'), closeTo(8.4, 0.01));
   });
+
+  test('a sport counts its minutes by how hard it usually is', () {
+    expect(Effort.sportMets('Badminton'), 5.5);
+    expect(Effort.sportMets('Table tennis'), 4.0, reason: 'not tennis');
+    expect(Effort.sportMets('Tennis'), 7.0);
+    expect(Effort.sportMets('Something new'), 5.5);
+    // An hour of badminton: 5.5 × 60 / 20 = 16.5 points, about a 5 km run (15).
+    expect(Effort.entryPoints(run: false, sport: true, name: 'Badminton', duration: const Duration(hours: 1)), 16.5);
+    expect(Effort.entryPoints(run: false, sport: true, name: 'Badminton'), 16.5, reason: 'an hour when not given');
+    // 5.5 METs × 3.5 × 60 kg / 200 = 5.775 kcal a minute.
+    expect(Effort.kcalBurned(run: false, sport: true, weightKg: 60, name: 'Badminton', duration: const Duration(minutes: 30)), closeTo(173.25, 0.01));
+  });
 }

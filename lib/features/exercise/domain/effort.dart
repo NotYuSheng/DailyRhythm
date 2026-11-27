@@ -7,7 +7,9 @@ import 'dart:math' as math;
 /// counts its sets (one when not given), or its reps over 10 when they are,
 /// times how hard the exercise is; a run counts 3 a km; a plank 2 a minute.
 /// A watch's intensity minutes count one point per 2 minutes, and the day
-/// takes whichever is higher (they're usually the same workout).
+/// takes whichever is higher (they're usually the same workout). A sport
+/// counts its minutes by how hard it usually is: an hour of badminton is
+/// about a 5 km run.
 class Effort {
   Effort._();
 
@@ -30,6 +32,36 @@ class Effort {
   ];
   static final _minutes = RegExp(r'duration_min ([\d.]+)');
 
+  /// How hard sports usually are, in METs (from the Compendium of Physical
+  /// Activities, rounded); first match wins.
+  static final _sports = [
+    (RegExp(r'rugby|hockey|ultimate', caseSensitive: false), 8.0),
+    (RegExp(r'box|muay|kickbox|mma|martial|judo|karate|taekwondo|jiu', caseSensitive: false), 7.5),
+    (RegExp(r'tennis|squash|soccer|football|futsal|cycl|bike|spin|skat|ski', caseSensitive: false), 7.0),
+    (RegExp(r'basketball|netball', caseSensitive: false), 6.5),
+    (RegExp(r'swim|hik|trek|row|kayak|padel|climb|boulder', caseSensitive: false), 6.0),
+    (RegExp(r'badminton', caseSensitive: false), 5.5),
+    (RegExp(r'danc|zumba|cricket', caseSensitive: false), 5.0),
+    (RegExp(r'pickleball|volleyball|frisbee|dodgeball|table tennis|ping ?pong|bowling', caseSensitive: false), 4.0),
+    (RegExp(r'golf|walk|surf', caseSensitive: false), 3.5),
+    (RegExp(r'yoga|pilates|tai chi', caseSensitive: false), 3.0),
+  ];
+
+  /// How hard a sport usually is, in METs; a moderate one when unknown.
+  /// Table tennis is checked before tennis.
+  static double sportMets(String? name) {
+    final n = name ?? '';
+    if (RegExp(r'table tennis|ping ?pong', caseSensitive: false).hasMatch(n)) return 4.0;
+    for (final (pattern, mets) in _sports) {
+      if (pattern.hasMatch(n)) return mets;
+    }
+    return 5.5;
+  }
+
+  /// Minutes of a sport, or an hour when not given.
+  static double _sportMinutes(Duration? duration) =>
+      duration == null || duration.inSeconds <= 0 ? 60 : duration.inSeconds / 60;
+
   /// How hard an exercise is per set, against a moderate one (1).
   static double factorFor(String name) {
     for (final (pattern, factor) in _factors) {
@@ -39,8 +71,19 @@ class Effort {
   }
 
   /// One logged exercise's points.
-  static double entryPoints({required bool run, String? name, int? reps, int? sets, double? km, String? notes, Duration? duration}) {
+  static double entryPoints({
+    required bool run,
+    bool sport = false,
+    String? name,
+    int? reps,
+    int? sets,
+    double? km,
+    String? notes,
+    Duration? duration,
+  }) {
     if (run) return (km ?? 3) * 3; // a run of unknown length: a short one
+    // A 5 km run, about 30 minutes at 10 METs, is 15 points.
+    if (sport) return sportMets(name) * _sportMinutes(duration) / 20;
     if (_plankMinutes(name, notes, duration) case final minutes?) return minutes * 2;
     final count = sets ?? 1;
     return factorFor(name ?? '') * (reps == null ? count : math.max(1, reps * count / 10));
@@ -52,6 +95,7 @@ class Effort {
   /// a run about 1 kcal per kg per km; a plank 4 METs a minute.
   static double kcalBurned({
     required bool run,
+    bool sport = false,
     required double weightKg,
     String? name,
     int? reps,
@@ -62,6 +106,7 @@ class Effort {
   }) {
     double perMinute(double mets) => mets * 3.5 * weightKg / 200;
     if (run) return (km ?? 3) * weightKg;
+    if (sport) return _sportMinutes(duration) * perMinute(sportMets(name));
     if (_plankMinutes(name, notes, duration) case final minutes?) return minutes * perMinute(4);
     return entryPoints(run: false, name: name, reps: reps, sets: sets) * perMinute(8);
   }

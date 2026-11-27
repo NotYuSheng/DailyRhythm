@@ -558,9 +558,32 @@ void main() {
       await seedExercises(db);
       await openWeights(tester, AddExerciseScreen(date: pastDay));
       await tester.enterText(_field('Exercise Name'), 'Push Ups');
-      await tester.tap(find.descendant(of: find.byType(SegmentedButton<ExerciseType>), matching: find.text('Run')));
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Run'));
       await tester.pumpAndSettle();
       expect(tester.widget<TextField>(_field('Exercise Name')).controller!.text, '');
+    });
+
+    testWidgets('a sport saves with its minutes and joins the catalog as a sport', (tester) async {
+      await CatalogRepository(db).saveExercise(ExerciseItem(name: 'Badminton')); // filed as strength by an import
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_app(AddExerciseScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Sport'));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Exercise Name'), 'Badminton');
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      expect(find.text('Please enter how many minutes'), findsOneWidget);
+      await tester.tap(find.widgetWithText(ChoiceChip, '1 h'));
+      await tester.pump();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      final saved = (await db.getAllExerciseEntries()).single;
+      expect((saved.type, saved.exerciseName, saved.duration, saved.amount), (ExerciseType.sport, 'Badminton', const Duration(hours: 1), '60 min'));
+      expect((await CatalogRepository(db).findExercise('badminton'))!.category, ExerciseItem.sport);
     });
 
     testWidgets('editing keeps an imported entry\'s catalog link', (tester) async {

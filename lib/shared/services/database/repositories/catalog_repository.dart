@@ -118,7 +118,8 @@ class CatalogRepository {
       await txn.update(
         'exercise_items',
         // The category already known stays: callers often pass the default.
-        {'aliases': jsonEncode(aliases.toList()..sort())},
+        // Sport is never a default, so logging one as a sport refiles it.
+        {'aliases': jsonEncode(aliases.toList()..sort()), if (item.category == ExerciseItem.sport) 'category': ExerciseItem.sport},
         where: 'id = ?',
         whereArgs: [current.id],
       );

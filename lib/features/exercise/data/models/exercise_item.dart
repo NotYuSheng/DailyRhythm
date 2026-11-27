@@ -5,6 +5,7 @@ class ExerciseItem {
   static const strength = 'strength';
   static const cardio = 'cardio';
   static const mobility = 'mobility';
+  static const sport = 'sport';
 
   final int? id;
   final String name;
