@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../exercise/data/providers/effort_scale_provider.dart';
 import '../../../exercise/domain/effort.dart';
+import '../../../metrics/presentation/widgets/weekly_guide_section.dart';
 import '../../../../core/app_version.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_provider.dart';
@@ -188,6 +189,7 @@ class SettingsScreen extends ConsumerWidget {
                           padding: const EdgeInsets.only(top: 6),
                           child: Text('${ref.watch(effortScaleProvider).about}. How hard an exercise felt counts too.'),
                         ),
+                        const WeeklyTargetsPicker(),
                       ],
                     ),
                   ),

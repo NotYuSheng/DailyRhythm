@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../exercise/data/providers/effort_scale_provider.dart';
+import '../../../exercise/data/providers/weekly_guide_provider.dart';
 
 import '../../../../shared/services/database/database_provider.dart';
 import '../services/day_ratings_service.dart';
@@ -73,6 +74,7 @@ void invalidateMetrics(WidgetRef ref) {
     firstLoggedDayProvider,
     periodOverviewProvider,
     weightsProvider,
+    weeklyGuideProvider,
   ]) {
     ref.invalidate(provider);
   }
