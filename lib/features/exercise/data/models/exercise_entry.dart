@@ -27,6 +27,9 @@ class ExerciseEntry {
   final int? exerciseItemId; // canonical exercise in exercise_items
   final String? rawText; // original Daylio line, when imported
 
+  /// How hard it felt, 1–10 (Borg CR10 RPE); null when not said.
+  final int? rpe;
+
   ExerciseEntry({
     this.id,
     required this.date,
@@ -48,6 +51,7 @@ class ExerciseEntry {
     this.notes,
     this.exerciseItemId,
     this.rawText,
+    this.rpe,
   });
 
   /// Short description of the amount: "5.0 km", "3×12 @ 20 kg", "40 reps".
@@ -90,6 +94,7 @@ class ExerciseEntry {
       'notes': notes,
       'exercise_item_id': exerciseItemId,
       'raw_text': rawText,
+      'rpe': rpe,
     };
   }
 
@@ -136,6 +141,7 @@ class ExerciseEntry {
       notes: map['notes'] as String?,
       exerciseItemId: map['exercise_item_id'] as int?,
       rawText: map['raw_text'] as String?,
+      rpe: map['rpe'] as int?,
     );
   }
 
@@ -160,6 +166,7 @@ class ExerciseEntry {
     String? notes,
     int? exerciseItemId,
     String? rawText,
+    int? rpe,
   }) {
     return ExerciseEntry(
       id: id ?? this.id,
@@ -182,6 +189,7 @@ class ExerciseEntry {
       notes: notes ?? this.notes,
       exerciseItemId: exerciseItemId ?? this.exerciseItemId,
       rawText: rawText ?? this.rawText,
+      rpe: rpe ?? this.rpe,
     );
   }
 }

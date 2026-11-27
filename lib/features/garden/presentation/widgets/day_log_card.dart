@@ -258,7 +258,7 @@ class DayLogCard extends ConsumerWidget {
             for (final x in exercises)
               _Item(
                 text: x.exerciseName ?? x.type.fallbackName,
-                detail: '${approx(burned(x))} burned',
+                detail: ['${approx(burned(x))} burned', if (Effort.felt[x.rpe] case final felt?) 'felt ${felt.toLowerCase()}'].join(' · '),
                 trailing: x.amount,
                 colors: colors,
                 onTap: () => open(AddExerciseScreen(entry: x)),

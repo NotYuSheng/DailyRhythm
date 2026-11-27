@@ -10,8 +10,36 @@ import 'dart:math' as math;
 /// takes whichever is higher (they're usually the same workout). A sport
 /// counts its minutes by how hard it usually is: an hour of badminton is
 /// about a 5 km run.
+/// How much exercise counts as each level, chosen in Settings: someone
+/// starting out reaches Hard sooner than a seasoned athlete.
+enum EffortScale {
+  gentle('Starting out', 'Less counts as hard', 0.7),
+  standard('Standard', 'The usual levels', 1),
+  athlete('Athlete', 'More is needed to count as hard', 1.4);
+
+  const EffortScale(this.label, this.about, this.factor);
+
+  final String label;
+  final String about;
+
+  /// Multiplies the points each level starts at.
+  final double factor;
+
+  static EffortScale byName(String? name) => values.firstWhere((s) => s.name == name, orElse: () => standard);
+}
+
 class Effort {
   Effort._();
+
+  /// The scale levels are read on; set from Settings at start-up.
+  static EffortScale scale = EffortScale.standard;
+
+  /// How hard an exercise felt, 1–10 (Borg CR10): the words shown for it.
+  static const felt = {3: 'Easy', 5: 'Moderate', 7: 'Hard', 9: 'Very hard', 10: 'All out'};
+
+  /// How an entry's points change with how it felt: moderate (5) leaves
+  /// them, easy halves them, all out doubles them. Not said: unchanged.
+  static double feltFactor(int? rpe) => rpe == null ? 1 : (rpe / 5).clamp(0.4, 2.0);
 
   static const levels = ['Light', 'Easy', 'Moderate', 'Hard', 'Very hard'];
 
@@ -80,6 +108,19 @@ class Effort {
     double? km,
     String? notes,
     Duration? duration,
+    int? rpe,
+  }) =>
+      _points(run: run, sport: sport, name: name, reps: reps, sets: sets, km: km, notes: notes, duration: duration) * feltFactor(rpe);
+
+  static double _points({
+    required bool run,
+    required bool sport,
+    String? name,
+    int? reps,
+    int? sets,
+    double? km,
+    String? notes,
+    Duration? duration,
   }) {
     if (run) return (km ?? 3) * 3; // a run of unknown length: a short one
     // A 5 km run, about 30 minutes at 10 METs, is 15 points.
@@ -130,8 +171,8 @@ class Effort {
     return math.max(logged, (intensityMinutes ?? 0) / 2);
   }
 
-  /// 1–5, or null for no exercise.
-  static int? levelFor(double points) => points <= 0 ? null : 1 + cuts.where((c) => points >= c).length;
+  /// 1–5, or null for no exercise, on the [scale] chosen.
+  static int? levelFor(double points) => points <= 0 ? null : 1 + cuts.where((c) => points >= c * scale.factor).length;
 
   static String labelFor(int level) => levels[(level - 1).clamp(0, 4)];
 }

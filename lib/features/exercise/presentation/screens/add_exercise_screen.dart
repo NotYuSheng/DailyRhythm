@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../shared/utils/name_case.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../domain/effort.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../data/models/exercise_entry.dart';
 import '../../data/models/exercise_item.dart';
@@ -27,6 +28,9 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
   ExerciseType _selectedType = ExerciseType.run;
   RunType _selectedRunType = RunType.flat;
   EquipmentType _selectedEquipmentType = EquipmentType.dumbbell;
+
+  /// How hard it felt (Borg CR10), or null when not said.
+  int? _rpe;
 
   // Run controllers
   final TextEditingController _distanceController = TextEditingController();
@@ -63,6 +67,7 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
       _exerciseNameController.text = entry.exerciseName ?? '';
       _fill(entry);
       _notesController.text = entry.notes ?? '';
+      _rpe = entry.rpe;
     }
     _exerciseNameController.addListener(() => setState(() {}));
     _loaded = _loadExercises();
@@ -272,6 +277,8 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
           if (_selectedType == ExerciseType.sport) _buildSportForm(),
 
           const SizedBox(height: AppTheme.spacePulse3),
+          _buildFelt(),
+          const SizedBox(height: AppTheme.spacePulse3),
 
           // Rarely needed: pace and notes.
           Card(
@@ -408,6 +415,41 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
       ),
 
     ];
+  }
+
+  /// How hard it felt, on Borg's 1–10 scale by its words; optional, and
+  /// tapping the chosen one again clears it.
+  Widget _buildFelt() {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacePulse3),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('How hard did it feel?', style: theme.textTheme.titleMedium),
+            const SizedBox(height: AppTheme.spacePulse2),
+            Wrap(
+              spacing: AppTheme.spacePulse2,
+              runSpacing: AppTheme.spacePulse2,
+              children: [
+                for (final MapEntry(key: rpe, value: label) in Effort.felt.entries)
+                  ChoiceChip(
+                    label: Text(label),
+                    selected: _rpe == rpe,
+                    onSelected: (on) => setState(() => _rpe = on ? rpe : null),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppTheme.spacePulse1),
+            Text(
+              'Optional. Moderate is about a 5 out of 10; easier or harder changes the day’s effort.',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// How long the game lasted, in minutes, with the usual lengths a tap away.
@@ -856,6 +898,7 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                   category: entry.type.category,
                 ));
       entry = entry.copyWith(exerciseItemId: itemId, rawText: widget.entry?.rawText);
+      entry = ExerciseEntry.fromMap({...entry.toMap(), 'rpe': _rpe}); // copyWith can't clear it
 
       if (widget.entry == null) {
         await db.createExerciseEntry(entry);

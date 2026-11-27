@@ -188,7 +188,7 @@ class ExportService {
           'ID', 'Date', 'Timestamp', 'Type', 'Run Type', 'Distance',
           'Duration Seconds', 'Pace Seconds', 'Interval Distance Seconds', 'Interval Time Seconds',
           'Rest Time Seconds', 'Interval Count', 'Exercise Name', 'Equipment Type',
-          'Reps', 'Weight', 'Sets', 'Notes', 'Exercise Item', 'Raw Text',
+          'Reps', 'Weight', 'Sets', 'Notes', 'Exercise Item', 'Raw Text', 'RPE',
         ],
         for (final e in await _db.getAllExerciseEntries())
           [
@@ -212,6 +212,7 @@ class ExportService {
             e.notes ?? '',
             exerciseNames[e.exerciseItemId] ?? '',
             e.rawText ?? '',
+            e.rpe ?? '',
           ],
       ],
       'task_entries.csv': [
@@ -749,6 +750,7 @@ class _Importer {
         notes: _text(row, 17),
         exerciseItemId: _exerciseIds[_text(row, 18)?.toLowerCase()],
         rawText: _text(row, 19),
+        rpe: _int(row, 20),
       ).toMap(),
     ),
     'task_entries.csv': (row) => _add(

@@ -637,6 +637,33 @@ void main() {
       expect((await CatalogRepository(db).findExercise('badminton'))!.category, ExerciseItem.sport);
     });
 
+    testWidgets('how hard it felt is saved, and can be cleared', (tester) async {
+      tester.view.physicalSize = const Size(800, 1800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_app(AddExerciseScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Sport'));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Exercise Name'), 'Badminton');
+      await tester.tap(find.widgetWithText(ChoiceChip, '1 h'));
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Very hard'));
+      await tester.pump();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final saved = (await db.getAllExerciseEntries()).single;
+      expect(saved.rpe, 9);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(_app(AddExerciseScreen(entry: saved)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Very hard'));
+      await tester.pump();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect((await db.getAllExerciseEntries()).single.rpe, isNull);
+    });
+
     testWidgets('editing keeps an imported entry\'s catalog link', (tester) async {
       final bench = await CatalogRepository(db).saveExercise(ExerciseItem(name: 'Bench Press'));
       await db.createExerciseEntry(ExerciseEntry(
