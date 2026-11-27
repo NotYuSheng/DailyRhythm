@@ -16,7 +16,7 @@ class GarminImport {
 }
 
 /// Reads daily health metrics and workouts from a Garmin Connect "Export
-/// Your Data" zip, like `tools/daylio_migration/garmin.py`.
+/// Your Data" zip.
 ///
 /// Only the wellness and activity files are read; profile, email and
 /// consent files are ignored. The format is undocumented, so every field is
