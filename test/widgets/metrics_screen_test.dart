@@ -1,6 +1,7 @@
 import 'package:daily_rhythm/core/theme/app_theme.dart';
 import 'package:daily_rhythm/features/metrics/presentation/screens/metrics_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:daily_rhythm/features/exercise/data/models/exercise_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:daily_rhythm/shared/models/mood_entry.dart';
 import 'package:daily_rhythm/features/garden/presentation/screens/garden_today_screen.dart';
@@ -128,6 +129,24 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.byType(GardenTodayScreen), findsOneWidget);
+  });
+
+  testWidgets('Metrics checks the last 7 days against the weekly guide', (tester) async {
+    stillGarden(tester);
+    SharedPreferences.setMockInitialValues({});
+    final db = await openTestDatabase();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    await db.createExerciseEntry(ExerciseEntry(
+      date: today, timestamp: today, type: ExerciseType.run, runType: RunType.flat, distance: 5, duration: const Duration(minutes: 30),
+    ));
+    await tester.pumpWidget(ProviderScope(child: MaterialApp(theme: AppTheme.lightTheme, home: const MetricsScreen())));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Your last 7 days'), 300, scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
+    expect(find.text('60 of 150'), findsOneWidget);
+    expect(find.text('0 of 2'), findsOneWidget);
+    expect(find.text('90 more active minutes would reach your 150 a week.'), findsOneWidget);
   });
 
   testWidgets('Metrics shows weight with its change; it is logged on Today', (tester) async {

@@ -12,6 +12,7 @@ import '../widgets/moments_section.dart';
 import '../../data/models/period_overview.dart';
 import '../widgets/period_overview_section.dart';
 import '../widgets/weight_section.dart';
+import '../widgets/weekly_guide_section.dart';
 
 class MetricsScreen extends ConsumerStatefulWidget {
   const MetricsScreen({super.key, this.month});
@@ -99,6 +100,9 @@ class _MetricsScreenState extends ConsumerState<MetricsScreen> {
 
             // How hard the exercise days were, and how much was eaten
             EffortSection(range: _selectedRange),
+            const SizedBox(height: AppTheme.spacePulse3),
+            // The last 7 days against the weekly guide, with advice.
+            const WeeklyGuideSection(),
             const SizedBox(height: AppTheme.spacePulse3),
             FoodSection(range: _selectedRange),
             const SizedBox(height: AppTheme.spacePulse3),
