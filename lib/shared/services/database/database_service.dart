@@ -13,6 +13,7 @@ import 'schema_v17.dart';
 import 'schema_v18.dart';
 import 'schema_v19.dart';
 import 'schema_v20.dart';
+import 'schema_v21.dart';
 import '../../../features/sleep/data/models/sleep_entry.dart';
 import '../../models/nap_entry.dart';
 import '../../../features/meals/data/models/meal_entry.dart';
@@ -26,7 +27,7 @@ class DatabaseService {
   static final DatabaseService instance = DatabaseService._init();
   static Database? _database;
 
-  static const int schemaVersion = 20;
+  static const int schemaVersion = 21;
 
   /// Overrides the database file location (e.g. `inMemoryDatabasePath`).
   @visibleForTesting
@@ -262,6 +263,9 @@ class DatabaseService {
     }
     if (oldVersion < 20) {
       await SchemaV20.apply(db);
+    }
+    if (oldVersion < 21) {
+      await SchemaV21.apply(db);
     }
   }
 
@@ -540,6 +544,7 @@ class DatabaseService {
     await SchemaV17.apply(db);
     await SchemaV19.apply(db);
     await SchemaV20.apply(db);
+    await SchemaV21.apply(db);
   }
 
   // ==================== Sleep Entry CRUD ====================

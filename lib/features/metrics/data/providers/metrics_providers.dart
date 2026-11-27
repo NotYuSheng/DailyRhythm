@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../exercise/data/providers/effort_scale_provider.dart';
+
 import '../../../../shared/services/database/database_provider.dart';
 import '../services/day_ratings_service.dart';
 import '../services/level_report.dart';
@@ -54,6 +56,7 @@ final dayRatingsProvider = FutureProvider.autoDispose.family<DayRatingsReport, D
 /// a month by week, a year by month, all time by year) and a row per group.
 final periodOverviewProvider = FutureProvider.autoDispose.family<PeriodOverview, (OverviewScale, DateRange)>((ref, key) {
   final (scale, range) = key;
+  ref.watch(effortScaleProvider); // effort colours follow the scale
   return PeriodOverviewRepository(ref.watch(databaseProvider)).load(scale, range.start, range.end);
 });
 

@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../exercise/data/providers/effort_scale_provider.dart';
+
 import '../../../../shared/services/database/database_provider.dart';
 import '../../../../shared/services/database/database_service.dart';
 import '../../../../shared/services/database/repositories/catalog_repository.dart';
@@ -142,6 +144,7 @@ Future<Map<DateTime, double>> dailyKcal(DatabaseService db, DateTime start, Date
 
 final effortReportProvider = FutureProvider.autoDispose.family<LevelReport, DateRange>((ref, range) async {
   final db = ref.watch(databaseProvider);
+  ref.watch(effortScaleProvider);
   final (start, end) = await _span(db, range);
   final days = daysBetween(start, end) + 1;
   final now = await _effort(db, start, end);

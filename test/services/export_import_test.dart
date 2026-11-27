@@ -67,6 +67,7 @@ Future<void> _seed(DatabaseService db) async {
     distance: 5,
     duration: const Duration(minutes: 30, seconds: 15),
     pace: const Duration(minutes: 6, seconds: 3),
+    rpe: 7,
   ));
   await db.createExerciseEntry(ExerciseEntry(
     date: _old,
@@ -123,7 +124,7 @@ Future<Map<String, Object>> _snapshot(DatabaseService db) async {
     'mood': [for (final e in await db.getAllMoodEntries()) [e.date, e.moodLevel]],
     'exercise': [
       for (final e in await db.getAllExerciseEntries())
-        [e.date, e.timestamp, e.type, e.runType, e.distance, e.duration, e.pace, e.exerciseName, e.equipmentType, e.reps, e.weight, e.sets],
+        [e.date, e.timestamp, e.type, e.runType, e.distance, e.duration, e.pace, e.exerciseName, e.equipmentType, e.reps, e.weight, e.sets, e.rpe],
     ],
     'tasks': [for (final e in await db.getAllTaskEntries()) [e.date, e.taskType]],
     'spending': [

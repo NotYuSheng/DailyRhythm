@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../exercise/data/providers/effort_scale_provider.dart';
+import '../../../exercise/domain/effort.dart';
 import '../../../../core/app_version.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/theme_provider.dart';
@@ -158,6 +160,35 @@ class SettingsScreen extends ConsumerWidget {
                       segments: [for (final s in PlantStyle.values) ButtonSegment(value: s, label: Text(s.label))],
                       selected: {ref.watch(plantStyleProvider)},
                       onSelectionChanged: (s) => ref.read(plantStyleProvider.notifier).set(s.first),
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.fitness_center_outlined),
+                  title: const Text('Exercise effort'),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final s in EffortScale.values)
+                              ChoiceChip(
+                                label: Text(s.label),
+                                selected: ref.watch(effortScaleProvider) == s,
+                                onSelected: (_) => ref.read(effortScaleProvider.notifier).set(s),
+                              ),
+                          ],
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text('${ref.watch(effortScaleProvider).about}. How hard an exercise felt counts too.'),
+                        ),
+                      ],
                     ),
                   ),
                 ),

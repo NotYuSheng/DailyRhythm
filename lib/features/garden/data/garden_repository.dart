@@ -67,7 +67,7 @@ class GardenRepository {
     final logged = <DateTime, double>{};
     for (final r in await db.query(
       'exercise_entries',
-      columns: ['date', 'type', 'exerciseName', 'reps', 'sets', 'distance', 'duration', 'notes'],
+      columns: ['date', 'type', 'exerciseName', 'reps', 'sets', 'distance', 'duration', 'notes', 'rpe'],
       where: inRange,
       whereArgs: args,
     )) {
@@ -80,6 +80,7 @@ class GardenRepository {
         km: (r['distance'] as num?)?.toDouble(),
         notes: r['notes'] as String?,
         duration: r['duration'] == null ? null : Duration(seconds: r['duration'] as int),
+        rpe: r['rpe'] as int?,
       );
       logged[day(r['date'])] = (logged[day(r['date'])] ?? 0) + points;
     }

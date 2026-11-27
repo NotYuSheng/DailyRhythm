@@ -98,6 +98,10 @@ Additive (`shared/services/database/schema_v20.dart`): on `meal_entries`,
 
 A meal's cost is its main and sides together; snacks are counted apart. Exported as `Kind` and `Side Of` (the exported id of the meal); import links sides once every meal is in.
 
+## v21
+
+Additive (`shared/services/database/schema_v21.dart`): `rpe` (INTEGER, nullable) on `exercise_entries`, how hard it felt on Borg's CR10 scale (1–10), picked as Easy 3, Moderate 5, Hard 7, Very hard 9, All out 10. It scales the entry's effort points by `rpe / 5` (40%–200%). Exported as `RPE`. The effort scale (Starting out / Standard / Athlete) is a preference, not stored here.
+
 ## Export and import
 
 Every table is exported as a CSV in the export zip. New columns go at the end of a

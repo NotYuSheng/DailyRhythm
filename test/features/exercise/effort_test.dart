@@ -42,4 +42,20 @@ void main() {
     // 5.5 METs × 3.5 × 60 kg / 200 = 5.775 kcal a minute.
     expect(Effort.kcalBurned(run: false, sport: true, weightKg: 60, name: 'Badminton', duration: const Duration(minutes: 30)), closeTo(173.25, 0.01));
   });
+
+  test('how it felt scales its points; the chosen scale moves the levels', () {
+    double pushups(int? rpe) => Effort.entryPoints(run: false, name: 'Push ups', reps: 20, sets: 3, rpe: rpe);
+    expect(pushups(null), closeTo(7.2, 0.001));
+    expect(pushups(5), closeTo(7.2, 0.001), reason: 'moderate leaves it');
+    expect(pushups(3), closeTo(4.32, 0.001));
+    expect(pushups(10), closeTo(14.4, 0.001));
+    expect(Effort.feltFactor(1), 0.4, reason: 'never below 40%');
+
+    addTearDown(() => Effort.scale = EffortScale.standard);
+    expect(Effort.levelFor(10), 4);
+    Effort.scale = EffortScale.athlete;
+    expect(Effort.levelFor(10), 3, reason: 'Hard starts at 14 for an athlete');
+    Effort.scale = EffortScale.gentle;
+    expect(Effort.levelFor(7.5), 4, reason: 'and at 7 when starting out');
+  });
 }
