@@ -1,9 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart' show GoogleSignInException;
 import 'package:material_ui/material_ui.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../../tags/presentation/screens/tags_screen.dart' show invalidateTags;
 import '../../../../shared/services/backup/google_drive_service.dart';
 import '../../../../shared/services/backup/backup_service.dart';
 
@@ -176,7 +174,6 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
         content: Text(
           'This will replace all current data with $which. '
           'Your current data will be kept on this device as a fallback.\n\n'
-          '${backup == null ? '' : 'Or bring back only the old “Food from” tags from it, keeping everything else as it is now.\n\n'}'
           'Continue?',
         ),
         actions: [
@@ -184,11 +181,6 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          if (backup != null)
-            TextButton(
-              onPressed: () => Navigator.pop(context, 'tags'),
-              child: const Text('Food tags only'),
-            ),
           FilledButton(
             onPressed: () => Navigator.pop(context, 'all'),
             child: const Text('Restore'),
@@ -202,11 +194,7 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
     setState(() => _isLoading = true);
 
     if (!mounted) return;
-    final container = ProviderScope.containerOf(context);
-    final result = choice == 'tags'
-        ? await _backupService.recoverFoodTagsFromGoogleDrive(backup!.id)
-        : await _backupService.restoreFromGoogleDrive(fileId: backup?.id);
-    if (choice == 'tags' && result.success) invalidateTags(container);
+    final result = await _backupService.restoreFromGoogleDrive(fileId: backup?.id);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
