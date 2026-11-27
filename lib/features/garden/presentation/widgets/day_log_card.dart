@@ -121,6 +121,20 @@ class DayLogCard extends ConsumerWidget {
     final activityNames = [for (final t in dayTags) t.name];
 
     final kcalTotal = kcal.isEmpty ? null : kcal.reduce((a, b) => a + b);
+    // Sides sit under the meal they came with; a side whose meal is gone
+    // stands on its own.
+    final ids = {for (final m in meals) m.id};
+    final mains = [for (final m in meals) if (m.sideOf == null || !ids.contains(m.sideOf)) m];
+    final sidesOf = <int?, List<MealEntry>>{};
+    for (final m in meals) {
+      if (m.sideOf != null && ids.contains(m.sideOf)) (sidesOf[m.sideOf] ??= []).add(m);
+    }
+    final mealCount = mains.where((m) => !m.isSnack).length;
+    final snackCount = mains.length - mealCount;
+    final counted = [
+      if (mealCount > 0) '$mealCount ${mealCount == 1 ? 'meal' : 'meals'}',
+      if (snackCount > 0) '$snackCount ${snackCount == 1 ? 'snack' : 'snacks'}',
+    ].join(' · ');
     final number = NumberFormat.decimalPattern();
     final hours = night?.totalHours;
     final eventsTotal = spending.isEmpty ? '' : moneyTotals([for (final e in spending) (e.amount, e.currency)]);
@@ -170,32 +184,60 @@ class DayLogCard extends ConsumerWidget {
           headline: meals.isEmpty
               ? 'Add a meal'
               : [if (kcalTotal != null) '≈${number.format(kcalTotal.round())} kcal', if (spentText.isNotEmpty) spentText].join(' · ').ifEmpty ??
-                    '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'}',
+                    counted,
           summary: meals.isEmpty
               ? 'Breakfast, lunch, dinner, snacks'
-              : '${meals.length} ${meals.length == 1 ? 'meal' : 'meals'}${health == null ? '' : ' · health $health/5'}',
+              : '$counted${health == null ? '' : ' · health $health/5'}',
           colors: colors,
           adds: true,
           onTap: () => open(AddMealScreen(date: day)),
           onReorder: (from, to) async {
-            final ids = [for (final m in meals) m.id!];
-            ids.insert(to, ids.removeAt(from));
-            await ref.read(databaseProvider).reorderMeals(ids);
+            final order = [for (final m in mains) m.id!];
+            order.insert(to, order.removeAt(from));
+            // Each meal's sides follow it.
+            await ref.read(databaseProvider).reorderMeals([
+              for (final id in order) ...[id, for (final s in sidesOf[id] ?? const <MealEntry>[]) s.id!],
+            ]);
             ref.invalidate(mealEntriesProvider(day));
           },
           items: [
-            for (final m in meals)
-              _Item(
+            for (final m in mains)
+              Column(
                 key: ValueKey(('meal', m.id)),
-                text: m.quantity > 1 ? '${m.quantity}× ${m.name}' : m.name,
-                // Its calories, then how healthy it is and why.
-                detail: [
-                  if (m.caloriesWith(foodKcal) case final kcal?) approx(kcal),
-                  ?DietScore.describe(m.name, tags: m.healthTags ?? foodTags[m.foodItemId]),
-                ].join(' · ').ifEmpty,
-                trailing: m.price == null ? null : formatMoney(m.price!, m.currency),
-                colors: colors,
-                onTap: () => open(AddMealScreen(entry: m)),
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final (i, f) in [m, ...?sidesOf[m.id]].indexed)
+                    _Item(
+                      text: [
+                        if (i > 0) '+ ',
+                        if (f.quantity > 1) '${f.quantity}× ',
+                        f.name,
+                        if (i == 0 && f.isSnack) ' (snack)',
+                      ].join(),
+                      indent: i > 0,
+                      // Its calories, then how healthy it is and why.
+                      detail: [
+                        if (f.caloriesWith(foodKcal) case final kcal?) approx(kcal),
+                        ?DietScore.describe(f.name, tags: f.healthTags ?? foodTags[f.foodItemId]),
+                      ].join(' · ').ifEmpty,
+                      trailing: f.price == null ? null : formatMoney(f.price!, f.currency),
+                      colors: colors,
+                      onTap: () => open(AddMealScreen(entry: f)),
+                    ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(0, 36),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        foregroundColor: DayTone.food.ink(context),
+                      ),
+                      onPressed: () => open(AddMealScreen(sideOf: m)),
+                      icon: const Icon(Icons.add, size: 16),
+                      label: Text('Side', semanticsLabel: 'Add a side to ${m.name}'),
+                    ),
+                  ),
+                ],
               ),
           ],
         ),
@@ -402,9 +444,12 @@ class _Tile extends StatelessWidget {
 
 /// One logged entry in its tile; tap to edit.
 class _Item extends StatelessWidget {
-  const _Item({super.key, required this.text, required this.colors, required this.onTap, this.trailing, this.detail});
+  const _Item({required this.text, required this.colors, required this.onTap, this.trailing, this.detail, this.indent = false});
 
   final String text;
+
+  /// Set in under the entry above: a side under its meal.
+  final bool indent;
 
   /// A second, quieter line: a meal's health score and why.
   final String? detail;
@@ -427,7 +472,7 @@ class _Item extends StatelessWidget {
             children: [
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  padding: EdgeInsets.fromLTRB(indent ? 16 : 0, 4, 0, 4),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

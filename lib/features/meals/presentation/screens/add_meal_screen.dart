@@ -1,8 +1,10 @@
 import 'barcode_screen.dart';
 import '../../../ai/data/ai_client.dart';
 import '../../../ai/data/ai_providers.dart';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../data/models/food_item.dart';
 import '../../data/models/meal_entry.dart';
 import '../../data/services/calorie_lookup.dart';
@@ -28,7 +30,10 @@ class AddMealScreen extends ConsumerStatefulWidget {
   final MealEntry? entry; // For editing existing entries
   final DateTime? date; // Day to log a new meal on (defaults to today)
 
-  const AddMealScreen({super.key, this.entry, this.date});
+  /// Adds a side to this meal: it takes the meal's day, time and source.
+  final MealEntry? sideOf;
+
+  const AddMealScreen({super.key, this.entry, this.date, this.sideOf});
 
   @override
   ConsumerState<AddMealScreen> createState() => _AddMealScreenState();
@@ -43,6 +48,12 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   final TextEditingController _notesController = TextEditingController();
   final FocusNode _nameFocus = FocusNode();
   String? _foodSource;
+
+  /// Meal or snack, for a food of its own.
+  late String _kind = widget.entry?.kind ?? widget.sideOf?.kind ?? MealKind.meal;
+
+  /// The meal this is a side of, by id; null for its own meal or snack.
+  late int? _sideOf = widget.sideOf?.id ?? widget.entry?.sideOf;
 
   /// Where typed calories came from: 'off' after a lookup, else the user.
   String? _kcalSource;
@@ -70,8 +81,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
 
   /// What the health score uses: ticked here, else this meal's own, else
   /// the food's; null leaves it to the name.
-  List<String>? get _currentTags =>
-      _healthTags ?? widget.entry?.healthTags ?? _matcher.exact(_nameController.text)?.item.healthTags;
+  List<String>? get _currentTags => _healthTags ?? widget.entry?.healthTags ?? _matcher.exact(_nameController.text)?.item.healthTags;
 
   /// The user's foods, for suggestions; empty until loaded.
   FoodMatcher _matcher = FoodMatcher(const []);
@@ -85,17 +95,19 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   @override
   void initState() {
     super.initState();
-    _date = dayOf(widget.entry?.date ?? widget.date ?? DateTime.now());
+    _date = dayOf(widget.entry?.date ?? widget.sideOf?.date ?? widget.date ?? DateTime.now());
     _nameController.text = widget.entry?.name ?? '';
     _quantityController.text = widget.entry?.quantity.toString() ?? '1';
     _priceController.text = widget.entry?.price?.toString() ?? '';
     _caloriesController.text = widget.entry?.calories?.toString() ?? '';
     _notesController.text = widget.entry?.notes ?? '';
-    _foodSource = widget.entry?.foodSource;
+    _foodSource = widget.entry?.foodSource ?? widget.sideOf?.foodSource;
     _nameController.addListener(() => setState(() {}));
-    _quantityController.addListener(() => setState(() {
-          if (_lookedUpPerServing case final kcal?) _caloriesController.text = '${(kcal * _quantity).round()}';
-        }));
+    _quantityController.addListener(
+      () => setState(() {
+        if (_lookedUpPerServing case final kcal?) _caloriesController.text = '${(kcal * _quantity).round()}';
+      }),
+    );
     _loadFoods();
   }
 
@@ -107,7 +119,9 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       setState(() {
         _matcher = FoodMatcher(foods);
         // Your own words count most: a dish you log is spelt your way.
-        _yourWords = FoodSpelling.countWords([for (final f in foods) ...[f.item.name, ...f.item.aliases]], weight: 20);
+        _yourWords = FoodSpelling.countWords([
+          for (final f in foods) ...[f.item.name, ...f.item.aliases],
+        ], weight: 20);
         _spelling = FoodSpelling.empty().withWords(_yourWords);
         _estimator = CalorieEstimator(yourFoods: [for (final f in foods) f.item], reference: const []);
         _usual = usual;
@@ -148,15 +162,15 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   }
 
   int get _quantity => switch (int.tryParse(_quantityController.text.trim())) {
-        final n? when n > 0 => n,
-        _ => 1,
-      };
+    final n? when n > 0 => n,
+    _ => 1,
+  };
 
   /// The known food's calories for this quantity, when it has them.
   double? get _inheritedCalories => switch (_matcher.exact(_nameController.text)?.item.kcal) {
-        final kcal? => kcal * _quantity,
-        null => null,
-      };
+    final kcal? => kcal * _quantity,
+    null => null,
+  };
 
   /// A suggested calories-per-serving for a food that has none yet. Only
   /// for a new entry: editing an old meal never sets its food's calories.
@@ -200,9 +214,15 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                   ),
                   const SizedBox(height: 8),
                   if (snapshot.connectionState != ConnectionState.done)
-                    const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
                   else if (snapshot.hasError)
-                    const Padding(padding: EdgeInsets.all(20), child: Text('No offline match, and Open Food Facts couldn’t be reached. Check the connection or type the calories.'))
+                    const Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text('No offline match, and Open Food Facts couldn’t be reached. Check the connection or type the calories.'),
+                    )
                   else if (snapshot.data!.isEmpty)
                     const Padding(padding: EdgeInsets.all(20), child: Text('No matches. You can type the calories instead.'))
                   else
@@ -244,9 +264,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       }
     });
     if (!perServing) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('That’s per 100 g. Adjust it to what you had.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('That’s per 100 g. Adjust it to what you had.')));
     }
   }
 
@@ -281,9 +299,9 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       _caloriesController.text = '${(perServing ? found.kcal * _quantity : found.kcal).round()}';
       _kcalSource = perServing ? found.source : null;
     });
-    messenger.showSnackBar(SnackBar(
-      content: Text(perServing ? 'From Open Food Facts: ${found.kcal.round()} kcal a serving.' : 'That’s per 100 g. Adjust it to what you had.'),
-    ));
+    messenger.showSnackBar(
+      SnackBar(content: Text(perServing ? 'From Open Food Facts: ${found.kcal.round()} kcal a serving.' : 'That’s per 100 g. Adjust it to what you had.')),
+    );
   }
 
   /// Asks the user's AI model for one serving's calories (only when tapped;
@@ -336,7 +354,10 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                   // From the state now, not when this chip was built.
                   final next = {...(_currentTags ?? DietScore.detect(_nameController.text))};
                   on ? next.add(c.key) : next.remove(c.key);
-                  _healthTags = [for (final c in DietScore.categories) if (next.contains(c.key)) c.key];
+                  _healthTags = [
+                    for (final c in DietScore.categories)
+                      if (next.contains(c.key)) c.key,
+                  ];
                 }),
               ),
           ],
@@ -352,8 +373,79 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     );
   }
 
-  static String _formatPrice(double price) =>
-      price == price.roundToDouble() ? price.toStringAsFixed(0) : price.toStringAsFixed(2);
+  /// Whether other foods are sides of this one.
+  bool get _hasSides {
+    final id = widget.entry?.id;
+    if (id == null) return false;
+    final day = ref.read(mealEntriesProvider(_date)).value ?? const <MealEntry>[];
+    return day.any((m) => m.sideOf == id);
+  }
+
+  /// Meal or snack, or for a side, which meal it goes with. An existing
+  /// food can be made a side of another meal that day (logged apart before
+  /// sides existed), unless it has sides of its own.
+  Widget _buildKind() {
+    final day = ref.watch(mealEntriesProvider(_date)).value ?? const <MealEntry>[];
+    final id = widget.entry?.id;
+    final hasSides = id != null && day.any((m) => m.sideOf == id);
+    final mains = [
+      for (final m in day)
+        if (m.id != id && !m.isSide) m,
+    ];
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacePulse3),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('This was', style: theme.textTheme.titleMedium),
+            const SizedBox(height: AppTheme.spacePulse2),
+            if (widget.sideOf case final main?)
+              Text('A side with ${main.name}', style: theme.textTheme.bodyMedium)
+            else
+              Wrap(
+                spacing: AppTheme.spacePulse2,
+                runSpacing: AppTheme.spacePulse2,
+                children: [
+                  ChoiceChip(
+                    label: const Text('A meal'),
+                    selected: _sideOf == null && _kind == MealKind.meal,
+                    onSelected: (_) => setState(() {
+                      _kind = MealKind.meal;
+                      _sideOf = null;
+                    }),
+                  ),
+                  ChoiceChip(
+                    label: const Text('A snack'),
+                    selected: _sideOf == null && _kind == MealKind.snack,
+                    onSelected: (_) => setState(() {
+                      _kind = MealKind.snack;
+                      _sideOf = null;
+                    }),
+                  ),
+                ],
+              ),
+            if (widget.sideOf == null && !hasSides && mains.isNotEmpty) ...[
+              const SizedBox(height: AppTheme.spacePulse3),
+              Text('Or a side with', style: theme.textTheme.titleSmall),
+              const SizedBox(height: AppTheme.spacePulse2),
+              Wrap(
+                spacing: AppTheme.spacePulse2,
+                runSpacing: AppTheme.spacePulse2,
+                children: [
+                  for (final m in mains)
+                    ChoiceChip(label: Text(m.name), selected: _sideOf == m.id, onSelected: (on) => setState(() => _sideOf = on ? m.id : null)),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _formatPrice(double price) => price == price.roundToDouble() ? price.toStringAsFixed(0) : price.toStringAsFixed(2);
 
   @override
   Widget build(BuildContext context) {
@@ -362,17 +454,15 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.entry == null ? 'Add Meal' : 'Edit Meal'),
+        title: Text(switch ((widget.entry, _sideOf)) {
+          (null, null) => 'Add Food',
+          (null, _) => 'Add Side',
+          (_, null) => 'Edit Food',
+          _ => 'Edit Side',
+        }),
         actions: [
-          if (widget.entry != null)
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: _confirmDelete,
-            ),
-          TextButton(
-            onPressed: _saveMeal,
-            child: const Text('Save'),
-          ),
+          if (widget.entry != null) IconButton(icon: const Icon(Icons.delete), onPressed: _confirmDelete),
+          TextButton(onPressed: _saveMeal, child: const Text('Save')),
         ],
       ),
       body: ListView(
@@ -390,10 +480,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                       controller: _nameController,
                       focusNode: _nameFocus,
                       autofocus: widget.entry == null,
-                      decoration: const InputDecoration(
-                        labelText: 'Meal Name',
-                        hintText: 'What did you eat?',
-                      ),
+                      decoration: const InputDecoration(labelText: 'Meal Name', hintText: 'What did you eat?'),
                       textCapitalization: TextCapitalization.sentences,
                       textInputAction: TextInputAction.next,
                     ),
@@ -450,11 +537,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                     padding: const EdgeInsets.all(AppTheme.spacePulse3),
                     child: TextField(
                       controller: _priceController,
-                      decoration: const InputDecoration(
-                        labelText: 'Price (optional)',
-                        hintText: 'Enter amount',
-                        prefixText: '\$ ',
-                      ),
+                      decoration: const InputDecoration(labelText: 'Price (optional)', hintText: 'Enter amount', prefixText: '\$ '),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     ),
                   ),
@@ -536,6 +619,9 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
           ),
           const SizedBox(height: AppTheme.spacePulse3),
 
+          _buildKind(),
+          const SizedBox(height: AppTheme.spacePulse3),
+
           // Where it came from (one choice)
           Card(
             child: Padding(
@@ -550,11 +636,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                     runSpacing: AppTheme.spacePulse2,
                     children: [
                       for (final MapEntry(key: source, value: label) in FoodSource.labels.entries)
-                        ChoiceChip(
-                          label: Text(label),
-                          selected: _foodSource == source,
-                          onSelected: (on) => setState(() => _foodSource = on ? source : null),
-                        ),
+                        ChoiceChip(label: Text(label), selected: _foodSource == source, onSelected: (on) => setState(() => _foodSource = on ? source : null)),
                     ],
                   ),
                 ],
@@ -570,21 +652,31 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
               title: const Text('More'),
               subtitle: const Text('Notes'),
               initiallyExpanded: widget.entry?.notes?.isNotEmpty ?? false,
-              childrenPadding: const EdgeInsets.fromLTRB(
-                AppTheme.spacePulse3, 0, AppTheme.spacePulse3, AppTheme.spacePulse3),
+              childrenPadding: const EdgeInsets.fromLTRB(AppTheme.spacePulse3, 0, AppTheme.spacePulse3, AppTheme.spacePulse3),
               children: [
                 TextField(
                   controller: _notesController,
-                  decoration: const InputDecoration(
-                    labelText: 'Notes (Optional)',
-                    hintText: 'Any additional details...',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Notes (Optional)', hintText: 'Any additional details...'),
                   maxLines: 3,
                   textCapitalization: TextCapitalization.sentences,
                 ),
               ],
             ),
           ),
+          // A side for this meal: McWings with the McFillet.
+          if (widget.entry?.id != null && _sideOf == null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppTheme.spacePulse2),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(minimumSize: const Size(0, 44)),
+                  onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute<void>(builder: (_) => AddMealScreen(sideOf: widget.entry))),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add a side to this'),
+                ),
+              ),
+            ),
           // Imported history mixes in group events and gifts; this moves one
           // out of food spending.
           if (widget.entry?.id != null)
@@ -654,9 +746,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   Future<void> _saveMeal() async {
     // Validate inputs
     if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a meal name')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a meal name')));
       return;
     }
 
@@ -666,9 +756,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     if (priceText.isNotEmpty) {
       price = double.tryParse(priceText);
       if (price == null || price < 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please enter a valid price')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a valid price')));
         return;
       }
     }
@@ -676,7 +764,15 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     // Keep the original time when editing; new meals use the current clock
     // time on the selected day.
     final now = DateTime.now();
-    final time = widget.entry?.time ?? atTimeOfDay(_date, now.hour, now.minute);
+    final day = ref.read(mealEntriesProvider(_date)).value ?? const <MealEntry>[];
+    final main =
+        widget.sideOf ??
+        [
+          for (final m in day)
+            if (m.id == _sideOf) m,
+        ].firstOrNull;
+    // A side is at its meal's time; else the original time when editing.
+    final time = main?.time ?? widget.entry?.time ?? atTimeOfDay(_date, now.hour, now.minute);
 
     final quantityText = _quantityController.text.trim();
     final quantity = quantityText.isEmpty ? 1 : int.tryParse(quantityText) ?? 0;
@@ -741,8 +837,10 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         foodItemId: foodItemId,
         currency: widget.entry?.currency ?? 'SGD',
         rawText: widget.entry?.rawText,
-        timeKnown: widget.entry?.timeKnown ?? true,
+        timeKnown: main?.timeKnown ?? widget.entry?.timeKnown ?? true,
         healthTags: _rememberTags ? null : tags,
+        kind: main?.kind ?? _kind,
+        sideOf: main?.id,
       );
 
       if (widget.entry == null) {
@@ -754,6 +852,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       // Refresh meal data for the entry's date
       final normalizedDate = DateTime(entry.date.year, entry.date.month, entry.date.day);
       ref.invalidate(mealEntriesProvider(normalizedDate));
+      ref.invalidate(mealEntriesProvider(_date));
       ref.invalidate(todayMealEntriesProvider);
       ref.invalidate(foodCaloriesProvider);
       ref.invalidate(foodHealthTagsProvider);
@@ -763,12 +862,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString().split('\n').first}'),
-            duration: const Duration(seconds: 5),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString().split('\n').first}'), duration: const Duration(seconds: 5)));
       }
     }
   }
@@ -778,8 +872,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     final container = ProviderScope.containerOf(context, listen: false);
     final confirmed = await showDeleteConfirmationDialog(
       context: context,
-      title: 'Delete Meal',
-      message: 'Are you sure you want to delete this meal entry?',
+      title: 'Delete Food',
+      message: _hasSides ? 'Delete this and its sides?' : 'Are you sure you want to delete this entry?',
     );
     if (!confirmed || widget.entry?.id == null) return;
 
@@ -790,8 +884,6 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
 
     final messenger = ScaffoldMessenger.of(context);
     Navigator.pop(context);
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Meal deleted'), duration: Duration(seconds: 2)),
-    );
+    messenger.showSnackBar(const SnackBar(content: Text('Deleted'), duration: Duration(seconds: 2)));
   }
 }

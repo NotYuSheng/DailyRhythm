@@ -33,6 +33,20 @@ void main() {
 
   Map<String, FunFact> byTitle(List<FunFact> facts) => {for (final f in facts) f.title: f};
 
+  test('a meal costs its main and sides together; snacks are apart', () async {
+    final day = DateTime(2026, 3, 3);
+    for (var d = 2; d <= 5; d++) {
+      await db.createMealEntry(MealEntry(date: DateTime(2026, 3, d), time: DateTime(2026, 3, d, 12), name: 'Chicken Rice', price: 4));
+    }
+    final fillet = await db.createMealEntry(MealEntry(date: day, time: DateTime(2026, 3, 3, 19), name: 'McFillet', price: 6.4));
+    await db.createMealEntry(MealEntry(date: day, time: DateTime(2026, 3, 3, 19), name: 'McWings', price: 3.6, sideOf: fillet));
+    await db.createMealEntry(MealEntry(date: day, time: DateTime(2026, 3, 3, 16), name: 'Kaya Toast', price: 1.8, kind: MealKind.snack));
+
+    final facts = byTitle(await FunFactsService(db).factsFor(march, today: DateTime(2026, 3, 31)));
+    // (4 × 4 + 10) / 5 meals; the toast on its own.
+    expect(facts['Food spending']!.detail, '\$5.20 a meal on average, \$1.80 a snack');
+  });
+
   test('food facts: go-to, new foods, biggest treat, weekday habit', () async {
     await meal(2, 'Chicken Rice', price: 4); // earlier ones make it not new
     for (final d in [2, 9, 16, 23]) {
@@ -50,7 +64,7 @@ void main() {
     expect(facts['Biggest treat']!.value, '\$28.00');
     expect(facts['Biggest treat']!.detail, 'Wagyu Don, 12 Mar', reason: 'the total is its own fact');
     expect(facts['Food spending']!.value, '\$60.50');
-    expect(facts['Food spending']!.detail, '8 priced meals, \$7.56 each on average');
+    expect(facts['Food spending']!.detail, '\$7.56 a meal on average');
     expect((facts['Mondays are for']!.value, facts['Mondays are for']!.detail), ('Wing Rice', '4 of 4 times on a Monday'));
 
     // Each fact opens the list behind it.

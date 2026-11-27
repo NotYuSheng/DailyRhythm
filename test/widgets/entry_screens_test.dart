@@ -135,6 +135,57 @@ void main() {
       }
     }
 
+    testWidgets('a snack is saved as one, and a side goes with its meal', (tester) async {
+      tester.view.physicalSize = const Size(800, 1800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final fillet = await db.createMealEntry(
+        MealEntry(date: pastDay, time: DateTime(2026, 10, 20, 19, 5), name: 'McFillet', price: 6.4, foodSource: FoodSource.fastFood),
+      );
+      await tester.pumpWidget(_app(AddMealScreen(sideOf: (await db.getMealEntry(fillet))!)));
+      await tester.pumpAndSettle();
+      expect(find.text('Add Side'), findsOneWidget);
+      expect(find.text('A side with McFillet'), findsOneWidget);
+      await tester.enterText(_field('Meal Name'), 'McWings');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final wings = (await db.getMealEntriesByDate(pastDay)).firstWhere((m) => m.name == 'McWings');
+      expect((wings.sideOf, wings.time, wings.foodSource, wings.kind), (fillet, DateTime(2026, 10, 20, 19, 5), FoodSource.fastFood, MealKind.meal));
+
+      await tester.pumpWidget(const SizedBox()); // Save popped the last screen
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Meal Name'), 'Kaya Toast');
+      await tester.tap(find.widgetWithText(ChoiceChip, 'A snack'));
+      await tester.pump();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final toast = (await db.getMealEntriesByDate(pastDay)).firstWhere((m) => m.name == 'Kaya Toast');
+      expect((toast.kind, toast.sideOf), (MealKind.snack, null));
+    });
+
+    testWidgets('a food logged apart can be made a side of another that day', (tester) async {
+      tester.view.physicalSize = const Size(800, 1800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final fillet = await db.createMealEntry(MealEntry(date: pastDay, time: DateTime(2026, 10, 20, 19), name: 'McFillet', price: 6.4));
+      final wings = await db.createMealEntry(MealEntry(date: pastDay, time: DateTime(2026, 10, 20, 19, 2), name: 'McWings', price: 3.6));
+      await tester.pumpWidget(_app(AddMealScreen(entry: (await db.getMealEntry(wings))!)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ChoiceChip, 'McFillet'));
+      await tester.pump();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final saved = (await db.getMealEntry(wings))!;
+      expect((saved.sideOf, saved.time), (fillet, DateTime(2026, 10, 20, 19)), reason: 'at its meal\'s time');
+
+      // The meal can't become a side now that it has one.
+      await tester.pumpWidget(const SizedBox()); // Save popped the last screen
+      await tester.pumpWidget(_app(AddMealScreen(entry: (await db.getMealEntry(fillet))!)));
+      await tester.pumpAndSettle();
+      expect(find.text('Or a side with'), findsNothing);
+    });
+
     testWidgets('offers usual foods and fills the last price', (tester) async {
       await seedFoods(db);
       await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));

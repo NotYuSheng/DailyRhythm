@@ -90,6 +90,14 @@ Data only (`shared/services/database/schema_v18.dart`):
 
 Additive: `sort_order` (INTEGER, nullable) on `meal_entries`. The day's meals in the order the user dragged them on Today. Meals without one come after, in the order they were added. Not exported: an import keeps the order meals were added.
 
+## v20
+
+Additive (`shared/services/database/schema_v20.dart`): on `meal_entries`,
+- `kind` (TEXT, `meal` or `snack`, default `meal`): food already logged is a meal.
+- `side_of` (INTEGER, nullable): the id of the meal this came with as a side (McWings with a McFillet), indexed. A side takes its meal's day, time and kind, and moves with it; deleting a meal deletes its sides. Sides don't have sides.
+
+A meal's cost is its main and sides together; snacks are counted apart. Exported as `Kind` and `Side Of` (the exported id of the meal); import links sides once every meal is in.
+
 ## Export and import
 
 Every table is exported as a CSV in the export zip. New columns go at the end of a

@@ -154,6 +154,7 @@ class ExportService {
         [
           'ID', 'Date', 'Time', 'Name', 'Quantity', 'Price', 'Calories', 'Tags', 'Notes',
           'Food Source', 'Food Item', 'Currency', 'Raw Text', 'Time Known', 'Health Tags',
+          'Kind', 'Side Of',
         ],
         for (final e in await _db.getAllMealEntries())
           [
@@ -172,6 +173,8 @@ class ExportService {
             e.rawText ?? '',
             e.timeKnown ? 1 : 0,
             _tagsCell(e.healthTags),
+            e.kind,
+            e.sideOf ?? '',
           ],
       ],
       'mood_entries.csv': [
@@ -465,6 +468,7 @@ class ExportService {
           if (done % 250 == 0 || done == total) onProgress?.call(done, total);
         }
       }
+      await importer.finish();
     });
     return result;
   }
@@ -555,14 +559,30 @@ class _Importer {
 
   /// Inserts [map] unless an identical row exists; false for a duplicate.
   /// Dates are stored as the start of their day.
-  Future<bool> _add(String table, Map<String, dynamic> map) async {
+  /// Exported meal IDs to the IDs they got here, and sides (by their new
+  /// ID) to the exported ID of their meal.
+  final _mealIds = <int, int>{};
+  final _sides = <int, int>{};
+
+  /// Links imported sides to their meals; one whose meal wasn't imported
+  /// (a duplicate, or missing) stays a food of its own.
+  Future<void> finish() async {
+    for (final MapEntry(key: side, value: exported) in _sides.entries) {
+      if (_mealIds[exported] case final main?) {
+        await txn.update('meal_entries', {'side_of': main}, where: 'id = ?', whereArgs: [side]);
+      }
+    }
+  }
+
+  Future<bool> _add(String table, Map<String, dynamic> map, {void Function(int id)? onInsert}) async {
     if (map['date'] is String) {
       map['date'] = dayOf(DateTime.parse(map['date'] as String)).toIso8601String();
     }
     final key = _key(map, _keyColumns[table]!);
     if (!_keys[table]!.add(key)) return false;
     try {
-      await txn.insert(table, map);
+      final id = await txn.insert(table, map);
+      onInsert?.call(id);
       return true;
     } catch (_) {
       _keys[table]!.remove(key);
@@ -688,7 +708,13 @@ class _Importer {
           rawText: _text(row, 12),
           timeKnown: (_int(row, 13) ?? 1) != 0,
           healthTags: _tags(row, 14),
+          kind: _text(row, 15) == MealKind.snack ? MealKind.snack : MealKind.meal,
         ).toMap(),
+        // IDs differ on this device: sides are linked once all are in.
+        onInsert: (id) {
+          if (_int(row, 0) case final exported?) _mealIds[exported] = id;
+          if (_int(row, 16) case final main?) _sides[id] = main;
+        },
       );
     },
     'mood_entries.csv': (row) => _add(

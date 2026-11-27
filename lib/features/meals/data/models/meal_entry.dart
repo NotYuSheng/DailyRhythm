@@ -25,6 +25,14 @@ class FoodSource {
   };
 }
 
+/// Whether a food was a meal or a snack. A side has its meal's.
+class MealKind {
+  MealKind._();
+
+  static const meal = 'meal';
+  static const snack = 'snack';
+}
+
 class MealEntry {
   final int? id;
   final DateTime date;
@@ -44,6 +52,16 @@ class MealEntry {
   /// Health score categories set for this meal only; null uses the food's.
   final List<String>? healthTags;
 
+  /// [MealKind.meal] or [MealKind.snack].
+  final String kind;
+
+  /// The meal this came with as a side (McWings with a McFillet), or null
+  /// for a meal or snack of its own.
+  final int? sideOf;
+
+  bool get isSnack => kind == MealKind.snack;
+  bool get isSide => sideOf != null;
+
   MealEntry({
     this.id,
     required this.date,
@@ -60,6 +78,8 @@ class MealEntry {
     this.rawText,
     this.timeKnown = true,
     this.healthTags,
+    this.kind = MealKind.meal,
+    this.sideOf,
   });
 
   // Convert to Map for database
@@ -88,6 +108,8 @@ class MealEntry {
       'raw_text': rawText,
       'time_known': timeKnown ? 1 : 0,
       'health_tags': DietScore.encodeTags(healthTags),
+      'kind': kind,
+      'side_of': sideOf,
     };
   }
 
@@ -111,6 +133,8 @@ class MealEntry {
       rawText: map['raw_text'] as String?,
       timeKnown: (map['time_known'] as int? ?? 1) != 0,
       healthTags: DietScore.decodeTags(map['health_tags']),
+      kind: map['kind'] == MealKind.snack ? MealKind.snack : MealKind.meal,
+      sideOf: map['side_of'] as int?,
     );
   }
 
@@ -131,6 +155,8 @@ class MealEntry {
     String? rawText,
     bool? timeKnown,
     List<String>? healthTags,
+    String? kind,
+    int? sideOf,
   }) {
     return MealEntry(
       id: id ?? this.id,
@@ -148,6 +174,8 @@ class MealEntry {
       rawText: rawText ?? this.rawText,
       timeKnown: timeKnown ?? this.timeKnown,
       healthTags: healthTags ?? this.healthTags,
+      kind: kind ?? this.kind,
+      sideOf: sideOf ?? this.sideOf,
     );
   }
 }
