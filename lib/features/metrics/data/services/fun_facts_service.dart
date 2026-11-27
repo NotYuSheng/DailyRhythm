@@ -8,6 +8,7 @@ import '../../../../shared/utils/date_utils.dart';
 import '../../../exercise/data/models/exercise_entry.dart';
 import '../../../exercise/domain/effort.dart';
 import '../../../garden/data/garden_repository.dart';
+import '../../../meals/data/models/meal_entry.dart';
 import '../../../garden/domain/plant.dart';
 import '../../../../shared/services/database/repositories/health_repository.dart';
 import '../models/metric_data.dart';
@@ -232,11 +233,28 @@ class FunFactsService {
         details: () async => FactDetail(title: 'Meals by price', rows: await pricedMeals()),
       ));
       final total = spend.first['total'] as num;
+      // A meal is its main and its sides together (a side has its meal's
+      // kind); snacks apart.
+      final perKind = {
+        for (final r in await db.rawQuery('''
+          SELECT kind, AVG(cost) AS each, COUNT(*) AS n FROM (
+            SELECT MAX(kind) AS kind, SUM(price) AS cost FROM meal_entries
+            WHERE $inRange AND price IS NOT NULL AND currency = 'SGD'
+            GROUP BY COALESCE(side_of, id)
+          ) GROUP BY kind
+        ''', args))
+          r['kind']: (each: r['each'] as num, n: r['n'] as int),
+      };
+      final meals = perKind[MealKind.meal];
+      final snacks = perKind[MealKind.snack];
       facts.add(FunFact(
         kind: FactKind.spend,
         title: 'Food spending',
         value: '\$${_money.format(total)}',
-        detail: '$priced priced meals, \$${_money.format(total / priced)} each on average',
+        detail: [
+          if (meals != null) '\$${_money.format(meals.each)} a meal on average',
+          if (snacks != null) '\$${_money.format(snacks.each)} a snack',
+        ].join(', '),
         details: () async => FactDetail(
           title: 'Spending by food',
           rows: [

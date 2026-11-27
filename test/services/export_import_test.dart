@@ -39,7 +39,7 @@ Future<void> _seed(DatabaseService db) async {
   final catalog = CatalogRepository(db);
   final ytf = await catalog.saveFood(FoodItem(name: 'Yong Tau Foo', aliases: ['ytf'], lastPrice: 5.2, healthTags: ['steamed_or_soup', 'vegetables']));
   final situps = await catalog.saveExercise(ExerciseItem(name: 'Situps', aliases: ['sit ups']));
-  await db.createMealEntry(MealEntry(
+  final lunch = await db.createMealEntry(MealEntry(
     date: _old,
     time: DateTime(2021, 9, 10, 12),
     name: 'Yong Tau Foo',
@@ -52,7 +52,10 @@ Future<void> _seed(DatabaseService db) async {
     timeKnown: false,
     healthTags: const [],
   ));
-  await db.createMealEntry(MealEntry(date: _old, time: DateTime(2021, 9, 10, 16), name: 'Banana, "ripe"', notes: 'line one\nline two'));
+  await db.createMealEntry(MealEntry(date: _old, time: DateTime(2021, 9, 10, 12), name: 'Barley', price: 1.6, sideOf: lunch));
+  await db.createMealEntry(
+    MealEntry(date: _old, time: DateTime(2021, 9, 10, 16), name: 'Banana, "ripe"', notes: 'line one\nline two', kind: MealKind.snack),
+  );
   await db.upsertMoodEntry(MoodEntry(date: _old, timestamp: DateTime(2021, 9, 10, 23, 55), moodLevel: 3, emoji: ''));
   await SpendingRepository(db).save(SpendingEntry(
     date: _old, time: DateTime(2021, 9, 10, 19), label: 'Farewell, hotpot', amount: 64.5, category: SpendingEntry.event, rawText: 'farewell hotpot 64.50'));
@@ -110,7 +113,13 @@ Future<Map<String, Object>> _snapshot(DatabaseService db) async {
   return {
     'sleep': [for (final e in await db.getAllSleepEntries()) [e.date, e.wakeUpTime, e.sleepTime, e.totalHours, e.napHours]],
     'naps': [for (final e in await db.getAllNapEntries()) [e.date, e.startTime, e.durationHours]],
-    'meals': [for (final e in await db.getAllMealEntries()) [e.date, e.time, e.name, e.quantity, e.price, e.tags, e.notes, e.healthTags]],
+    // Sorted: a side shares its meal's time, so their order follows IDs.
+    'meals': _sorted([for (final e in await db.getAllMealEntries()) [e.date, e.time, e.name, e.quantity, e.price, e.tags, e.notes, e.healthTags, e.kind]]),
+    // v20: a side by its meal's name, since IDs differ on a fresh install.
+    'sides': [
+      for (final e in await db.getAllMealEntries())
+        if (e.sideOf != null) [e.name, (await db.getMealEntry(e.sideOf!))?.name],
+    ],
     'mood': [for (final e in await db.getAllMoodEntries()) [e.date, e.moodLevel]],
     'exercise': [
       for (final e in await db.getAllExerciseEntries())
@@ -125,10 +134,10 @@ Future<Map<String, Object>> _snapshot(DatabaseService db) async {
     'activities': [for (final e in await db.getAllActivityEntries()) [e.date, tags[e.tagId]]],
     'tags': (await db.getAllTags()).map((t) => '${t.category}/${t.name}/${t.kind}').toList()..sort(),
     // v13: compare links by name, since IDs differ on a fresh install.
-    'meal links': [
+    'meal links': _sorted([
       for (final e in await db.getAllMealEntries())
-        [e.foodSource, (await _name(db, 'food_items', e.foodItemId)), e.currency, e.rawText, e.timeKnown],
-    ],
+        [e.name, e.foodSource, (await _name(db, 'food_items', e.foodItemId)), e.currency, e.rawText, e.timeKnown],
+    ]),
     'exercise links': [
       for (final e in await db.getAllExerciseEntries()) [(await _name(db, 'exercise_items', e.exerciseItemId)), e.rawText],
     ],
@@ -148,6 +157,8 @@ Future<Map<String, Object>> _snapshot(DatabaseService db) async {
     'daylio': [for (final r in await DaylioRawRepository(db).forDay(_old)) [r.loggedTime, r.mood, r.activities, r.note]],
   };
 }
+
+List<List<Object?>> _sorted(List<List<Object?>> rows) => rows..sort((a, b) => '$a'.compareTo('$b'));
 
 Future<String?> _name(DatabaseService db, String table, int? id) async {
   if (id == null) return null;

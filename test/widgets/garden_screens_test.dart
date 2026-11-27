@@ -167,6 +167,19 @@ void main() {
     expect(find.text('Coffee with Sam'), findsNothing);
   });
 
+  testWidgets('sides sit under their meal; meals and snacks are counted apart', (tester) async {
+    DateTime at(int h) => DateTime(today.year, today.month, today.day, h);
+    final fillet = await db.createMealEntry(MealEntry(date: today, time: at(19), name: 'McFillet', price: 6.4));
+    await db.createMealEntry(MealEntry(date: today, time: at(19), name: 'McWings', price: 3.6, sideOf: fillet));
+    await db.createMealEntry(MealEntry(date: today, time: at(16), name: 'Kaya Toast', kind: MealKind.snack));
+    await pump(tester, const GardenTodayScreen());
+    await tester.scrollUntilVisible(find.text('+ McWings'), 200, scrollable: find.byType(Scrollable).first);
+    expect(find.textContaining('1 meal · 1 snack'), findsOneWidget);
+    expect(find.text('Kaya Toast (snack)'), findsOneWidget);
+    expect(find.byIcon(Icons.drag_indicator), findsNWidgets(2), reason: 'a side moves with its meal');
+    expect(tester.getTopLeft(find.text('+ McWings')).dx, greaterThan(tester.getTopLeft(find.text('McFillet')).dx));
+  });
+
   testWidgets('meals on Today can be dragged into another order', (tester) async {
     for (final (name, hour) in [('Kaya Toast', 8), ('Laksa', 19)]) {
       await db.createMealEntry(MealEntry(date: today, time: DateTime(today.year, today.month, today.day, hour), name: name, quantity: 1));
@@ -178,7 +191,7 @@ void main() {
     expect(handles, findsNWidgets(2));
     final gesture = await tester.startGesture(tester.getCenter(handles.last));
     await tester.pump(const Duration(milliseconds: 100));
-    await gesture.moveBy(const Offset(0, -120));
+    await gesture.moveBy(const Offset(0, -220));
     await tester.pump();
     await gesture.up();
     await tester.pumpAndSettle();
