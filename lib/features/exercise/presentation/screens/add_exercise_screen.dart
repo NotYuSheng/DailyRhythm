@@ -133,7 +133,7 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
     setState(() {
       _exerciseNameController.text = item.name;
       _exerciseNameController.selection = TextSelection.collapsed(offset: item.name.length);
-      if (item.category == ExerciseItem.cardio) _selectedType = ExerciseType.run;
+      _selectedType = ExerciseTypeNames.forCategory(item.category);
     });
     if (item.id == null || widget.entry != null || !_amountsEmpty) return;
     final last = await CatalogRepository(ref.read(databaseProvider)).lastExercise(item.id!);
@@ -199,7 +199,11 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                       focusNode: _nameFocus,
                       decoration: InputDecoration(
                         labelText: 'Exercise Name',
-                        hintText: _selectedType == ExerciseType.run ? 'Run (optional)' : 'Bench Press',
+                        hintText: switch (_selectedType) {
+                          ExerciseType.run => 'Run (optional)',
+                          ExerciseType.weightLifting => 'Bench Press',
+                          ExerciseType.sport => 'Badminton',
+                        },
                       ),
                       textCapitalization: TextCapitalization.sentences,
                     ),
@@ -230,31 +234,30 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: AppTheme.spacePulse2),
-                  SegmentedButton<ExerciseType>(
-                    segments: const [
-                      ButtonSegment(
-                        value: ExerciseType.run,
-                        label: Text('Run'),
-                        icon: Icon(Icons.directions_run),
-                      ),
-                      ButtonSegment(
-                        value: ExerciseType.weightLifting,
-                        label: Text('Weights'),
-                        icon: Icon(Icons.fitness_center),
-                      ),
+                  // Chips, which wrap on a narrow phone with large text.
+                  Wrap(
+                    spacing: AppTheme.spacePulse2,
+                    runSpacing: AppTheme.spacePulse2,
+                    children: [
+                      for (final (type, label) in const [
+                        (ExerciseType.run, 'Run'),
+                        (ExerciseType.weightLifting, 'Weights'),
+                        (ExerciseType.sport, 'Sport'),
+                      ])
+                        ChoiceChip(
+                          label: Text(label),
+                          selected: _selectedType == type,
+                          onSelected: (_) => setState(() {
+                            _selectedType = type;
+                            // A known exercise of another kind ("Bench Press"
+                            // when switching to Run) no longer names this one.
+                            final known = _matcher.exact(_exerciseNameController.text)?.item;
+                            if (known != null && ExerciseTypeNames.forCategory(known.category) != _selectedType) {
+                              _exerciseNameController.clear();
+                            }
+                          }),
+                        ),
                     ],
-                    selected: {_selectedType},
-                    onSelectionChanged: (Set<ExerciseType> newSelection) {
-                      setState(() {
-                        _selectedType = newSelection.first;
-                        // A known exercise of the other kind ("Bench Press"
-                        // when switching to Run) no longer names this one.
-                        final known = _matcher.exact(_exerciseNameController.text)?.item;
-                        if (known != null && (known.category == ExerciseItem.cardio) != (_selectedType == ExerciseType.run)) {
-                          _exerciseNameController.clear();
-                        }
-                      });
-                    },
                   ),
                 ],
               ),
@@ -266,6 +269,7 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
           // Type-specific forms
           if (_selectedType == ExerciseType.run) ..._buildRunForm(),
           if (_selectedType == ExerciseType.weightLifting) ..._buildWeightLiftingForm(),
+          if (_selectedType == ExerciseType.sport) _buildSportForm(),
 
           const SizedBox(height: AppTheme.spacePulse3),
 
@@ -404,6 +408,40 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
       ),
 
     ];
+  }
+
+  /// How long the game lasted, in minutes, with the usual lengths a tap away.
+  Widget _buildSportForm() {
+    final minutes = int.tryParse(_durationMinutesController.text.trim());
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.spacePulse3),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _durationMinutesController,
+              decoration: const InputDecoration(labelText: 'How long', hintText: '60', suffixText: 'min'),
+              keyboardType: TextInputType.number,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: AppTheme.spacePulse2),
+            Wrap(
+              spacing: AppTheme.spacePulse2,
+              runSpacing: AppTheme.spacePulse2,
+              children: [
+                for (final m in const [30, 60, 90, 120])
+                  ChoiceChip(
+                    label: Text(m < 60 || m % 60 != 0 ? '$m min' : '${m ~/ 60} h'),
+                    selected: minutes == m,
+                    onSelected: (_) => setState(() => _durationMinutesController.text = '$m'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildPace() {
@@ -732,6 +770,26 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
             notes: _notesController.text.isEmpty ? null : _notesController.text,
           );
         }
+      } else if (_selectedType == ExerciseType.sport) {
+        final name = _typedName;
+        final minutes = int.tryParse(_durationMinutesController.text.trim());
+        if (name == null) {
+          _showError('Please enter the sport');
+          return;
+        }
+        if (minutes == null || minutes <= 0) {
+          _showError('Please enter how many minutes');
+          return;
+        }
+        entry = ExerciseEntry(
+          id: widget.entry?.id,
+          date: date,
+          timestamp: timestamp,
+          type: ExerciseType.sport,
+          exerciseName: name,
+          duration: Duration(minutes: minutes),
+          notes: _notesController.text.isEmpty ? null : _notesController.text,
+        );
       } else {
         // Weight lifting
         final exerciseName = _typedName ?? '';
@@ -795,7 +853,7 @@ class _AddExerciseScreenState extends ConsumerState<AddExerciseScreen> {
               ? null
               : await CatalogRepository(db).saveExercise(ExerciseItem(
                   name: itemName,
-                  category: entry.type == ExerciseType.run ? ExerciseItem.cardio : ExerciseItem.strength,
+                  category: entry.type.category,
                 ));
       entry = entry.copyWith(exerciseItemId: itemId, rawText: widget.entry?.rawText);
 

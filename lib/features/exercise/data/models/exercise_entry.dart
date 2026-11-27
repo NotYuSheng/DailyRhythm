@@ -60,6 +60,7 @@ class ExerciseEntry {
       ];
       return parts.isEmpty ? null : parts.join();
     }
+    if (type == ExerciseType.sport) return duration == null || duration!.inMinutes <= 0 ? null : '${duration!.inMinutes} min';
     final parts = [
       if (sets != null && reps != null) '$sets×$reps' else if (reps != null) '$reps reps',
       if (weight != null && weight! > 0) '$weight kg',
@@ -188,6 +189,32 @@ class ExerciseEntry {
 enum ExerciseType {
   run,
   weightLifting,
+
+  /// A game or activity timed in minutes: badminton, football, a swim.
+  sport,
+}
+
+extension ExerciseTypeNames on ExerciseType {
+  /// What an entry with no name is called.
+  String get fallbackName => switch (this) {
+        ExerciseType.run => 'Run',
+        ExerciseType.weightLifting => 'Weights',
+        ExerciseType.sport => 'Sport',
+      };
+
+  /// The catalog category a new exercise of this type is filed under.
+  String get category => switch (this) {
+        ExerciseType.run => 'cardio',
+        ExerciseType.weightLifting => 'strength',
+        ExerciseType.sport => 'sport',
+      };
+
+  /// The type a catalog exercise of [category] is logged as.
+  static ExerciseType forCategory(String category) => switch (category) {
+        'cardio' => ExerciseType.run,
+        'sport' => ExerciseType.sport,
+        _ => ExerciseType.weightLifting,
+      };
 }
 
 enum RunType {

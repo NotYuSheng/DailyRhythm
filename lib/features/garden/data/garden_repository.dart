@@ -73,6 +73,7 @@ class GardenRepository {
     )) {
       final points = Effort.entryPoints(
         run: (r['type'] as String).endsWith('run'),
+        sport: (r['type'] as String).endsWith('sport'),
         name: r['exerciseName'] as String?,
         reps: r['reps'] as int?,
         sets: r['sets'] as int?,

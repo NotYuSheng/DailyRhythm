@@ -106,6 +106,7 @@ class DayLogCard extends ConsumerWidget {
     final weighed = ref.watch(weightOnProvider(dayOf(day))).value;
     double burned(ExerciseEntry x) => Effort.kcalBurned(
       run: x.type == ExerciseType.run,
+      sport: x.type == ExerciseType.sport,
       weightKg: weight,
       name: x.exerciseName,
       reps: x.reps,
@@ -214,7 +215,7 @@ class DayLogCard extends ConsumerWidget {
           items: [
             for (final x in exercises)
               _Item(
-                text: x.exerciseName ?? (x.type == ExerciseType.run ? 'Run' : 'Weights'),
+                text: x.exerciseName ?? x.type.fallbackName,
                 detail: '${approx(burned(x))} burned',
                 trailing: x.amount,
                 colors: colors,
