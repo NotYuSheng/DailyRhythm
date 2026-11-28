@@ -181,7 +181,7 @@ class TidyService {
     ];
   }
 
-  /// Applies [fixes], brands first, then kinds, then splits and sides.
+  /// Applies [fixes] in [TidyFix.types] order.
   /// Returns how many changed something.
   Future<int> apply(List<TidyFix> fixes, {TidyProgress? progress}) async {
     final catalog = CatalogRepository(_db);
