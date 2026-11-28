@@ -12,6 +12,7 @@ import '../../data/models/meal_entry.dart';
 import '../../data/services/calorie_lookup.dart';
 import '../../domain/calorie_estimator.dart';
 import '../../domain/diet_score.dart';
+import '../../domain/modifiers.dart';
 import '../../domain/plate.dart';
 import '../../domain/portion.dart';
 import '../../domain/food_matcher.dart';
@@ -60,6 +61,13 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
 
   /// This meal's changes to those sides.
   late List<PlateChange> _changes = [...?widget.entry?.changes];
+
+  /// How it was made this time; a new meal starts from the food's last.
+  late List<String> _mods = [...?widget.entry?.mods];
+  bool _modsEdited = false;
+
+  /// Each food's modifiers the last time it was logged.
+  Map<int, List<String>> _lastMods = const {};
 
   /// Sides any food comes with, offered as swaps.
   List<String> _sideNames = const [];
@@ -131,6 +139,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       () => setState(() {
         // A known food brings its brand, unless one was typed.
         if (!_brandEdited) _brandController.text = _matcher.exact(_nameController.text)?.item.brand ?? '';
+        _followFoodMods();
       }),
     );
     _quantityController.addListener(
@@ -145,10 +154,21 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     final catalog = CatalogRepository(ref.read(databaseProvider));
     final foods = await catalog.foodsWithUses();
     final usual = widget.entry == null ? await catalog.usualFoods(_date) : const <FoodChoice>[];
+    final lastMods = <int, List<String>>{};
+    for (final r in await (await ref.read(databaseProvider).database).query(
+      'meal_entries',
+      columns: ['food_item_id', 'changes'],
+      where: 'food_item_id IS NOT NULL',
+      orderBy: 'date, time, id',
+    )) {
+      lastMods[r['food_item_id'] as int] = Plate.decodeMods(r['changes']);
+    }
     if (mounted) {
       setState(() {
         _matcher = FoodMatcher(foods);
         _sideNames = {for (final f in foods) ...f.item.comesWith}.toList()..sort();
+        _lastMods = lastMods;
+        _followFoodMods();
         _brands = {for (final f in foods) ?f.item.brand}.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
         if (!_brandEdited) _brandController.text = _matcher.exact(_nameController.text)?.item.brand ?? '';
         // Your own words count most: a dish you log is spelt your way.
@@ -429,6 +449,50 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   /// Meal or snack, or for a side, which meal it goes with. An existing
   /// food can be made a side of another meal that day (logged apart before
   /// sides existed), unless it has sides of its own.
+  /// A new meal of a known food is made as it was last time, until changed.
+  void _followFoodMods() {
+    if (widget.entry != null || _modsEdited) return;
+    _mods = [...?_lastMods[_matcher.exact(_nameController.text)?.item.id]];
+  }
+
+  /// How it was made: the picked modifiers, and a button for the rest.
+  Widget _buildMods() {
+    if (_nameController.text.trim().isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          for (final m in _mods)
+            InputChip(
+              label: Text(Modifier.labelOf(m)),
+              onDeleted: () => setState(() {
+                _modsEdited = true;
+                _mods = [for (final x in _mods) if (x != m) x];
+              }),
+            ),
+          TextButton.icon(onPressed: _pickMods, icon: const Icon(Icons.tune, size: 18), label: const Text('How it was made')),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickMods() async {
+    final picked = await showModalBottomSheet<List<String>>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => _ModsSheet(initial: _mods),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _modsEdited = true;
+      _mods = picked;
+    });
+  }
+
   /// What the food comes with, each side tappable to swap or leave out.
   Widget _buildPlate() {
     if (_nameController.text.trim().isEmpty) return const SizedBox.shrink();
@@ -734,6 +798,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                   ),
                   _buildBrand(),
                   if (_sideOf == null) _buildPlate(),
+                  _buildMods(),
                   if (DietScore.describe(text, tags: _currentTags) case final health?) _healthPanel(text, health),
                 ],
               ),
@@ -1039,14 +1104,17 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       // Changes to the usual sides: only ones the food still comes with.
       final sides = _sidesEdit ?? known?.comesWith ?? const <String>[];
       final changes = [for (final c in _changes) if (sides.any((s) => s.toLowerCase() == c.side.toLowerCase())) c];
-      final changed = changes.length != (widget.entry?.changes.length ?? 0) || !changes.every((c) => widget.entry?.changes.contains(c) ?? false);
+      final mods = [..._mods];
+      bool same<T>(List<T> a, List<T>? b) => a.length == (b?.length ?? 0) && a.every((x) => b!.contains(x));
+      final changed = !same(changes, widget.entry?.changes) || !same(mods, widget.entry?.mods);
+      final madeDifferently = changes.isNotEmpty || mods.isNotEmpty;
       // The plate's calories follow its changes, unless typed for this meal.
-      if (changes.isNotEmpty || changed) {
+      if (madeDifferently || changed) {
         final perServing = known?.kcal ?? estimate?.kcal ?? (known == null ? null : _estimator.estimate(known.name)?.kcal);
         if (perServing != null && (calories == null || (!_caloriesChanged && changed))) {
-          final change = Plate.kcalChange(changes, (n) => _matcher.exact(n)?.item.kcal ?? _estimator.estimate(n)?.kcal);
+          final change = Plate.kcalChange(changes, (n) => _matcher.exact(n)?.item.kcal ?? _estimator.estimate(n)?.kcal) + Modifier.kcalChange(mods);
           mealCalories = (math.max(0.0, perServing + change) * quantity * _portion.factor).round();
-          if (changes.isEmpty && _portion == Portion.regular) mealCalories = null;
+          if (!madeDifferently && _portion == Portion.regular) mealCalories = null;
         }
       }
       // Typed calories become the food's, per serving, for next time.
@@ -1070,18 +1138,19 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       // A changed plate's health: what a left-out side brought goes, a
       // swapped-in side's comes. Categories ticked for this meal win.
       List<String>? plateTags;
-      final plateDecides = _healthTags == null && (changes.isNotEmpty || (widget.entry?.changes.isNotEmpty ?? false));
-      if (plateDecides && changes.isNotEmpty) {
+      // Modifiers add made lighter or richer.
+      final hadChanges = (widget.entry?.changes.isNotEmpty ?? false) || (widget.entry?.mods.isNotEmpty ?? false);
+      final plateDecides = _healthTags == null && (madeDifferently || hadChanges);
+      if (plateDecides && madeDifferently) {
         final catalog = CatalogRepository(db);
         final food = await catalog.findFood(known?.name ?? name);
         final tagsOf = await catalog.sideTags([...sides, for (final c in changes) ?c.swapFor]);
-        plateTags = Plate.changedTags(
-          name: known?.name ?? name,
-          usual: food?.healthTags?.toSet() ?? Plate.usualTags(known?.name ?? name, sides, tagsOf),
-          sides: sides,
-          changes: changes,
-          tagsOf: tagsOf,
-        );
+        final usual = food?.healthTags?.toSet() ?? Plate.usualTags(known?.name ?? name, sides, tagsOf);
+        final plate = changes.isEmpty
+            ? usual
+            : Plate.changedTags(name: known?.name ?? name, usual: usual, sides: sides, changes: changes, tagsOf: tagsOf).toSet();
+        final all = {...plate, ...Modifier.tags(mods)};
+        plateTags = [for (final c in DietScore.categories) if (all.contains(c.key)) c.key];
       }
 
       final entry = MealEntry(
@@ -1103,6 +1172,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         healthTags: plateDecides ? plateTags : (_rememberTags ? null : tags),
         kind: main?.kind ?? _kind,
         changes: changes,
+        mods: mods,
         sideOf: main?.id,
       );
 
@@ -1148,5 +1218,91 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     final messenger = ScaffoldMessenger.of(context);
     Navigator.pop(context);
     messenger.showSnackBar(const SnackBar(content: Text('Deleted'), duration: Duration(seconds: 2)));
+  }
+}
+
+/// Built-in modifiers to tick, and a box for anything else.
+class _ModsSheet extends StatefulWidget {
+  const _ModsSheet({required this.initial});
+
+  final List<String> initial;
+
+  @override
+  State<_ModsSheet> createState() => _ModsSheetState();
+}
+
+class _ModsSheetState extends State<_ModsSheet> {
+  late final List<String> _mods = [...widget.initial];
+  final _other = TextEditingController();
+
+  @override
+  void dispose() {
+    _other.dispose();
+    super.dispose();
+  }
+
+  void _addOther() {
+    final typed = _other.text.trim();
+    if (typed.isEmpty) return;
+    setState(() {
+      if (!_mods.any((m) => Modifier.labelOf(m).toLowerCase() == typed.toLowerCase())) _mods.add(typed);
+      _other.clear();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final custom = [for (final m in _mods) if (Modifier.of(m) == null) m];
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(24, 0, 24, 16 + MediaQuery.viewInsetsOf(context).bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('How it was made', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 4),
+            Text('Each one moves the calories and health a little.', style: theme.textTheme.bodySmall),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                for (final m in Modifier.all)
+                  FilterChip(
+                    label: Text(m.label),
+                    selected: _mods.contains(m.key),
+                    onSelected: (on) => setState(() => on ? _mods.add(m.key) : _mods.remove(m.key)),
+                  ),
+                for (final m in custom) InputChip(label: Text(m), onDeleted: () => setState(() => _mods.remove(m))),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _other,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                labelText: 'Something else',
+                hintText: 'e.g. Extra chilli',
+                suffixIcon: IconButton(icon: const Icon(Icons.add), tooltip: 'Add', onPressed: _addOther),
+              ),
+              onSubmitted: (_) => _addOther(),
+            ),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                onPressed: () {
+                  _addOther();
+                  Navigator.pop(context, _mods);
+                },
+                child: const Text('Done'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -32,6 +32,9 @@ class DietScore {
     ('vegetables', _words(r'subway|veg|vegetables?|salad|brocc?oli|brocolli|spinach|cabbage|kai ?lan|bean ?sprouts?|greens|kangkong|chye sim|tomato(es)?|cucumber|carrots?(?! cake)'), 1),
     ('steamed or soup', _words(r'steam(ed)?|soup|porridge|congee|yong tau foo|thunder tea|clear broth|boiled'), 1),
     ('fish or lean protein', _words(r'fish(?! (and|&) chips)|salmon|sashimi|tofu|chicken breast|grilled|eggs?|tuna|prawns?|lean'), 0.5),
+    // How it was made: from a meal's modifiers, or said in its name.
+    ('made lighter', _words(r'less (?:oil|sugar|sweet|sauce|gravy|rice)|siew dai|siu dai|no sugar|kosong|no butter|skin ?off|no skin|no rice'), 0.5),
+    ('made richer', _words(r'extra (?:cheese|rice|sauce|gravy)|double cheese|add cheese'), -0.5),
     ('fruit', _words(r'fruits?|apples?|bananas?|oranges?|watermelon|papaya|grapes|berries|kiwi|pear|mango|oats|yogh?urt'), 1),
   ];
 

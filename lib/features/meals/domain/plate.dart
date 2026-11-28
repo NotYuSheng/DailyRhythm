@@ -46,7 +46,17 @@ class Plate {
     ];
   }
 
-  static String? encodeChanges(List<PlateChange> changes) => changes.isEmpty ? null : jsonEncode([for (final c in changes) c.toJson()]);
+  /// Changes and modifiers ([Modifier]) as stored, in one list.
+  static String? encodeChanges(List<PlateChange> changes, [List<String> mods = const []]) =>
+      changes.isEmpty && mods.isEmpty ? null : jsonEncode([for (final c in changes) c.toJson(), for (final m in mods) {'mod': m}]);
+
+  static List<String> decodeMods(Object? stored) {
+    if (stored is! String || stored.isEmpty) return const [];
+    return [
+      for (final c in (jsonDecode(stored) as List).cast<Map<String, dynamic>>())
+        if (c['mod'] case final String mod when mod.trim().isNotEmpty) mod,
+    ];
+  }
 
   /// "Fries, coleslaw" typed in a box, as a list of sides.
   static List<String> parseSides(String typed) {

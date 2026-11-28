@@ -216,6 +216,35 @@ void main() {
       expect(meal.healthTags, isEmpty, reason: 'corn isn\'t fried');
     });
 
+    testWidgets('how it was made moves calories and health, and is kept for next time', (tester) async {
+      tester.view.physicalSize = const Size(800, 1800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await CatalogRepository(db).saveFood(FoodItem(name: 'Kopi', kcal: 120, kcalSource: 'user'));
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Meal Name'), 'Kopi');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('How it was made'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilterChip, 'Less sugar'));
+      await tester.pump();
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(InputChip, 'Less sugar'), findsOneWidget);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final kopi = (await db.getMealEntriesByDate(pastDay)).single;
+      expect((kopi.calories, kopi.mods.join(), kopi.healthTags?.join()), (100, 'less_sugar', 'made_lighter'));
+
+      await tester.pumpWidget(const SizedBox()); // Save popped the last screen
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Meal Name'), 'Kopi');
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(InputChip, 'Less sugar'), findsOneWidget, reason: 'as last time');
+    });
+
     testWidgets('a food logged apart can be made a side of another that day', (tester) async {
       tester.view.physicalSize = const Size(800, 1800);
       tester.view.devicePixelRatio = 1;
