@@ -242,9 +242,9 @@ class ExportService {
         for (final t in tags) [t.id ?? '', t.name, t.emoji, t.category, t.color ?? '', t.sortOrder ?? '', t.kind],
       ],
       'food_items.csv': [
-        ['ID', 'Name', 'Aliases', 'Kcal', 'Kcal Source', 'Last Price', 'Health Tags'],
+        ['ID', 'Name', 'Aliases', 'Kcal', 'Kcal Source', 'Last Price', 'Health Tags', 'Brand'],
         for (final f in foods)
-          [f.id ?? '', f.name, f.aliases.join(';'), f.kcal ?? '', f.kcalSource ?? '', f.lastPrice ?? '', _tagsCell(f.healthTags)],
+          [f.id ?? '', f.name, f.aliases.join(';'), f.kcal ?? '', f.kcalSource ?? '', f.lastPrice ?? '', _tagsCell(f.healthTags), f.brand ?? ''],
       ],
       'exercise_items.csv': [
         ['ID', 'Name', 'Aliases', 'Category'],
@@ -641,6 +641,7 @@ class _Importer {
         kcalSource: _text(row, 4),
         lastPrice: _double(row, 5),
         healthTags: _tags(row, 6),
+        brand: _text(row, 7),
       );
       final known = _foodIds[item.name.toLowerCase()];
       if (known != null) {
@@ -652,6 +653,10 @@ class _Importer {
             where: 'id = ? AND health_tags IS NULL',
             whereArgs: [known],
           );
+        }
+        // So does its brand.
+        if (item.brand != null) {
+          await txn.update('food_items', {'brand': item.brand}, where: 'id = ? AND brand IS NULL', whereArgs: [known]);
         }
         // A known food takes calories from the import when it has none, or
         // only an estimate and the import has the user's own value. A

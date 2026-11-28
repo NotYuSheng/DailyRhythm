@@ -28,12 +28,14 @@ class CatalogRepository {
       kcalSource: item.kcalSource,
       lastPrice: item.lastPrice,
       healthTags: item.healthTags,
+      brand: item.brand?.trim(),
     );
     final db = await _db.database;
     return db.transaction((txn) async {
       final existing = await txn.query('food_items', where: 'name = ?', whereArgs: [item.name]);
       if (existing.isEmpty) {
         final map = item.toMap()..remove('id');
+        if (item.brand == '') map['brand'] = null;
         return txn.insert('food_items', map);
       }
       final current = FoodItem.fromMap(existing.first);
@@ -45,6 +47,8 @@ class CatalogRepository {
           'kcal': item.kcal ?? current.kcal,
           'kcal_source': item.kcalSource ?? current.kcalSource,
           'last_price': item.lastPrice ?? current.lastPrice,
+          // Null keeps the brand; blank clears it.
+          'brand': item.brand == null ? current.brand : (item.brand!.isEmpty ? null : item.brand),
         },
         where: 'id = ?',
         whereArgs: [current.id],

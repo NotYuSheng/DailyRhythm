@@ -46,6 +46,14 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _caloriesController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _brandController = TextEditingController();
+  final FocusNode _brandFocus = FocusNode();
+
+  /// Whether the user typed the brand; until then it follows the food.
+  bool _brandEdited = false;
+
+  /// Brands already used, for suggestions.
+  List<String> _brands = const [];
   final FocusNode _nameFocus = FocusNode();
   String? _foodSource;
 
@@ -102,7 +110,12 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     _caloriesController.text = widget.entry?.calories?.toString() ?? '';
     _notesController.text = widget.entry?.notes ?? '';
     _foodSource = widget.entry?.foodSource ?? widget.sideOf?.foodSource;
-    _nameController.addListener(() => setState(() {}));
+    _nameController.addListener(
+      () => setState(() {
+        // A known food brings its brand, unless one was typed.
+        if (!_brandEdited) _brandController.text = _matcher.exact(_nameController.text)?.item.brand ?? '';
+      }),
+    );
     _quantityController.addListener(
       () => setState(() {
         if (_lookedUpPerServing case final kcal?) _caloriesController.text = '${(kcal * _quantity).round()}';
@@ -118,6 +131,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     if (mounted) {
       setState(() {
         _matcher = FoodMatcher(foods);
+        _brands = {for (final f in foods) ?f.item.brand}.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        if (!_brandEdited) _brandController.text = _matcher.exact(_nameController.text)?.item.brand ?? '';
         // Your own words count most: a dish you log is spelt your way.
         _yourWords = FoodSpelling.countWords([
           for (final f in foods) ...[f.item.name, ...f.item.aliases],
@@ -145,6 +160,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     _priceController.dispose();
     _caloriesController.dispose();
     _notesController.dispose();
+    _brandController.dispose();
+    _brandFocus.dispose();
     _nameFocus.dispose();
     super.dispose();
   }
@@ -155,6 +172,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     setState(() {
       _nameController.text = food.name;
       _nameController.selection = TextSelection.collapsed(offset: food.name.length);
+      if (!_brandEdited) _brandController.text = food.brand ?? '';
       if (_priceController.text.trim().isEmpty && food.lastPrice != null) {
         _priceController.text = _formatPrice(food.lastPrice!);
       }
@@ -182,8 +200,15 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
 
   /// Asks Open Food Facts (only when tapped; only the name is sent) and
   /// fills the calories from the match the user picks.
-  Future<void> _lookUpCalories() async {
+  /// The name with its brand in front, for lookups ("McDonald's McSpicy").
+  String get _lookupName {
     final name = _nameController.text.trim();
+    final brand = _brandController.text.trim();
+    return brand.isEmpty || name.toLowerCase().contains(brand.toLowerCase()) ? name : '$brand $name';
+  }
+
+  Future<void> _lookUpCalories() async {
+    final name = _lookupName;
     // Asked once; the sheet may rebuild while it waits.
     final results = ref.read(calorieLookupProvider).search(name);
     final picked = await showModalBottomSheet<CalorieMatch>(
@@ -291,8 +316,10 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     final found = match;
     final perServing = found.basis == 'serving';
     setState(() {
-      if (_nameController.text.trim().isEmpty) {
-        _nameController.text = found.brand == null ? found.name : '${found.name} (${found.brand})';
+      if (_nameController.text.trim().isEmpty) _nameController.text = found.name;
+      if (_brandController.text.trim().isEmpty && found.brand != null) {
+        _brandController.text = found.brand!;
+        _brandEdited = true;
       }
       _caloriesChanged = true;
       _lookedUpPerServing = perServing ? found.kcal : null;
@@ -307,7 +334,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   /// Asks the user's AI model for one serving's calories (only when tapped;
   /// only the name is sent). Saved as an estimate, like the built-in ones.
   Future<void> _estimateWithAi(AiClient ai) async {
-    final name = _nameController.text.trim();
+    final name = _lookupName;
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _estimating = true);
     try {
@@ -384,6 +411,52 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   /// Meal or snack, or for a side, which meal it goes with. An existing
   /// food can be made a side of another meal that day (logged apart before
   /// sides existed), unless it has sides of its own.
+  /// The brand or chain, with ones already used suggested.
+  Widget _buildBrand() {
+    return RawAutocomplete<String>(
+      textEditingController: _brandController,
+      focusNode: _brandFocus,
+      optionsBuilder: (value) {
+        final typed = value.text.trim().toLowerCase();
+        if (typed.isEmpty) return const [];
+        return _brands.where((b) => b.toLowerCase().contains(typed) && b.toLowerCase() != typed).take(4);
+      },
+      fieldViewBuilder: (context, controller, focusNode, onSubmitted) => TextField(
+        controller: controller,
+        focusNode: focusNode,
+        decoration: const InputDecoration(labelText: 'Brand or chain (optional)', hintText: 'e.g. McDonald’s, Nando’s'),
+        textCapitalization: TextCapitalization.words,
+        textInputAction: TextInputAction.next,
+        onChanged: (_) => _brandEdited = true,
+      ),
+      optionsViewBuilder: (context, onSelected, options) => Align(
+        alignment: Alignment.topLeft,
+        child: Material(
+          elevation: 4,
+          borderRadius: BorderRadius.circular(12),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 220, maxWidth: 320),
+            child: ListView(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              children: [
+                for (final b in options)
+                  ListTile(
+                    dense: true,
+                    title: Text(b),
+                    onTap: () {
+                      _brandEdited = true;
+                      onSelected(b);
+                    },
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildKind() {
     final day = ref.watch(mealEntriesProvider(_date)).value ?? const <MealEntry>[];
     final id = widget.entry?.id;
@@ -505,6 +578,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                       _nameController.selection = TextSelection.collapsed(offset: name.length);
                     }),
                   ),
+                  _buildBrand(),
                   if (DietScore.describe(text, tags: _currentTags) case final health?) _healthPanel(text, health),
                 ],
               ),
@@ -812,6 +886,8 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         FoodItem(
           name: known?.name ?? name,
           lastPrice: price,
+          // Left alone, the food keeps its brand; cleared, it loses it.
+          brand: _brandEdited ? _brandController.text.trim() : null,
           // Else a food without calories starts from the estimate.
           kcal: teach ? calories / quantity : estimate?.kcal,
           kcalSource: teach ? _kcalSource ?? 'user' : (estimate == null ? null : 'estimate'),
