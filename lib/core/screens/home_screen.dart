@@ -8,6 +8,7 @@ import '../../features/metrics/data/providers/metrics_providers.dart';
 import '../../shared/services/database/database_provider.dart';
 import '../../features/metrics/presentation/screens/metrics_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
+import '../../features/whats_new/whats_new_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -25,6 +26,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Picks up new steps, sleep and workouts when sync is on.
     HealthSyncService(ref.read(databaseProvider)).syncIfEnabled().then((_) {
       if (mounted) invalidateHealth(ref);
+    });
+    // After an update, what it brought, once.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final notes = await WhatsNewScreen.unseen(ref.read(databaseProvider));
+      if (notes.isEmpty || !mounted) return;
+      await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => WhatsNewScreen(notes: notes)));
     });
   }
 

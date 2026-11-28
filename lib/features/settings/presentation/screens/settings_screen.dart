@@ -1,3 +1,4 @@
+import '../../../whats_new/whats_new_screen.dart';
 import '../../../tidy/presentation/tidy_prompt.dart';
 import '../../../tidy/presentation/tidy_screen.dart';
 import '../../../ai/presentation/ai_settings_screen.dart';
@@ -78,6 +79,14 @@ class SettingsScreen extends ConsumerWidget {
           Card(
             child: Column(
               children: [
+                ListTile(
+                  leading: const Icon(Icons.new_releases_outlined),
+                  title: const Text('What’s new'),
+                  subtitle: const Text('Release notes, and updating older entries'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const WhatsNewScreen())),
+                ),
+                const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.cleaning_services_outlined),
                   title: const Text('Tidy up entries'),
