@@ -10,6 +10,7 @@ import '../../../exercise/data/models/exercise_entry.dart';
 import '../../../exercise/data/providers/exercise_providers.dart';
 import '../../../exercise/domain/effort.dart';
 import '../../../meals/domain/diet_score.dart';
+import '../../../meals/domain/modifiers.dart';
 import '../../../metrics/presentation/widgets/weight_section.dart';
 import '../../../profile/data/profile_providers.dart';
 import '../../../exercise/presentation/screens/add_exercise_screen.dart';
@@ -217,7 +218,8 @@ class DayLogCard extends ConsumerWidget {
                       indent: i > 0,
                       // Its calories, then how healthy it is and why.
                       detail: [
-                        if (f.changes.isNotEmpty) f.changes.map((c) => c.label).join(', '),
+                        if ([...f.changes.map((c) => c.label), ...f.mods.map((m) => Modifier.labelOf(m).toLowerCase())] case final made when made.isNotEmpty)
+                          made.join(', '),
                         if (f.caloriesWith(foodKcal) case final kcal?) approx(kcal),
                         ?DietScore.describe(f.name, tags: f.healthTags ?? foodTags[f.foodItemId]),
                       ].join(' · ').ifEmpty,

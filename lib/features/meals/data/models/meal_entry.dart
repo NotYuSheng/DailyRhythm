@@ -64,6 +64,9 @@ class MealEntry {
   /// the plate as usual.
   final List<PlateChange> changes;
 
+  /// How it was made this time ([Modifier] keys, or typed labels).
+  final List<String> mods;
+
   bool get isSnack => kind == MealKind.snack;
   bool get isSide => sideOf != null;
 
@@ -86,6 +89,7 @@ class MealEntry {
     this.kind = MealKind.meal,
     this.sideOf,
     this.changes = const [],
+    this.mods = const [],
   });
 
   // Convert to Map for database
@@ -116,7 +120,7 @@ class MealEntry {
       'health_tags': DietScore.encodeTags(healthTags),
       'kind': kind,
       'side_of': sideOf,
-      'changes': Plate.encodeChanges(changes),
+      'changes': Plate.encodeChanges(changes, mods),
     };
   }
 
@@ -143,6 +147,7 @@ class MealEntry {
       kind: map['kind'] == MealKind.snack ? MealKind.snack : MealKind.meal,
       sideOf: map['side_of'] as int?,
       changes: Plate.decodeChanges(map['changes']),
+      mods: Plate.decodeMods(map['changes']),
     );
   }
 
@@ -166,6 +171,7 @@ class MealEntry {
     String? kind,
     int? sideOf,
     List<PlateChange>? changes,
+    List<String>? mods,
   }) {
     return MealEntry(
       id: id ?? this.id,
@@ -185,6 +191,7 @@ class MealEntry {
       healthTags: healthTags ?? this.healthTags,
       kind: kind ?? this.kind,
       changes: changes ?? this.changes,
+      mods: mods ?? this.mods,
       sideOf: sideOf ?? this.sideOf,
     );
   }

@@ -176,7 +176,7 @@ class ExportService {
             _tagsCell(e.healthTags),
             e.kind,
             e.sideOf ?? '',
-            Plate.encodeChanges(e.changes) ?? '',
+            Plate.encodeChanges(e.changes, e.mods) ?? '',
           ],
       ],
       'mood_entries.csv': [
@@ -722,6 +722,7 @@ class _Importer {
           healthTags: _tags(row, 14),
           kind: _text(row, 15) == MealKind.snack ? MealKind.snack : MealKind.meal,
           changes: Plate.decodeChanges(_text(row, 17)),
+          mods: Plate.decodeMods(_text(row, 17)),
         ).toMap(),
         // IDs differ on this device: sides are linked once all are in.
         onInsert: (id) {

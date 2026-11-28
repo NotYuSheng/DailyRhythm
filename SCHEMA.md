@@ -115,6 +115,8 @@ Additive (`shared/services/database/schema_v23.dart`):
 
 Extras (double coleslaw) stay sides of their own (`side_of`).
 
+The same `changes` list holds how a meal was made, `{"mod": "less_sugar"}`: a built-in modifier key (`features/meals/domain/modifiers.dart`, each with a rough calorie change and "made lighter" or "made richer" for health) or a label the user typed, which changes nothing. No schema change.
+
 ## Export and import
 
 Every table is exported as a CSV in the export zip. New columns go at the end of a

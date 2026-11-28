@@ -54,6 +54,7 @@ Future<void> _seed(DatabaseService db) async {
     timeKnown: false,
     healthTags: const [],
     changes: const [PlateChange('Soup', swapFor: 'Chilli')],
+    mods: const ['less_oil', 'Extra chilli'],
   ));
   await db.createMealEntry(MealEntry(date: _old, time: DateTime(2021, 9, 10, 12), name: 'Barley', price: 1.6, sideOf: lunch));
   await db.createMealEntry(
@@ -140,7 +141,7 @@ Future<Map<String, Object>> _snapshot(DatabaseService db) async {
     // v13: compare links by name, since IDs differ on a fresh install.
     'meal links': _sorted([
       for (final e in await db.getAllMealEntries())
-        [e.name, e.foodSource, (await _name(db, 'food_items', e.foodItemId)), e.currency, e.rawText, e.timeKnown, e.changes],
+        [e.name, e.foodSource, (await _name(db, 'food_items', e.foodItemId)), e.currency, e.rawText, e.timeKnown, e.changes, e.mods],
     ]),
     'exercise links': [
       for (final e in await db.getAllExerciseEntries()) [(await _name(db, 'exercise_items', e.exerciseItemId)), e.rawText],
