@@ -102,6 +102,10 @@ A meal's cost is its main and sides together; snacks are counted apart. Exported
 
 Additive (`shared/services/database/schema_v21.dart`): `rpe` (INTEGER, nullable) on `exercise_entries`, how hard it felt on Borg's CR10 scale (1–10), picked as Easy 3, Moderate 5, Hard 7, Very hard 9, All out 10. It scales the entry's effort points by `rpe / 5` (40%–200%). Exported as `RPE`. The effort scale (Starting out / Standard / Athlete) is a preference, not stored here.
 
+## v22
+
+Additive (`shared/services/database/schema_v22.dart`): `brand` (TEXT, nullable) on `food_items`, the brand or chain a food is from ("McDonald's"), null for a generic dish. Calorie lookups and the AI estimate put it before the name. Exported as `Brand`, the last column of `food_items.csv`; on import a known food takes it only when it has none.
+
 ## Export and import
 
 Every table is exported as a CSV in the export zip. New columns go at the end of a

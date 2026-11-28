@@ -164,6 +164,26 @@ void main() {
       expect((toast.kind, toast.sideOf), (MealKind.snack, null));
     });
 
+    testWidgets('a brand is saved on the food and comes back with it', (tester) async {
+      tester.view.physicalSize = const Size(800, 1800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Meal Name'), 'McSpicy');
+      await tester.enterText(_field('Brand or chain (optional)'), 'McDonald’s');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect((await CatalogRepository(db).findFood('McSpicy'))!.brand, 'McDonald’s');
+
+      await tester.pumpWidget(const SizedBox()); // Save popped the last screen
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Meal Name'), 'McSpicy');
+      await tester.pump();
+      expect(find.widgetWithText(TextField, 'McDonald’s'), findsOneWidget);
+    });
+
     testWidgets('a food logged apart can be made a side of another that day', (tester) async {
       tester.view.physicalSize = const Size(800, 1800);
       tester.view.devicePixelRatio = 1;
@@ -726,7 +746,7 @@ void main() {
 }
 
 void _barcodeTests() {
-  testWidgets('a barcode fills the name and a serving\'s calories; an unknown one says so', (tester) async {
+  testWidgets('a barcode fills the name, brand and a serving\'s calories; an unknown one says so', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await openTestDatabase();
     addTearDown(closeTestDatabase);
@@ -742,7 +762,8 @@ void _barcodeTests() {
     await tester.enterText(find.byType(TextField), '9556001130120');
     await tester.tap(find.text('Look it up'));
     await tester.pumpAndSettle();
-    expect(tester.widget<TextField>(_field('Meal Name')).controller!.text, 'Cocoa malt drink (Milo)');
+    expect(tester.widget<TextField>(_field('Meal Name')).controller!.text, 'Cocoa malt drink');
+    expect(tester.widget<TextField>(_field('Brand or chain (optional)')).controller!.text, 'Milo');
     expect(tester.widget<TextField>(_field('Calories (optional)')).controller!.text, '190');
 
     await tester.ensureVisible(find.text('Barcode'));

@@ -12,11 +12,15 @@ class FoodItem {
   final String? kcalSource; // usda, sgfoodid, off, estimate, user
   final double? lastPrice;
 
+  /// The brand or chain it's from ("McDonald's"), for lookups; null for
+  /// a generic dish.
+  final String? brand;
+
   /// Health score categories the user set for this food ([DietScore]);
   /// null leaves it to the name.
   final List<String>? healthTags;
 
-  FoodItem({this.id, required this.name, this.aliases = const [], this.kcal, this.kcalSource, this.lastPrice, this.healthTags});
+  FoodItem({this.id, required this.name, this.aliases = const [], this.kcal, this.kcalSource, this.lastPrice, this.healthTags, this.brand});
 
   Map<String, dynamic> toMap() {
     return {
@@ -27,6 +31,7 @@ class FoodItem {
       'kcal_source': kcalSource,
       'last_price': lastPrice,
       'health_tags': DietScore.encodeTags(healthTags),
+      'brand': brand,
     };
   }
 
@@ -39,6 +44,7 @@ class FoodItem {
       kcalSource: map['kcal_source'] as String?,
       lastPrice: (map['last_price'] as num?)?.toDouble(),
       healthTags: DietScore.decodeTags(map['health_tags']),
+      brand: map['brand'] as String?,
     );
   }
 
