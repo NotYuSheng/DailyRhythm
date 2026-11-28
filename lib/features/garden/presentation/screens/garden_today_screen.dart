@@ -10,6 +10,7 @@ import '../../../../shared/services/database/repositories/checkin_repository.dar
 import '../../../../shared/utils/date_utils.dart';
 import '../../../journal/data/models/journal_entry.dart';
 import '../../../tags/data/models/tag.dart';
+import '../../../tidy/presentation/tidy_prompt.dart';
 import '../../../tags/data/providers/tag_providers.dart';
 import '../../data/garden_providers.dart';
 import '../../domain/garden_day.dart';
@@ -216,6 +217,7 @@ class _GardenTodayScreenState extends ConsumerState<GardenTodayScreen> {
                 onFocus: (v) => saveCheckin(focus: v),
               ),
               const SizedBox(height: 16),
+              const TidyPrompt(),
               DayLogCard(day: today),
               const SizedBox(height: 16),
               _Moments(

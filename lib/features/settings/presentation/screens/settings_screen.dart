@@ -1,3 +1,5 @@
+import '../../../tidy/presentation/tidy_prompt.dart';
+import '../../../tidy/presentation/tidy_screen.dart';
 import '../../../ai/presentation/ai_settings_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -70,6 +72,28 @@ class SettingsScreen extends ConsumerWidget {
               subtitle: const Text('Optional: your own AI model for estimates'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const AiSettingsScreen())),
+            ),
+          ),
+          const SizedBox(height: AppTheme.spacePulse3),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.cleaning_services_outlined),
+                  title: const Text('Tidy up entries'),
+                  subtitle: const Text('Snacks, sides, brands and slips, for any dates'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const TidyScreen())),
+                ),
+                const Divider(height: 1),
+                SwitchListTile(
+                  secondary: const Icon(Icons.event_repeat_outlined),
+                  title: const Text('Monthly tidy-up'),
+                  subtitle: const Text('Offer last month’s on Today in a month’s first week'),
+                  value: ref.watch(tidyMonthlyProvider),
+                  onChanged: (on) => ref.read(tidyMonthlyProvider.notifier).set(on),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: AppTheme.spacePulse3),
