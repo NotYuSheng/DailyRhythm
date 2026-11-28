@@ -52,14 +52,15 @@ void main() {
         {'type': 'kind', 'meal': kopi, 'name': 'Kopi', 'kind': 'snack'},
         {'type': 'side', 'meal': wings, 'name': 'McWings', 'of': burger, 'ofName': 'McSpicy'},
         {'type': 'brand', 'name': 'McSpicy', 'brand': 'McDonald’s'},
+        {'type': 'brand', 'name': 'Coleslaw', 'brand': 'KFC'},
         {'type': 'kind', 'meal': gone, 'name': 'Renamed since', 'kind': 'snack'},
         {'type': 'nonsense'},
       ],
     });
     final fixes = await tidy.load(file);
-    expect(fixes.length, 4, reason: 'the renamed meal and the nonsense are left out');
+    expect(fixes.length, 5, reason: 'the renamed meal and the nonsense are left out');
     await CatalogRepository(db).saveFood(FoodItem(name: 'McSpicy'));
-    expect(await tidy.apply(fixes), 4);
+    expect(await tidy.apply(fixes), 5, reason: 'Coleslaw is made by the split, before its brand');
 
     final meals = await db.getMealEntriesByDate(day);
     final main = meals.firstWhere((m) => m.id == chop);

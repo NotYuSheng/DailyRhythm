@@ -22,9 +22,9 @@ class TidyFix {
 
   static const kindType = 'kind', splitType = 'split', sideType = 'side', brandType = 'brand';
 
-  /// Applied in this order: brands, then kinds, then splits and sides,
-  /// so sides take their meal's kind.
-  static const types = [brandType, kindType, splitType, sideType];
+  /// Applied in this order: kinds, then splits and sides, so sides take
+  /// their meal's kind, then brands, so a food a split made gets its own.
+  static const types = [kindType, splitType, sideType, brandType];
 
   static const titles = {
     kindType: 'Snacks, not meals',
