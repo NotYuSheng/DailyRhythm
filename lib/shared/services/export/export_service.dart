@@ -24,6 +24,7 @@ import '../../../features/health/data/models/health_metric.dart';
 import '../../../features/journal/data/models/journal_entry.dart';
 import '../../../features/meals/data/models/food_item.dart';
 import '../../../features/meals/domain/diet_score.dart';
+import '../../../features/meals/domain/plate.dart';
 
 class ExportResult {
   final String path;
@@ -154,7 +155,7 @@ class ExportService {
         [
           'ID', 'Date', 'Time', 'Name', 'Quantity', 'Price', 'Calories', 'Tags', 'Notes',
           'Food Source', 'Food Item', 'Currency', 'Raw Text', 'Time Known', 'Health Tags',
-          'Kind', 'Side Of',
+          'Kind', 'Side Of', 'Changes',
         ],
         for (final e in await _db.getAllMealEntries())
           [
@@ -175,6 +176,7 @@ class ExportService {
             _tagsCell(e.healthTags),
             e.kind,
             e.sideOf ?? '',
+            Plate.encodeChanges(e.changes) ?? '',
           ],
       ],
       'mood_entries.csv': [
@@ -242,9 +244,9 @@ class ExportService {
         for (final t in tags) [t.id ?? '', t.name, t.emoji, t.category, t.color ?? '', t.sortOrder ?? '', t.kind],
       ],
       'food_items.csv': [
-        ['ID', 'Name', 'Aliases', 'Kcal', 'Kcal Source', 'Last Price', 'Health Tags', 'Brand'],
+        ['ID', 'Name', 'Aliases', 'Kcal', 'Kcal Source', 'Last Price', 'Health Tags', 'Brand', 'Comes With'],
         for (final f in foods)
-          [f.id ?? '', f.name, f.aliases.join(';'), f.kcal ?? '', f.kcalSource ?? '', f.lastPrice ?? '', _tagsCell(f.healthTags), f.brand ?? ''],
+          [f.id ?? '', f.name, f.aliases.join(';'), f.kcal ?? '', f.kcalSource ?? '', f.lastPrice ?? '', _tagsCell(f.healthTags), f.brand ?? '', f.comesWith.join(';')],
       ],
       'exercise_items.csv': [
         ['ID', 'Name', 'Aliases', 'Category'],
@@ -642,6 +644,7 @@ class _Importer {
         lastPrice: _double(row, 5),
         healthTags: _tags(row, 6),
         brand: _text(row, 7),
+        comesWith: _list(row, 8),
       );
       final known = _foodIds[item.name.toLowerCase()];
       if (known != null) {
@@ -657,6 +660,9 @@ class _Importer {
         // So does its brand.
         if (item.brand != null) {
           await txn.update('food_items', {'brand': item.brand}, where: 'id = ? AND brand IS NULL', whereArgs: [known]);
+        }
+        if (item.comesWith.isNotEmpty) {
+          await txn.update('food_items', {'comes_with': Plate.encodeSides(item.comesWith)}, where: 'id = ? AND comes_with IS NULL', whereArgs: [known]);
         }
         // A known food takes calories from the import when it has none, or
         // only an estimate and the import has the user's own value. A
@@ -715,6 +721,7 @@ class _Importer {
           timeKnown: (_int(row, 13) ?? 1) != 0,
           healthTags: _tags(row, 14),
           kind: _text(row, 15) == MealKind.snack ? MealKind.snack : MealKind.meal,
+          changes: Plate.decodeChanges(_text(row, 17)),
         ).toMap(),
         // IDs differ on this device: sides are linked once all are in.
         onInsert: (id) {

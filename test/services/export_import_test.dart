@@ -5,6 +5,7 @@ import 'package:archive/archive.dart';
 
 import 'package:daily_rhythm/features/exercise/data/models/exercise_entry.dart';
 import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
+import 'package:daily_rhythm/features/meals/domain/plate.dart';
 import 'package:daily_rhythm/features/sleep/data/models/sleep_entry.dart';
 import 'package:daily_rhythm/features/tags/data/models/tag.dart';
 import 'package:daily_rhythm/shared/models/activity_entry.dart';
@@ -38,6 +39,7 @@ Future<void> _seed(DatabaseService db) async {
   await db.createNapEntry(NapEntry(date: _old, startTime: DateTime(2021, 9, 10, 14), durationHours: 0.5));
   final catalog = CatalogRepository(db);
   final ytf = await catalog.saveFood(FoodItem(name: 'Yong Tau Foo', aliases: ['ytf'], lastPrice: 5.2, healthTags: ['steamed_or_soup', 'vegetables'], brand: 'Ah Hock'));
+  await catalog.setComesWith(ytf, ['Soup']);
   final situps = await catalog.saveExercise(ExerciseItem(name: 'Situps', aliases: ['sit ups']));
   final lunch = await db.createMealEntry(MealEntry(
     date: _old,
@@ -51,6 +53,7 @@ Future<void> _seed(DatabaseService db) async {
     rawText: 'ytf 5.2',
     timeKnown: false,
     healthTags: const [],
+    changes: const [PlateChange('Soup', swapFor: 'Chilli')],
   ));
   await db.createMealEntry(MealEntry(date: _old, time: DateTime(2021, 9, 10, 12), name: 'Barley', price: 1.6, sideOf: lunch));
   await db.createMealEntry(
@@ -137,13 +140,13 @@ Future<Map<String, Object>> _snapshot(DatabaseService db) async {
     // v13: compare links by name, since IDs differ on a fresh install.
     'meal links': _sorted([
       for (final e in await db.getAllMealEntries())
-        [e.name, e.foodSource, (await _name(db, 'food_items', e.foodItemId)), e.currency, e.rawText, e.timeKnown],
+        [e.name, e.foodSource, (await _name(db, 'food_items', e.foodItemId)), e.currency, e.rawText, e.timeKnown, e.changes],
     ]),
     'exercise links': [
       for (final e in await db.getAllExerciseEntries()) [(await _name(db, 'exercise_items', e.exerciseItemId)), e.rawText],
     ],
     'severity': [for (final e in await db.getAllActivityEntries()) e.severity],
-    'foods': [for (final f in await CatalogRepository(db).searchFoods('')) [f.name, f.aliases, f.lastPrice, f.healthTags, f.brand]],
+    'foods': [for (final f in await CatalogRepository(db).searchFoods('')) [f.name, f.aliases, f.lastPrice, f.healthTags, f.brand, f.comesWith]],
     'exercise items': [for (final x in await CatalogRepository(db).searchExercises('')) [x.name, x.aliases, x.category]],
     'journal': [
       for (final j in await JournalRepository(db).forDay(_old))

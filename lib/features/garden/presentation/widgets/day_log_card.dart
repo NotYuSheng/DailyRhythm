@@ -217,6 +217,7 @@ class DayLogCard extends ConsumerWidget {
                       indent: i > 0,
                       // Its calories, then how healthy it is and why.
                       detail: [
+                        if (f.changes.isNotEmpty) f.changes.map((c) => c.label).join(', '),
                         if (f.caloriesWith(foodKcal) case final kcal?) approx(kcal),
                         ?DietScore.describe(f.name, tags: f.healthTags ?? foodTags[f.foodItemId]),
                       ].join(' · ').ifEmpty,

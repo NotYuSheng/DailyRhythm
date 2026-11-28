@@ -106,6 +106,15 @@ Additive (`shared/services/database/schema_v21.dart`): `rpe` (INTEGER, nullable)
 
 Additive (`shared/services/database/schema_v22.dart`): `brand` (TEXT, nullable) on `food_items`, the brand or chain a food is from ("McDonald's"), null for a generic dish. Calorie lookups and the AI estimate put it before the name. Exported as `Brand`, the last column of `food_items.csv`; on import a known food takes it only when it has none.
 
+## v23
+
+Additive (`shared/services/database/schema_v23.dart`):
+
+- `food_items.comes_with` (TEXT, JSON list, nullable): the sides a food usually comes with ("Fries", "Coleslaw"). Its calories and price are for that plate as usual, so meals logged before it was set need nothing. Setting it folds the sides' health categories into a food whose health is left to its name. Exported as `Comes With` (`;`-separated).
+- `meal_entries.changes` (TEXT, JSON list, nullable): one meal's changes to those sides, `{"side": "Fries", "for": "Corn"}` for a swap and `{"side": "Coleslaw"}` for one left out. The meal's calories and health tags are worked out from them when saved. Exported as `Changes`.
+
+Extras (double coleslaw) stay sides of their own (`side_of`).
+
 ## Export and import
 
 Every table is exported as a CSV in the export zip. New columns go at the end of a
