@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:archive/archive.dart';
 
 import 'package:daily_rhythm/features/exercise/data/models/exercise_entry.dart';
+import 'package:daily_rhythm/features/learning/data/learning_entry.dart';
+import 'package:daily_rhythm/features/learning/data/learning_repository.dart';
 import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
 import 'package:daily_rhythm/features/meals/domain/plate.dart';
 import 'package:daily_rhythm/features/sleep/data/models/sleep_entry.dart';
@@ -61,6 +63,16 @@ Future<void> _seed(DatabaseService db) async {
     MealEntry(date: _old, time: DateTime(2021, 9, 10, 16), name: 'Banana, "ripe"', notes: 'line one\nline two', kind: MealKind.snack),
   );
   await db.upsertMoodEntry(MoodEntry(date: _old, timestamp: DateTime(2021, 9, 10, 23, 55), moodLevel: 3, emoji: ''));
+  await LearningRepository(db).save(LearningEntry(
+    date: _old,
+    time: DateTime(2021, 9, 10, 16),
+    what: 'Riverpod invalidateSelf re-runs a provider',
+    soWhat: 'Timers can refresh a theme',
+    topic: 'Flutter',
+    how: LearningHow.deliberate,
+    minutes: 30,
+    rpe: 5,
+  ));
   await SpendingRepository(db).save(SpendingEntry(
     date: _old, time: DateTime(2021, 9, 10, 19), label: 'Farewell, hotpot', amount: 64.5, category: SpendingEntry.event, rawText: 'farewell hotpot 64.50'));
   await db.createExerciseEntry(ExerciseEntry(
@@ -159,6 +171,9 @@ Future<Map<String, Object>> _snapshot(DatabaseService db) async {
       for (final w in await HealthRepository(db).workoutsInRange(_old, _old))
         [w.start, w.type, w.durationMin, w.distanceKm, w.kcal, w.avgHr, w.maxHr, w.source],
     ],
+    'learning': [
+      for (final l in await LearningRepository(db).all()) [l.date, l.time, l.what, l.soWhat, l.nowWhat, l.topic, l.how, l.minutes, l.rpe],
+    ],
     'daylio': [for (final r in await DaylioRawRepository(db).forDay(_old)) [r.loggedTime, r.mood, r.activities, r.note]],
   };
 }
@@ -190,7 +205,7 @@ void main() {
 
     final exported = await ExportService.instance.exportToDirectory(dir);
     expect(File('${dir.path}/nap_entries.csv').existsSync(), isTrue);
-    expect(exported.fileCount, 17); // one file per table
+    expect(exported.fileCount, 18); // one file per table
 
     // Simulate a new phone: empty database with fresh tag IDs.
     await closeTestDatabase();
@@ -205,7 +220,7 @@ void main() {
     await _seed(db);
     final before = await _snapshot(db);
     final (:bytes, :summary) = await ExportService.instance.buildExportZip();
-    expect(summary.fileCount, 17);
+    expect(summary.fileCount, 18);
 
     await closeTestDatabase();
     db = await openTestDatabase();

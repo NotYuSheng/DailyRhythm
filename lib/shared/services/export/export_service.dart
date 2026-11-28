@@ -22,6 +22,7 @@ import '../../models/daylio_raw_entry.dart';
 import '../../../features/exercise/data/models/exercise_item.dart';
 import '../../../features/health/data/models/health_metric.dart';
 import '../../../features/journal/data/models/journal_entry.dart';
+import '../../../features/learning/data/learning_entry.dart';
 import '../../../features/meals/data/models/food_item.dart';
 import '../../../features/meals/domain/diet_score.dart';
 import '../../../features/meals/domain/plate.dart';
@@ -271,6 +272,22 @@ class ExportService {
         for (final c in (await db.query('day_checkins', orderBy: 'date')).map(DayCheckin.fromMap))
           [c.date.toIso8601String(), c.energy ?? '', c.stress ?? '', c.focus ?? '', c.plantOverride ?? ''],
       ],
+      'learning_entries.csv': [
+        ['ID', 'Date', 'Time', 'What', 'So What', 'Now What', 'Topic', 'How', 'Minutes', 'RPE'],
+        for (final e in (await db.query('learning_entries', orderBy: 'date, time, id')).map(LearningEntry.fromMap))
+          [
+            e.id ?? '',
+            e.date.toIso8601String(),
+            e.time.toIso8601String(),
+            e.what,
+            e.soWhat ?? '',
+            e.nowWhat ?? '',
+            e.topic ?? '',
+            e.how,
+            e.minutes ?? '',
+            e.rpe ?? '',
+          ],
+      ],
       'spending_entries.csv': [
         ['ID', 'Date', 'Time', 'Label', 'Amount', 'Currency', 'Category', 'Notes', 'Raw Text'],
         for (final e in (await db.query('spending_entries', orderBy: 'date, time, id')).map(SpendingEntry.fromMap))
@@ -418,6 +435,7 @@ class ExportService {
     'sleep_entries.csv', 'nap_entries.csv', 'meal_entries.csv', 'mood_entries.csv',
     'exercise_entries.csv', 'task_entries.csv', 'activity_entries.csv', 'journal_entries.csv',
     'day_checkins.csv', 'spending_entries.csv', 'health_metrics.csv', 'health_workouts.csv', 'daylio_raw.csv',
+    'learning_entries.csv',
   ];
 
   /// Imports every recognised CSV file in [dirPath] in one transaction, so
@@ -512,6 +530,7 @@ class _Importer {
     'activity_entries': ['date', 'tagId'],
     'day_checkins': ['date'],
     'spending_entries': ['date', 'time', 'label', 'amount'],
+    'learning_entries': ['date', 'time', 'what'],
     'health_metrics': ['date', 'metric', 'source'],
     'health_workouts': ['start', 'source'],
     'daylio_raw': ['date', 'logged_time', 'note'],
@@ -815,6 +834,21 @@ class _Importer {
         focus: _int(row, 3),
         plantOverride: _text(row, 4),
       ).toMap(),
+    ),
+    'learning_entries.csv': (row) => _add(
+      'learning_entries',
+      (LearningEntry(
+        date: _day(row, 1)!,
+        time: _dateTime(row, 2)!,
+        what: _text(row, 3)!,
+        soWhat: _text(row, 4),
+        nowWhat: _text(row, 5),
+        topic: _text(row, 6),
+        how: _text(row, 7) ?? LearningHow.work,
+        minutes: _int(row, 8),
+        rpe: _int(row, 9),
+      ).toMap())
+        ..remove('id'),
     ),
     'spending_entries.csv': (row) => _add(
       'spending_entries',

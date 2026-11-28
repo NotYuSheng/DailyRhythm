@@ -82,7 +82,8 @@ enum DayTone {
   move(Color(0xFF2F8A57), Color(0xFFDFF2E6), Color(0xFF8FD6AE), Color(0xFF1D3F2C)),
   gift(Color(0xFFB8436C), Color(0xFFFBE3EC), Color(0xFFF2A9C2), Color(0xFF4A2231)),
   tag(Color(0xFF237984), Color(0xFFDDF1F3), Color(0xFF8ED0D9), Color(0xFF173E43)),
-  body(Color(0xFF7552B0), Color(0xFFEFE7FA), Color(0xFFC9B5F2), Color(0xFF33264D));
+  body(Color(0xFF7552B0), Color(0xFFEFE7FA), Color(0xFFC9B5F2), Color(0xFF33264D)),
+  learn(Color(0xFF7A6A10), Color(0xFFF7F0CF), Color(0xFFE3D27A), Color(0xFF3D3711));
 
   const DayTone(this._ink, this._tint, this._darkInk, this._darkTint);
 

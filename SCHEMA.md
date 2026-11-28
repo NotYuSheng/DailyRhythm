@@ -117,6 +117,10 @@ Extras (double coleslaw) stay sides of their own (`side_of`).
 
 The same `changes` list holds how a meal was made, `{"mod": "less_sugar"}`: a built-in modifier key (`features/meals/domain/modifiers.dart`, each with a rough calorie change and "made lighter" or "made richer" for health) or a label the user typed, which changes nothing. No schema change.
 
+## v24
+
+Additive (`shared/services/database/schema_v24.dart`): `learning_entries`, something learnt. `what` (TEXT NOT NULL, one line), optional reflection `so_what` and `now_what`, `topic` (TEXT, free text suggested from ones used), `how` (`work` on the job, `deliberate`, or `conversation` from someone), `minutes` (INTEGER) and `rpe` (1–10, the exercise scale). Indexed by `date`. Exported as `learning_entries.csv`; duplicates are the same day, time and text.
+
 ## Export and import
 
 Every table is exported as a CSV in the export zip. New columns go at the end of a

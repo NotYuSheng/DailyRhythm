@@ -9,6 +9,9 @@ import '../../../../shared/utils/date_utils.dart';
 import '../../../exercise/data/models/exercise_entry.dart';
 import '../../../exercise/data/providers/exercise_providers.dart';
 import '../../../exercise/domain/effort.dart';
+import '../../../learning/data/learning_entry.dart';
+import '../../../learning/data/learning_providers.dart';
+import '../../../learning/presentation/add_learning_screen.dart';
 import '../../../meals/domain/diet_score.dart';
 import '../../../meals/domain/modifiers.dart';
 import '../../../metrics/presentation/widgets/weight_section.dart';
@@ -43,6 +46,7 @@ void invalidateDayLog(WidgetRef ref, DateTime day) {
   ref.invalidate(moodEntryProvider);
   ref.invalidate(activityEntriesProvider);
   ref.invalidate(weightOnProvider);
+  ref.invalidate(learningProvider);
   invalidateGardenDay(ref, day);
 }
 
@@ -80,6 +84,7 @@ class DayLogCard extends ConsumerWidget {
     final health = DietScore.levelFor(garden?.diet);
     final activities = ref.watch(activityEntriesProvider(day)).value ?? const <ActivityEntry>[];
     final spending = ref.watch(spendingProvider(day)).value ?? const <SpendingEntry>[];
+    final learnt = ref.watch(learningProvider(day)).value ?? const <LearningEntry>[];
     final tags = {for (final t in ref.watch(allTagsProvider).value ?? const <Tag>[]) t.id: t};
 
     Future<void> open(Widget screen) async {
@@ -265,6 +270,36 @@ class DayLogCard extends ConsumerWidget {
                 trailing: x.amount,
                 colors: colors,
                 onTap: () => open(AddExerciseScreen(entry: x)),
+              ),
+          ],
+        ),
+        _Tile(
+          tone: DayTone.learn,
+          icon: Icons.lightbulb_outline,
+          label: 'Learnt',
+          headline: learnt.isEmpty ? 'Anything learnt?' : '${learnt.length} ${learnt.length == 1 ? 'thing' : 'things'} learnt',
+          summary: learnt.isEmpty
+              ? 'On the job counts too'
+              : [
+                  if (learnt.fold(0, (sum, l) => sum + (l.minutes ?? 0)) case final m when m > 0) formatHours(m / 60),
+                  ...{for (final l in learnt) ?l.topic},
+                ].join(' · ').ifEmpty ?? 'Tap to add more',
+          colors: colors,
+          adds: true,
+          onTap: () => open(AddLearningScreen(date: day)),
+          items: [
+            for (final l in learnt)
+              _Item(
+                text: l.what,
+                detail: [
+                  LearningHow.labels[l.how]!,
+                  ?l.topic,
+                  if (Effort.felt[l.rpe] case final felt?) felt.toLowerCase(),
+                  if (l.soWhat != null || l.nowWhat != null) 'reflected',
+                ].join(' · '),
+                trailing: l.minutes == null ? null : formatHours(l.minutes! / 60),
+                colors: colors,
+                onTap: () => open(AddLearningScreen(entry: l)),
               ),
           ],
         ),
