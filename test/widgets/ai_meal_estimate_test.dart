@@ -48,6 +48,7 @@ void main() {
     await tester.enterText(_field('Meal Name'), 'Char kway teow');
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Estimate with AI'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Estimate with AI'));
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await tester.pumpAndSettle();

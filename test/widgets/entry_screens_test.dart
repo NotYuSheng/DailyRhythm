@@ -4,6 +4,7 @@ import 'package:daily_rhythm/features/exercise/data/models/exercise_item.dart';
 import 'package:daily_rhythm/features/exercise/presentation/screens/add_exercise_screen.dart';
 import 'package:daily_rhythm/features/meals/data/models/food_item.dart';
 import 'package:daily_rhythm/features/meals/data/models/meal_entry.dart';
+import 'package:daily_rhythm/features/meals/domain/plate.dart';
 import 'package:daily_rhythm/features/meals/data/providers/meal_providers.dart';
 import 'package:daily_rhythm/features/meals/data/services/calorie_lookup.dart';
 import 'package:daily_rhythm/features/meals/domain/food_spelling.dart';
@@ -182,6 +183,37 @@ void main() {
       await tester.enterText(_field('Meal Name'), 'McSpicy');
       await tester.pump();
       expect(find.widgetWithText(TextField, 'McDonald’s'), findsOneWidget);
+    });
+
+    testWidgets('a side it comes with can be swapped, changing calories and health', (tester) async {
+      tester.view.physicalSize = const Size(800, 1800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final catalog = CatalogRepository(db);
+      final chop = await catalog.saveFood(FoodItem(name: 'Chicken chop', kcal: 900, kcalSource: 'user'));
+      await catalog.saveFood(FoodItem(name: 'Fries', kcal: 330, kcalSource: 'user'));
+      await catalog.saveFood(FoodItem(name: 'Corn', kcal: 90, kcalSource: 'user'));
+      await catalog.setComesWith(chop, ['Fries', 'Coleslaw']);
+      expect((await catalog.findFood('Chicken chop'))!.healthTags, ['fried'], reason: 'as usual it comes with fries');
+      await catalog.saveFood(FoodItem(name: 'Mixed rice'));
+      await catalog.setComesWith((await catalog.findFood('Mixed rice'))!.id!, ['Corn']);
+
+      await tester.pumpWidget(_app(AddMealScreen(date: pastDay)));
+      await tester.pumpAndSettle();
+      await tester.enterText(_field('Meal Name'), 'Chicken chop');
+      await tester.pumpAndSettle();
+      expect(find.text('Comes with'), findsOneWidget);
+      await tester.tap(find.widgetWithText(InputChip, 'Fries'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Corn instead'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(InputChip, 'Corn instead of Fries'), findsOneWidget);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      final meal = (await db.getMealEntriesByDate(pastDay)).single;
+      expect(meal.changes, const [PlateChange('Fries', swapFor: 'Corn')]);
+      expect(meal.calories, 660, reason: '900 − 330 fries + 90 corn');
+      expect(meal.healthTags, isEmpty, reason: 'corn isn\'t fried');
     });
 
     testWidgets('a food logged apart can be made a side of another that day', (tester) async {
@@ -767,6 +799,7 @@ void _barcodeTests() {
     expect(tester.widget<TextField>(_field('Calories (optional)')).controller!.text, '190');
 
     await tester.ensureVisible(find.text('Barcode'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Barcode'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), '12345678');

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../domain/diet_score.dart';
+import '../../domain/plate.dart';
 
 /// A canonical food: one name for its spelling variants, used for
 /// autocomplete, the last price and (later) calories.
@@ -16,11 +17,15 @@ class FoodItem {
   /// a generic dish.
   final String? brand;
 
+  /// The sides it usually comes with ("Fries", "Coleslaw"), which its
+  /// calories and price include.
+  final List<String> comesWith;
+
   /// Health score categories the user set for this food ([DietScore]);
   /// null leaves it to the name.
   final List<String>? healthTags;
 
-  FoodItem({this.id, required this.name, this.aliases = const [], this.kcal, this.kcalSource, this.lastPrice, this.healthTags, this.brand});
+  FoodItem({this.id, required this.name, this.aliases = const [], this.kcal, this.kcalSource, this.lastPrice, this.healthTags, this.brand, this.comesWith = const []});
 
   Map<String, dynamic> toMap() {
     return {
@@ -32,6 +37,7 @@ class FoodItem {
       'last_price': lastPrice,
       'health_tags': DietScore.encodeTags(healthTags),
       'brand': brand,
+      'comes_with': Plate.encodeSides(comesWith),
     };
   }
 
@@ -45,6 +51,7 @@ class FoodItem {
       lastPrice: (map['last_price'] as num?)?.toDouble(),
       healthTags: DietScore.decodeTags(map['health_tags']),
       brand: map['brand'] as String?,
+      comesWith: Plate.decodeSides(map['comes_with']),
     );
   }
 

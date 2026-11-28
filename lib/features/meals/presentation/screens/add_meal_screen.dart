@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'barcode_screen.dart';
 import '../../../ai/data/ai_client.dart';
 import '../../../ai/data/ai_providers.dart';
@@ -10,6 +12,7 @@ import '../../data/models/meal_entry.dart';
 import '../../data/services/calorie_lookup.dart';
 import '../../domain/calorie_estimator.dart';
 import '../../domain/diet_score.dart';
+import '../../domain/plate.dart';
 import '../../domain/portion.dart';
 import '../../domain/food_matcher.dart';
 import '../../domain/food_spelling.dart';
@@ -51,6 +54,20 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
 
   /// Whether the user typed the brand; until then it follows the food.
   bool _brandEdited = false;
+
+  /// What the food comes with, as edited here; null leaves the food's.
+  List<String>? _sidesEdit;
+
+  /// This meal's changes to those sides.
+  late List<PlateChange> _changes = [...?widget.entry?.changes];
+
+  /// Sides any food comes with, offered as swaps.
+  List<String> _sideNames = const [];
+
+  /// The sides the food in the name box comes with.
+  List<String> get _sides => _sidesEdit ?? _matcher.exact(_nameController.text)?.item.comesWith ?? const [];
+
+  PlateChange? _changeFor(String side) => _changes.where((c) => c.side.toLowerCase() == side.toLowerCase()).firstOrNull;
 
   /// Brands already used, for suggestions.
   List<String> _brands = const [];
@@ -131,6 +148,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
     if (mounted) {
       setState(() {
         _matcher = FoodMatcher(foods);
+        _sideNames = {for (final f in foods) ...f.item.comesWith}.toList()..sort();
         _brands = {for (final f in foods) ?f.item.brand}.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
         if (!_brandEdited) _brandController.text = _matcher.exact(_nameController.text)?.item.brand ?? '';
         // Your own words count most: a dish you log is spelt your way.
@@ -411,6 +429,142 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
   /// Meal or snack, or for a side, which meal it goes with. An existing
   /// food can be made a side of another meal that day (logged apart before
   /// sides existed), unless it has sides of its own.
+  /// What the food comes with, each side tappable to swap or leave out.
+  Widget _buildPlate() {
+    if (_nameController.text.trim().isEmpty) return const SizedBox.shrink();
+    final sides = _sides;
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (sides.isNotEmpty) ...[
+            Text('Comes with', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                for (final side in sides)
+                  InputChip(
+                    label: Text(switch (_changeFor(side)) {
+                      null => side,
+                      PlateChange(:final swapFor?) => '$swapFor instead of $side',
+                      _ => 'No $side',
+                    }),
+                    selected: _changeFor(side) != null,
+                    showCheckmark: false,
+                    onPressed: () => _changeSide(side),
+                  ),
+              ],
+            ),
+          ],
+          TextButton.icon(
+            onPressed: _editSides,
+            icon: Icon(sides.isEmpty ? Icons.add : Icons.edit_outlined, size: 18),
+            label: Text(sides.isEmpty ? 'Comes with sides' : 'Change what it comes with'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// As usual, left out, or swapped for another side.
+  Future<void> _changeSide(String side) async {
+    final current = _changeFor(side);
+    const other = '\u0000other';
+    final swaps = [for (final s in _sideNames) if (!_sides.any((x) => x.toLowerCase() == s.toLowerCase())) s];
+    final picked = await showModalBottomSheet<PlateChange?>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.7),
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                child: Text(side, style: Theme.of(context).textTheme.titleLarge),
+              ),
+              ListTile(
+                leading: Icon(current == null ? Icons.radio_button_checked : Icons.radio_button_off),
+                title: const Text('As usual'),
+                onTap: () => Navigator.pop(context, PlateChange(side, swapFor: other)),
+              ),
+              ListTile(
+                leading: Icon(current?.leftOut ?? false ? Icons.radio_button_checked : Icons.radio_button_off),
+                title: const Text('Left out'),
+                onTap: () => Navigator.pop(context, PlateChange(side)),
+              ),
+              for (final s in swaps)
+                ListTile(
+                  leading: Icon(current?.swapFor == s ? Icons.radio_button_checked : Icons.radio_button_off),
+                  title: Text('$s instead'),
+                  onTap: () => Navigator.pop(context, PlateChange(side, swapFor: s)),
+                ),
+              ListTile(
+                leading: const Icon(Icons.swap_horiz),
+                title: const Text('Something else instead…'),
+                onTap: () => Navigator.pop(context, PlateChange(side, swapFor: '')),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    var change = picked;
+    if (picked.swapFor == '') {
+      final typed = await _askText(title: 'Instead of $side', label: 'What came instead', initial: current?.swapFor ?? '');
+      if (typed == null || typed.trim().isEmpty || !mounted) return;
+      change = PlateChange(side, swapFor: tidyName(typed));
+    }
+    setState(() {
+      _changes = [for (final c in _changes) if (c.side.toLowerCase() != side.toLowerCase()) c];
+      if (change.swapFor != other) _changes.add(change);
+    });
+  }
+
+  /// Sets what this food usually comes with, for every meal of it.
+  Future<void> _editSides() async {
+    final food = _matcher.exact(_nameController.text)?.item.name ?? tidyName(_nameController.text);
+    final typed = await _askText(
+      title: 'What $food comes with',
+      label: 'Sides, separated by commas',
+      hint: 'e.g. Fries, Coleslaw',
+      helper: 'Its calories and price are for the plate as usual. Swap or leave out a side on any meal.',
+      initial: _sides.join(', '),
+    );
+    if (typed == null || !mounted) return;
+    setState(() {
+      _sidesEdit = [for (final s in Plate.parseSides(typed)) tidyName(s)];
+      _changes = [for (final c in _changes) if (_sidesEdit!.any((s) => s.toLowerCase() == c.side.toLowerCase())) c];
+    });
+  }
+
+  Future<String?> _askText({required String title, required String label, String? hint, String? helper, String initial = ''}) {
+    final controller = TextEditingController(text: initial);
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(labelText: label, hintText: hint, helperText: helper, helperMaxLines: 3),
+          onSubmitted: (v) => Navigator.pop(context, v),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, controller.text), child: const Text('Done')),
+        ],
+      ),
+    ).whenComplete(controller.dispose);
+  }
+
   /// The brand or chain, with ones already used suggested.
   Widget _buildBrand() {
     return RawAutocomplete<String>(
@@ -579,6 +733,7 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
                     }),
                   ),
                   _buildBrand(),
+                  if (_sideOf == null) _buildPlate(),
                   if (DietScore.describe(text, tags: _currentTags) case final health?) _healthPanel(text, health),
                 ],
               ),
@@ -881,6 +1036,19 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         final base = known?.kcal == null ? (estimate == null ? null : estimate.kcal * quantity) : known!.kcal! * quantity;
         if (base != null) mealCalories = (base * _portion.factor).round();
       }
+      // Changes to the usual sides: only ones the food still comes with.
+      final sides = _sidesEdit ?? known?.comesWith ?? const <String>[];
+      final changes = [for (final c in _changes) if (sides.any((s) => s.toLowerCase() == c.side.toLowerCase())) c];
+      final changed = changes.length != (widget.entry?.changes.length ?? 0) || !changes.every((c) => widget.entry?.changes.contains(c) ?? false);
+      // The plate's calories follow its changes, unless typed for this meal.
+      if (changes.isNotEmpty || changed) {
+        final perServing = known?.kcal ?? estimate?.kcal ?? (known == null ? null : _estimator.estimate(known.name)?.kcal);
+        if (perServing != null && (calories == null || (!_caloriesChanged && changed))) {
+          final change = Plate.kcalChange(changes, (n) => _matcher.exact(n)?.item.kcal ?? _estimator.estimate(n)?.kcal);
+          mealCalories = (math.max(0.0, perServing + change) * quantity * _portion.factor).round();
+          if (changes.isEmpty && _portion == Portion.regular) mealCalories = null;
+        }
+      }
       // Typed calories become the food's, per serving, for next time.
       final foodItemId = await CatalogRepository(db).saveFood(
         FoodItem(
@@ -897,6 +1065,24 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
       // Ticked categories: the food's for every meal of it, or this meal's.
       final tags = _healthTags ?? widget.entry?.healthTags;
       if (tags != null && _rememberTags) await CatalogRepository(db).setFoodHealthTags(foodItemId, tags);
+      if (_sidesEdit != null) await CatalogRepository(db).setComesWith(foodItemId, _sidesEdit!);
+
+      // A changed plate's health: what a left-out side brought goes, a
+      // swapped-in side's comes. Categories ticked for this meal win.
+      List<String>? plateTags;
+      final plateDecides = _healthTags == null && (changes.isNotEmpty || (widget.entry?.changes.isNotEmpty ?? false));
+      if (plateDecides && changes.isNotEmpty) {
+        final catalog = CatalogRepository(db);
+        final food = await catalog.findFood(known?.name ?? name);
+        final tagsOf = await catalog.sideTags([...sides, for (final c in changes) ?c.swapFor]);
+        plateTags = Plate.changedTags(
+          name: known?.name ?? name,
+          usual: food?.healthTags?.toSet() ?? Plate.usualTags(known?.name ?? name, sides, tagsOf),
+          sides: sides,
+          changes: changes,
+          tagsOf: tagsOf,
+        );
+      }
 
       final entry = MealEntry(
         id: widget.entry?.id,
@@ -914,8 +1100,9 @@ class _AddMealScreenState extends ConsumerState<AddMealScreen> {
         currency: widget.entry?.currency ?? 'SGD',
         rawText: widget.entry?.rawText,
         timeKnown: main?.timeKnown ?? widget.entry?.timeKnown ?? true,
-        healthTags: _rememberTags ? null : tags,
+        healthTags: plateDecides ? plateTags : (_rememberTags ? null : tags),
         kind: main?.kind ?? _kind,
+        changes: changes,
         sideOf: main?.id,
       );
 

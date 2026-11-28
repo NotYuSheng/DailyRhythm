@@ -6,6 +6,7 @@ import '../../../../features/exercise/domain/exercise_matcher.dart';
 import '../../../../features/meals/data/models/food_item.dart';
 import '../../../../features/meals/domain/diet_score.dart';
 import '../../../../features/meals/domain/food_matcher.dart';
+import '../../../../features/meals/domain/plate.dart';
 import '../../../utils/name_case.dart';
 import '../database_service.dart';
 
@@ -88,6 +89,43 @@ class CatalogRepository {
   Future<void> setFoodHealthTags(int foodId, List<String>? tags) async {
     final db = await _db.database;
     await db.update('food_items', {'health_tags': DietScore.encodeTags(tags)}, where: 'id = ?', whereArgs: [foodId]);
+  }
+
+  /// Sets what a food comes with ([sides], empty for nothing). A food whose
+  /// health is left to its name takes in its sides' too, so a chop with
+  /// fries scores as fried.
+  Future<void> setComesWith(int foodId, List<String> sides) async {
+    final db = await _db.database;
+    final rows = await db.query('food_items', where: 'id = ?', whereArgs: [foodId]);
+    if (rows.isEmpty) return;
+    final food = FoodItem.fromMap(rows.single);
+    final tagsOf = await sideTags([...food.comesWith, ...sides]);
+    final before = Plate.usualTags(food.name, food.comesWith, tagsOf);
+    final after = Plate.usualTags(food.name, sides, tagsOf);
+    final own = food.healthTags?.toSet();
+    // Tags the user chose themselves stay; ones worked out from the old
+    // sides follow the new.
+    final followsSides = own == null || (own.length == before.length && own.containsAll(before));
+    final detected = DietScore.detect(food.name);
+    final tags = after.length == detected.length && after.containsAll(detected)
+        ? null
+        : [for (final c in DietScore.categories) if (after.contains(c.key)) c.key];
+    await db.update(
+      'food_items',
+      {'comes_with': Plate.encodeSides(sides), if (followsSides) 'health_tags': DietScore.encodeTags(tags)},
+      where: 'id = ?',
+      whereArgs: [foodId],
+    );
+  }
+
+  /// Each name's health categories: its food's own, else what the name
+  /// points to.
+  Future<Set<String> Function(String)> sideTags(Iterable<String> names) async {
+    final known = <String, Set<String>>{};
+    for (final n in names) {
+      if (await findFood(n) case FoodItem(:final healthTags?)) known[n.toLowerCase()] = healthTags.toSet();
+    }
+    return (n) => known[n.toLowerCase()] ?? DietScore.detect(n);
   }
 
   /// Health score categories the user set, by food id.

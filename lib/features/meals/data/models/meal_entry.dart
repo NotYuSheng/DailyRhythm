@@ -1,4 +1,5 @@
 import '../../domain/diet_score.dart';
+import '../../domain/plate.dart';
 
 /// Where a meal came from (stored in `meal_entries.food_source`).
 class FoodSource {
@@ -59,6 +60,10 @@ class MealEntry {
   /// for a meal or snack of its own.
   final int? sideOf;
 
+  /// Changes to its food's usual sides (corn instead of fries); empty for
+  /// the plate as usual.
+  final List<PlateChange> changes;
+
   bool get isSnack => kind == MealKind.snack;
   bool get isSide => sideOf != null;
 
@@ -80,6 +85,7 @@ class MealEntry {
     this.healthTags,
     this.kind = MealKind.meal,
     this.sideOf,
+    this.changes = const [],
   });
 
   // Convert to Map for database
@@ -110,6 +116,7 @@ class MealEntry {
       'health_tags': DietScore.encodeTags(healthTags),
       'kind': kind,
       'side_of': sideOf,
+      'changes': Plate.encodeChanges(changes),
     };
   }
 
@@ -135,6 +142,7 @@ class MealEntry {
       healthTags: DietScore.decodeTags(map['health_tags']),
       kind: map['kind'] == MealKind.snack ? MealKind.snack : MealKind.meal,
       sideOf: map['side_of'] as int?,
+      changes: Plate.decodeChanges(map['changes']),
     );
   }
 
@@ -157,6 +165,7 @@ class MealEntry {
     List<String>? healthTags,
     String? kind,
     int? sideOf,
+    List<PlateChange>? changes,
   }) {
     return MealEntry(
       id: id ?? this.id,
@@ -175,6 +184,7 @@ class MealEntry {
       timeKnown: timeKnown ?? this.timeKnown,
       healthTags: healthTags ?? this.healthTags,
       kind: kind ?? this.kind,
+      changes: changes ?? this.changes,
       sideOf: sideOf ?? this.sideOf,
     );
   }
